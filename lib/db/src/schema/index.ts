@@ -2,6 +2,7 @@ export * from "./clients";
 export * from "./authorizations";
 export * from "./caregivers";
 export * from "./caregiverDocuments";
+export * from "./clientDocuments";
 export * from "./schedules";
 export * from "./visits";
 export * from "./timeEntries";

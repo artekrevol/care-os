@@ -8,19 +8,18 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-export const caregiverDocumentsTable = pgTable("caregiver_documents", {
+export const clientDocumentsTable = pgTable("client_documents", {
   id: varchar("id", { length: 64 }).primaryKey(),
   agencyId: varchar("agency_id", { length: 64 }).notNull(),
-  caregiverId: varchar("caregiver_id", { length: 64 }).notNull(),
+  clientId: varchar("client_id", { length: 64 }).notNull(),
   documentType: text("document_type").notNull(),
   issuedDate: date("issued_date"),
   expirationDate: date("expiration_date"),
-  fileUrl: text("file_url"),
   fileObjectKey: text("file_object_key"),
   originalFilename: text("original_filename"),
   classificationStatus: text("classification_status")
     .notNull()
-    .default("NONE"), // NONE | PENDING | RUNNING | DONE | FAILED
+    .default("NONE"),
   classifiedType: text("classified_type"),
   classificationConfidence: numeric("classification_confidence", {
     precision: 4,
@@ -33,4 +32,4 @@ export const caregiverDocumentsTable = pgTable("caregiver_documents", {
     .defaultNow(),
 });
 
-export type CaregiverDocumentRow = typeof caregiverDocumentsTable.$inferSelect;
+export type ClientDocumentRow = typeof clientDocumentsTable.$inferSelect;

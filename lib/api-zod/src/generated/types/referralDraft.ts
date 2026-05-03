@@ -13,6 +13,7 @@ export interface ReferralDraft {
   source: string;
   rawContent?: string | null;
   rawAttachmentUrl?: string | null;
+  originalFilename?: string | null;
   parsedFields: ReferralDraftParsedFields;
   confidence?: number | null;
   status: ReferralDraftStatus;

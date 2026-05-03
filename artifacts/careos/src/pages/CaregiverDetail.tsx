@@ -1,10 +1,10 @@
 import { Layout } from "@/components/layout/Layout";
-import { useGetCaregiver, useCreateCaregiverDocument, getGetCaregiverQueryKey, getListCaregiverDocumentsQueryKey, DocumentType } from "@workspace/api-client-react";
+import { useGetCaregiver, useCreateCaregiverDocument, useUploadCaregiverDocument, getGetCaregiverQueryKey, getListCaregiverDocumentsQueryKey, DocumentType } from "@workspace/api-client-react";
 import { useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { UserSquare2, FileCheck, MapPin, Plus } from "lucide-react";
+import { UserSquare2, FileCheck, MapPin, Plus, Upload, Sparkles, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -14,9 +14,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1] ?? "");
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const docSchema = z.object({
   documentType: z.enum([
@@ -38,8 +50,48 @@ export default function CaregiverDetail() {
   const { data: caregiver, isLoading } = useGetCaregiver(id!, { query: { enabled: !!id, queryKey: getGetCaregiverQueryKey(id!) } });
   
   const createDoc = useCreateCaregiverDocument();
+  const uploadDoc = useUploadCaregiverDocument();
   const queryClient = useQueryClient();
   const [isDocOpen, setIsDocOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const pending =
+    caregiver?.documents?.some(
+      (d) =>
+        d.classificationStatus === "PENDING" ||
+        d.classificationStatus === "RUNNING",
+    ) ?? false;
+
+  useEffect(() => {
+    if (!pending) return;
+    const t = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: getGetCaregiverQueryKey(id!) });
+    }, 2000);
+    return () => clearInterval(t);
+  }, [pending, queryClient, id]);
+
+  const handleUpload = async (file: File) => {
+    const contentBase64 = await fileToBase64(file);
+    uploadDoc.mutate(
+      {
+        id: id!,
+        data: {
+          filename: file.name,
+          contentType: file.type || "application/octet-stream",
+          contentBase64,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Document uploaded — auto-classifying…");
+          queryClient.invalidateQueries({
+            queryKey: getGetCaregiverQueryKey(id!),
+          });
+        },
+        onError: () => toast.error("Upload failed"),
+      },
+    );
+  };
 
   const form = useForm<z.infer<typeof docSchema>>({
     resolver: zodResolver(docSchema),
@@ -164,17 +216,70 @@ export default function CaregiverDetail() {
               </Dialog>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
+              <input
+                ref={fileRef}
+                type="file"
+                className="hidden"
+                data-testid="input-doc-upload"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleUpload(f);
+                }}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploadDoc.isPending}
+                data-testid="button-doc-upload"
+              >
+                <Upload className="h-4 w-4 mr-1" />
+                {uploadDoc.isPending ? "Uploading…" : "Upload + Auto-Classify"}
+              </Button>
               {caregiver.documents?.map(doc => (
-                <div key={doc.id} className="space-y-1 border-b pb-2 last:border-0">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-sm">{doc.documentType.replace('_', ' ')}</span>
-                    <Badge variant={
-                      doc.status === 'VALID' ? 'default' : 
-                      doc.status === 'EXPIRING' ? 'secondary' : 'destructive'
-                    }>
-                      {doc.status}
-                    </Badge>
+                <div key={doc.id} className="space-y-1 border-b pb-2 last:border-0" data-testid={`doc-row-${doc.id}`}>
+                  <div className="flex justify-between items-center gap-2">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="font-medium text-sm truncate">{doc.documentType.replace('_', ' ')}</span>
+                      {doc.classificationStatus === "DONE" && doc.classifiedType && (
+                        <Sparkles className="h-3 w-3 text-primary shrink-0" />
+                      )}
+                      {doc.needsReview && (
+                        <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {(doc.classificationStatus === "PENDING" ||
+                        doc.classificationStatus === "RUNNING") && (
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5">classifying…</Badge>
+                      )}
+                      {doc.classificationStatus === "DONE" &&
+                        doc.classificationConfidence != null && (
+                          <Badge
+                            variant={
+                              doc.classificationConfidence >= 0.85
+                                ? "default"
+                                : doc.classificationConfidence >= 0.7
+                                  ? "secondary"
+                                  : "destructive"
+                            }
+                            className="text-[10px] h-4 px-1.5"
+                          >
+                            {(doc.classificationConfidence * 100).toFixed(0)}%
+                          </Badge>
+                        )}
+                      <Badge variant={
+                        doc.status === 'VALID' ? 'default' :
+                        doc.status === 'EXPIRING' ? 'secondary' : 'destructive'
+                      }>
+                        {doc.status}
+                      </Badge>
+                    </div>
                   </div>
+                  {doc.originalFilename && (
+                    <p className="text-[11px] text-muted-foreground truncate">{doc.originalFilename}</p>
+                  )}
                   {doc.expirationDate && (
                     <p className="text-xs text-muted-foreground flex justify-between">
                       <span>Exp: {format(new Date(doc.expirationDate), "MMM d, yyyy")}</span>

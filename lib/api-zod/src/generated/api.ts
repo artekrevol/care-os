@@ -444,12 +444,45 @@ export const GetCaregiverResponse = zod
             "I9",
             "W4",
             "DIRECT_DEPOSIT",
+            "CARE_AGREEMENT",
+            "INCIDENT_REPORT",
+            "AUTHORIZATION",
+            "MEDICAL_RECORD",
+            "OTHER",
           ]),
           issuedDate: zod.coerce.date().nullish(),
           expirationDate: zod.coerce.date().nullish(),
           status: zod.enum(["VALID", "EXPIRING", "EXPIRED", "MISSING"]),
           daysUntilExpiration: zod.number().nullish(),
           fileUrl: zod.string().nullish(),
+          originalFilename: zod.string().nullish(),
+          classificationStatus: zod.enum([
+            "NONE",
+            "PENDING",
+            "RUNNING",
+            "DONE",
+            "FAILED",
+          ]),
+          classifiedType: zod
+            .enum([
+              "BACKGROUND_CHECK",
+              "TB_TEST",
+              "CPR",
+              "TRAINING",
+              "LICENSE",
+              "I9",
+              "W4",
+              "DIRECT_DEPOSIT",
+              "CARE_AGREEMENT",
+              "INCIDENT_REPORT",
+              "AUTHORIZATION",
+              "MEDICAL_RECORD",
+              "OTHER",
+            ])
+            .nullish(),
+          classificationConfidence: zod.number().nullish(),
+          needsReview: zod.boolean(),
+          agentRunId: zod.string().nullish(),
         }),
       ),
       recentVisits: zod.array(
@@ -539,12 +572,45 @@ export const ListCaregiverDocumentsResponseItem = zod.object({
     "I9",
     "W4",
     "DIRECT_DEPOSIT",
+    "CARE_AGREEMENT",
+    "INCIDENT_REPORT",
+    "AUTHORIZATION",
+    "MEDICAL_RECORD",
+    "OTHER",
   ]),
   issuedDate: zod.coerce.date().nullish(),
   expirationDate: zod.coerce.date().nullish(),
   status: zod.enum(["VALID", "EXPIRING", "EXPIRED", "MISSING"]),
   daysUntilExpiration: zod.number().nullish(),
   fileUrl: zod.string().nullish(),
+  originalFilename: zod.string().nullish(),
+  classificationStatus: zod.enum([
+    "NONE",
+    "PENDING",
+    "RUNNING",
+    "DONE",
+    "FAILED",
+  ]),
+  classifiedType: zod
+    .enum([
+      "BACKGROUND_CHECK",
+      "TB_TEST",
+      "CPR",
+      "TRAINING",
+      "LICENSE",
+      "I9",
+      "W4",
+      "DIRECT_DEPOSIT",
+      "CARE_AGREEMENT",
+      "INCIDENT_REPORT",
+      "AUTHORIZATION",
+      "MEDICAL_RECORD",
+      "OTHER",
+    ])
+    .nullish(),
+  classificationConfidence: zod.number().nullish(),
+  needsReview: zod.boolean(),
+  agentRunId: zod.string().nullish(),
 });
 export const ListCaregiverDocumentsResponse = zod.array(
   ListCaregiverDocumentsResponseItem,
@@ -564,6 +630,11 @@ export const CreateCaregiverDocumentBody = zod.object({
     "I9",
     "W4",
     "DIRECT_DEPOSIT",
+    "CARE_AGREEMENT",
+    "INCIDENT_REPORT",
+    "AUTHORIZATION",
+    "MEDICAL_RECORD",
+    "OTHER",
   ]),
   issuedDate: zod.coerce.date().optional(),
   expirationDate: zod.coerce.date().optional(),
@@ -586,12 +657,45 @@ export const ListExpiringDocumentsResponseItem = zod.object({
     "I9",
     "W4",
     "DIRECT_DEPOSIT",
+    "CARE_AGREEMENT",
+    "INCIDENT_REPORT",
+    "AUTHORIZATION",
+    "MEDICAL_RECORD",
+    "OTHER",
   ]),
   issuedDate: zod.coerce.date().nullish(),
   expirationDate: zod.coerce.date().nullish(),
   status: zod.enum(["VALID", "EXPIRING", "EXPIRED", "MISSING"]),
   daysUntilExpiration: zod.number().nullish(),
   fileUrl: zod.string().nullish(),
+  originalFilename: zod.string().nullish(),
+  classificationStatus: zod.enum([
+    "NONE",
+    "PENDING",
+    "RUNNING",
+    "DONE",
+    "FAILED",
+  ]),
+  classifiedType: zod
+    .enum([
+      "BACKGROUND_CHECK",
+      "TB_TEST",
+      "CPR",
+      "TRAINING",
+      "LICENSE",
+      "I9",
+      "W4",
+      "DIRECT_DEPOSIT",
+      "CARE_AGREEMENT",
+      "INCIDENT_REPORT",
+      "AUTHORIZATION",
+      "MEDICAL_RECORD",
+      "OTHER",
+    ])
+    .nullish(),
+  classificationConfidence: zod.number().nullish(),
+  needsReview: zod.boolean(),
+  agentRunId: zod.string().nullish(),
 });
 export const ListExpiringDocumentsResponse = zod.array(
   ListExpiringDocumentsResponseItem,
@@ -2346,6 +2450,7 @@ export const ListReferralDraftsResponseItem = zod.object({
   source: zod.string(),
   rawContent: zod.string().nullish(),
   rawAttachmentUrl: zod.string().nullish(),
+  originalFilename: zod.string().nullish(),
   parsedFields: zod.record(zod.string(), zod.unknown()),
   confidence: zod.number().nullish(),
   status: zod.enum(["DRAFT", "REVIEW", "ACCEPTED", "REJECTED"]),
@@ -2356,3 +2461,212 @@ export const ListReferralDraftsResponseItem = zod.object({
 export const ListReferralDraftsResponse = zod.array(
   ListReferralDraftsResponseItem,
 );
+
+export const UploadReferralDraftBody = zod.object({
+  filename: zod.string(),
+  contentType: zod.string().optional(),
+  contentBase64: zod.string(),
+});
+
+export const GetReferralDraftParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetReferralDraftResponse = zod.object({
+  id: zod.string(),
+  source: zod.string(),
+  rawContent: zod.string().nullish(),
+  rawAttachmentUrl: zod.string().nullish(),
+  originalFilename: zod.string().nullish(),
+  parsedFields: zod.record(zod.string(), zod.unknown()),
+  confidence: zod.number().nullish(),
+  status: zod.enum(["DRAFT", "REVIEW", "ACCEPTED", "REJECTED"]),
+  promotedClientId: zod.string().nullish(),
+  agentRunId: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+export const ApproveReferralDraftParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ApproveReferralDraftBody = zod.object({
+  client: zod.object({
+    firstName: zod.string(),
+    lastName: zod.string(),
+    dob: zod.coerce.date(),
+    phone: zod.string().optional(),
+    email: zod.string().optional(),
+    addressLine1: zod.string().optional(),
+    city: zod.string().optional(),
+    state: zod.string().optional(),
+    postalCode: zod.string().optional(),
+    primaryPayer: zod.enum([
+      "PRIVATE_PAY",
+      "VA_CCN",
+      "MEDICAID_HCBS",
+      "COUNTY_IHSS",
+      "LTC_INSURANCE",
+    ]),
+    languages: zod.array(zod.string()).optional(),
+    carePreferences: zod.string().optional(),
+    allergies: zod.string().optional(),
+    emergencyContactName: zod.string().optional(),
+    emergencyContactPhone: zod.string().optional(),
+  }),
+  authorization: zod
+    .object({
+      payer: zod.enum([
+        "PRIVATE_PAY",
+        "VA_CCN",
+        "MEDICAID_HCBS",
+        "COUNTY_IHSS",
+        "LTC_INSURANCE",
+      ]),
+      authNumber: zod.string(),
+      issuedDate: zod.coerce.date(),
+      expirationDate: zod.coerce.date(),
+      approvedHoursPerWeek: zod.number(),
+      approvedHoursTotal: zod.number(),
+      scopeOfCare: zod.array(zod.string()).optional(),
+    })
+    .optional(),
+});
+
+export const ApproveReferralDraftResponse = zod.object({
+  clientId: zod.string(),
+  authorizationId: zod.string().nullish(),
+});
+
+export const RejectReferralDraftParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RejectReferralDraftResponse = zod.object({
+  id: zod.string(),
+  source: zod.string(),
+  rawContent: zod.string().nullish(),
+  rawAttachmentUrl: zod.string().nullish(),
+  originalFilename: zod.string().nullish(),
+  parsedFields: zod.record(zod.string(), zod.unknown()),
+  confidence: zod.number().nullish(),
+  status: zod.enum(["DRAFT", "REVIEW", "ACCEPTED", "REJECTED"]),
+  promotedClientId: zod.string().nullish(),
+  agentRunId: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+export const ListClientDocumentsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ListClientDocumentsResponseItem = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  clientName: zod.string(),
+  documentType: zod.enum([
+    "BACKGROUND_CHECK",
+    "TB_TEST",
+    "CPR",
+    "TRAINING",
+    "LICENSE",
+    "I9",
+    "W4",
+    "DIRECT_DEPOSIT",
+    "CARE_AGREEMENT",
+    "INCIDENT_REPORT",
+    "AUTHORIZATION",
+    "MEDICAL_RECORD",
+    "OTHER",
+  ]),
+  issuedDate: zod.coerce.date().nullish(),
+  expirationDate: zod.coerce.date().nullish(),
+  status: zod.enum(["VALID", "EXPIRING", "EXPIRED", "MISSING"]),
+  daysUntilExpiration: zod.number().nullish(),
+  fileUrl: zod.string().nullish(),
+  originalFilename: zod.string().nullish(),
+  classificationStatus: zod.enum([
+    "NONE",
+    "PENDING",
+    "RUNNING",
+    "DONE",
+    "FAILED",
+  ]),
+  classifiedType: zod
+    .enum([
+      "BACKGROUND_CHECK",
+      "TB_TEST",
+      "CPR",
+      "TRAINING",
+      "LICENSE",
+      "I9",
+      "W4",
+      "DIRECT_DEPOSIT",
+      "CARE_AGREEMENT",
+      "INCIDENT_REPORT",
+      "AUTHORIZATION",
+      "MEDICAL_RECORD",
+      "OTHER",
+    ])
+    .nullish(),
+  classificationConfidence: zod.number().nullish(),
+  needsReview: zod.boolean(),
+  agentRunId: zod.string().nullish(),
+});
+export const ListClientDocumentsResponse = zod.array(
+  ListClientDocumentsResponseItem,
+);
+
+export const UploadClientDocumentParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UploadClientDocumentBody = zod.object({
+  filename: zod.string(),
+  contentType: zod.string().optional(),
+  contentBase64: zod.string(),
+  documentType: zod
+    .enum([
+      "BACKGROUND_CHECK",
+      "TB_TEST",
+      "CPR",
+      "TRAINING",
+      "LICENSE",
+      "I9",
+      "W4",
+      "DIRECT_DEPOSIT",
+      "CARE_AGREEMENT",
+      "INCIDENT_REPORT",
+      "AUTHORIZATION",
+      "MEDICAL_RECORD",
+      "OTHER",
+    ])
+    .nullish(),
+});
+
+export const UploadCaregiverDocumentParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UploadCaregiverDocumentBody = zod.object({
+  filename: zod.string(),
+  contentType: zod.string().optional(),
+  contentBase64: zod.string(),
+  documentType: zod
+    .enum([
+      "BACKGROUND_CHECK",
+      "TB_TEST",
+      "CPR",
+      "TRAINING",
+      "LICENSE",
+      "I9",
+      "W4",
+      "DIRECT_DEPOSIT",
+      "CARE_AGREEMENT",
+      "INCIDENT_REPORT",
+      "AUTHORIZATION",
+      "MEDICAL_RECORD",
+      "OTHER",
+    ])
+    .nullish(),
+});

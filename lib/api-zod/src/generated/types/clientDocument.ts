@@ -9,10 +9,10 @@ import type { ClassificationStatus } from "./classificationStatus";
 import type { DocumentStatus } from "./documentStatus";
 import type { DocumentType } from "./documentType";
 
-export interface CaregiverDocument {
+export interface ClientDocument {
   id: string;
-  caregiverId: string;
-  caregiverName: string;
+  clientId: string;
+  clientName: string;
   documentType: DocumentType;
   issuedDate?: Date | null;
   expirationDate?: Date | null;

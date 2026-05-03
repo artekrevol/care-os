@@ -9,12 +9,15 @@ import {
   ShieldAlert, 
   Scale, 
   FileText,
-  FileBarChart
+  FileBarChart,
+  Sparkles,
+  Bot
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/intake", label: "AI Intake", icon: Sparkles },
   { href: "/clients", label: "Clients", icon: Users },
   { href: "/caregivers", label: "Caregivers", icon: UserSquare2 },
   { href: "/schedule", label: "Schedule", icon: Calendar },
@@ -23,6 +26,7 @@ const navItems = [
   { href: "/compliance", label: "Compliance", icon: ShieldAlert },
   { href: "/labor-rules", label: "Labor Rules", icon: Scale },
   { href: "/reports", label: "Reports", icon: FileBarChart },
+  { href: "/agent-runs", label: "Agent Runs", icon: Bot },
   { href: "/audit-log", label: "Audit Log", icon: FileText },
 ];
 

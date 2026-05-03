@@ -13,6 +13,8 @@ import reportsRouter from "./reports";
 import notificationsRouter from "./notifications";
 import telephonyRouter from "./telephony";
 import carePlansRouter from "./carePlans";
+import referralsRouter from "./referrals";
+import agentRunsRouter from "./agentRuns";
 
 const router: IRouter = Router();
 
@@ -30,5 +32,7 @@ router.use(reportsRouter);
 router.use(notificationsRouter);
 router.use(telephonyRouter);
 router.use(carePlansRouter);
+router.use(referralsRouter);
+router.use(agentRunsRouter);
 
 export default router;

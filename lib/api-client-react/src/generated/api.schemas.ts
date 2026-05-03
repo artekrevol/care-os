@@ -219,6 +219,11 @@ export const DocumentType = {
   I9: "I9",
   W4: "W4",
   DIRECT_DEPOSIT: "DIRECT_DEPOSIT",
+  CARE_AGREEMENT: "CARE_AGREEMENT",
+  INCIDENT_REPORT: "INCIDENT_REPORT",
+  AUTHORIZATION: "AUTHORIZATION",
+  MEDICAL_RECORD: "MEDICAL_RECORD",
+  OTHER: "OTHER",
 } as const;
 
 export type DocumentStatus =
@@ -231,6 +236,17 @@ export const DocumentStatus = {
   MISSING: "MISSING",
 } as const;
 
+export type ClassificationStatus =
+  (typeof ClassificationStatus)[keyof typeof ClassificationStatus];
+
+export const ClassificationStatus = {
+  NONE: "NONE",
+  PENDING: "PENDING",
+  RUNNING: "RUNNING",
+  DONE: "DONE",
+  FAILED: "FAILED",
+} as const;
+
 export interface CaregiverDocument {
   id: string;
   caregiverId: string;
@@ -241,6 +257,12 @@ export interface CaregiverDocument {
   status: DocumentStatus;
   daysUntilExpiration?: number | null;
   fileUrl?: string | null;
+  originalFilename?: string | null;
+  classificationStatus: ClassificationStatus;
+  classifiedType?: DocumentType | null;
+  classificationConfidence?: number | null;
+  needsReview: boolean;
+  agentRunId?: string | null;
 }
 
 export type CaregiverDetail = Caregiver & {
@@ -1248,12 +1270,61 @@ export interface ReferralDraft {
   source: string;
   rawContent?: string | null;
   rawAttachmentUrl?: string | null;
+  originalFilename?: string | null;
   parsedFields: ReferralDraftParsedFields;
   confidence?: number | null;
   status: ReferralDraftStatus;
   promotedClientId?: string | null;
   agentRunId?: string | null;
   createdAt: string;
+}
+
+export interface UploadReferralBody {
+  filename: string;
+  contentType?: string;
+  contentBase64: string;
+}
+
+export interface ApproveReferralBody {
+  client: CreateClientBody;
+  authorization?: CreateAuthorizationBody;
+}
+
+export interface ApproveReferralResult {
+  clientId: string;
+  authorizationId?: string | null;
+}
+
+export interface UploadCaregiverDocumentBody {
+  filename: string;
+  contentType?: string;
+  contentBase64: string;
+  documentType?: DocumentType | null;
+}
+
+export interface ClientDocument {
+  id: string;
+  clientId: string;
+  clientName: string;
+  documentType: DocumentType;
+  issuedDate?: string | null;
+  expirationDate?: string | null;
+  status: DocumentStatus;
+  daysUntilExpiration?: number | null;
+  fileUrl?: string | null;
+  originalFilename?: string | null;
+  classificationStatus: ClassificationStatus;
+  classifiedType?: DocumentType | null;
+  classificationConfidence?: number | null;
+  needsReview: boolean;
+  agentRunId?: string | null;
+}
+
+export interface UploadClientDocumentBody {
+  filename: string;
+  contentType?: string;
+  contentBase64: string;
+  documentType?: DocumentType | null;
 }
 
 export type ListClientsParams = {

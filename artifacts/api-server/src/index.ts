@@ -1,7 +1,8 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seed } from "./lib/seed";
-import { startWorkers } from "./lib/workers";
+import { startWorkers as startCronWorkers } from "./lib/workers";
+import { startWorkers as startAIWorkers } from "./workers";
 import { logServiceStartupReport } from "@workspace/services";
 import { registerScheduleOptimizerWorker } from "./lib/scheduleOptimizerWorker";
 
@@ -37,9 +38,14 @@ async function main() {
     logger.error({ err }, "Seed failed");
   }
   try {
-    await startWorkers();
+    await startCronWorkers();
   } catch (err) {
-    logger.error({ err }, "Background workers failed to start");
+    logger.error({ err }, "Background cron workers failed to start");
+  }
+  try {
+    startAIWorkers();
+  } catch (err) {
+    logger.error({ err }, "AI workers failed to start");
   }
   registerScheduleOptimizerWorker();
   app.listen(port, (err) => {

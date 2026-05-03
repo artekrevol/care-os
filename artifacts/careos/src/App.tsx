@@ -18,6 +18,9 @@ import Compliance from "@/pages/Compliance";
 import LaborRules from "@/pages/LaborRules";
 import Reports from "@/pages/Reports";
 import AuditLog from "@/pages/AuditLog";
+import Intake from "@/pages/Intake";
+import ReferralReview from "@/pages/ReferralReview";
+import AgentRuns from "@/pages/AgentRuns";
 import NotFound from "@/pages/not-found";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
@@ -27,6 +30,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/intake/:id" component={ReferralReview} />
+      <Route path="/intake" component={Intake} />
       <Route path="/clients/new" component={ClientIntake} />
       <Route path="/clients/:id" component={ClientDetail} />
       <Route path="/clients" component={Clients} />
@@ -40,6 +45,7 @@ function Router() {
       <Route path="/compliance" component={Compliance} />
       <Route path="/labor-rules" component={LaborRules} />
       <Route path="/reports" component={Reports} />
+      <Route path="/agent-runs" component={AgentRuns} />
       <Route path="/audit-log" component={AuditLog} />
       <Route component={NotFound} />
     </Switch>

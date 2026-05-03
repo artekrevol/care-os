@@ -1764,6 +1764,150 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ReferralDraft"
+    post:
+      operationId: uploadReferralDraft
+      tags: [referrals]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadReferralBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralDraft"
+
+  /referral-drafts/{id}:
+    get:
+      operationId: getReferralDraft
+      tags: [referrals]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralDraft"
+
+  /referral-drafts/{id}/approve:
+    post:
+      operationId: approveReferralDraft
+      tags: [referrals]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveReferralBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApproveReferralResult"
+
+  /referral-drafts/{id}/reject:
+    post:
+      operationId: rejectReferralDraft
+      tags: [referrals]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralDraft"
+
+  /clients/{id}/documents:
+    get:
+      operationId: listClientDocuments
+      tags: [clients, documents]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClientDocument"
+
+  /clients/{id}/documents/upload:
+    post:
+      operationId: uploadClientDocument
+      tags: [clients, documents]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadClientDocumentBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDocument"
+
+  /caregivers/{id}/documents/upload:
+    post:
+      operationId: uploadCaregiverDocument
+      tags: [caregivers]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadCaregiverDocumentBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaregiverDocument"
 
 components:
   schemas:
@@ -2054,7 +2198,16 @@ components:
           I9,
           W4,
           DIRECT_DEPOSIT,
+          CARE_AGREEMENT,
+          INCIDENT_REPORT,
+          AUTHORIZATION,
+          MEDICAL_RECORD,
+          OTHER,
         ]
+
+    ClassificationStatus:
+      type: string
+      enum: [NONE, PENDING, RUNNING, DONE, FAILED]
 
     DocumentStatus:
       type: string
@@ -2074,7 +2227,26 @@ components:
           $ref: "#/components/schemas/DocumentStatus"
         daysUntilExpiration: { type: integer, nullable: true }
         fileUrl: { type: string, nullable: true }
-      required: [id, caregiverId, caregiverName, documentType, status]
+        originalFilename: { type: string, nullable: true }
+        classificationStatus:
+          $ref: "#/components/schemas/ClassificationStatus"
+        classifiedType:
+          allOf:
+            - $ref: "#/components/schemas/DocumentType"
+          nullable: true
+        classificationConfidence: { type: number, nullable: true }
+        needsReview: { type: boolean }
+        agentRunId: { type: string, nullable: true }
+      required:
+        [
+          id,
+          caregiverId,
+          caregiverName,
+          documentType,
+          status,
+          classificationStatus,
+          needsReview,
+        ]
 
     CreateCaregiverDocumentBody:
       type: object
@@ -3478,6 +3650,7 @@ components:
         source: { type: string }
         rawContent: { type: string, nullable: true }
         rawAttachmentUrl: { type: string, nullable: true }
+        originalFilename: { type: string, nullable: true }
         parsedFields:
           type: object
           additionalProperties: true
@@ -3488,3 +3661,86 @@ components:
         agentRunId: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
       required: [id, source, parsedFields, status, createdAt]
+
+    UploadReferralBody:
+      type: object
+      properties:
+        filename: { type: string }
+        contentType: { type: string }
+        contentBase64: { type: string }
+      required: [filename, contentBase64]
+
+    ApproveReferralBody:
+      type: object
+      properties:
+        client:
+          $ref: "#/components/schemas/CreateClientBody"
+        authorization:
+          $ref: "#/components/schemas/CreateAuthorizationBody"
+      required: [client]
+
+    ApproveReferralResult:
+      type: object
+      properties:
+        clientId: { type: string }
+        authorizationId: { type: string, nullable: true }
+      required: [clientId]
+
+    UploadCaregiverDocumentBody:
+      type: object
+      properties:
+        filename: { type: string }
+        contentType: { type: string }
+        contentBase64: { type: string }
+        documentType:
+          allOf:
+            - $ref: "#/components/schemas/DocumentType"
+          nullable: true
+      required: [filename, contentBase64]
+
+    ClientDocument:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        documentType:
+          $ref: "#/components/schemas/DocumentType"
+        issuedDate: { type: string, format: date, nullable: true }
+        expirationDate: { type: string, format: date, nullable: true }
+        status:
+          $ref: "#/components/schemas/DocumentStatus"
+        daysUntilExpiration: { type: integer, nullable: true }
+        fileUrl: { type: string, nullable: true }
+        originalFilename: { type: string, nullable: true }
+        classificationStatus:
+          $ref: "#/components/schemas/ClassificationStatus"
+        classifiedType:
+          allOf:
+            - $ref: "#/components/schemas/DocumentType"
+          nullable: true
+        classificationConfidence: { type: number, nullable: true }
+        needsReview: { type: boolean }
+        agentRunId: { type: string, nullable: true }
+      required:
+        [
+          id,
+          clientId,
+          clientName,
+          documentType,
+          status,
+          classificationStatus,
+          needsReview,
+        ]
+
+    UploadClientDocumentBody:
+      type: object
+      properties:
+        filename: { type: string }
+        contentType: { type: string }
+        contentBase64: { type: string }
+        documentType:
+          allOf:
+            - $ref: "#/components/schemas/DocumentType"
+          nullable: true
+      required: [filename, contentBase64]

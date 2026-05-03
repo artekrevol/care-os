@@ -4,6 +4,7 @@ import {
   db,
   clientsTable,
   authorizationsTable,
+  clientDocumentsTable,
 } from "@workspace/db";
 import {
   ListClientsQueryParams,
@@ -19,11 +20,46 @@ import {
   CreateClientAuthorizationParams,
   CreateClientAuthorizationBody,
   ListExpiringAuthorizationsResponse,
+  ListClientDocumentsParams,
+  ListClientDocumentsResponse,
+  UploadClientDocumentParams,
+  UploadClientDocumentBody,
 } from "@workspace/api-zod";
+import { storage } from "@workspace/services";
 import { AGENCY_ID } from "../lib/agency";
 import { newId } from "../lib/ids";
 import { recordAudit } from "../lib/audit";
-import { authStatus, daysUntil } from "../lib/derivedStatus";
+import { authStatus, docStatus, daysUntil } from "../lib/derivedStatus";
+import { dispatch } from "../lib/dispatch";
+import { processDocumentClassify } from "../workers/documentClassifier";
+
+function formatClientDoc(
+  d: typeof clientDocumentsTable.$inferSelect,
+  cName: string,
+) {
+  return {
+    id: d.id,
+    clientId: d.clientId,
+    clientName: cName,
+    documentType: d.documentType,
+    issuedDate: d.issuedDate,
+    expirationDate: d.expirationDate,
+    status: docStatus(d.expirationDate),
+    daysUntilExpiration: daysUntil(d.expirationDate),
+    fileUrl: d.fileObjectKey
+      ? storage.getPresignedReadUrl(d.fileObjectKey).url
+      : null,
+    originalFilename: d.originalFilename,
+    classificationStatus: d.classificationStatus,
+    classifiedType: d.classifiedType,
+    classificationConfidence:
+      d.classificationConfidence != null
+        ? Number(d.classificationConfidence)
+        : null,
+    needsReview: d.needsReview,
+    agentRunId: d.agentRunId,
+  };
+}
 
 const router: IRouter = Router();
 
@@ -301,6 +337,116 @@ router.post(
       afterState: row,
     });
     res.status(201).json(formatAuth(row, clientName(client)));
+  },
+);
+
+router.get("/clients/:id/documents", async (req, res): Promise<void> => {
+  const params = ListClientDocumentsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(
+      and(
+        eq(clientsTable.agencyId, AGENCY_ID),
+        eq(clientsTable.id, params.data.id),
+      ),
+    );
+  if (!client) {
+    res.status(404).json({ error: "Client not found" });
+    return;
+  }
+  const docs = await db
+    .select()
+    .from(clientDocumentsTable)
+    .where(
+      and(
+        eq(clientDocumentsTable.agencyId, AGENCY_ID),
+        eq(clientDocumentsTable.clientId, client.id),
+      ),
+    );
+  res.json(
+    ListClientDocumentsResponse.parse(
+      docs.map((d) => formatClientDoc(d, clientName(client))),
+    ),
+  );
+});
+
+router.post(
+  "/clients/:id/documents/upload",
+  async (req, res): Promise<void> => {
+    const params = UploadClientDocumentParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const body = UploadClientDocumentBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+    const [client] = await db
+      .select()
+      .from(clientsTable)
+      .where(
+        and(
+          eq(clientsTable.agencyId, AGENCY_ID),
+          eq(clientsTable.id, params.data.id),
+        ),
+      );
+    if (!client) {
+      res.status(404).json({ error: "Client not found" });
+      return;
+    }
+    const id = newId("doc");
+    const filename = body.data.filename || `${id}.bin`;
+    const bytes = Buffer.from(body.data.contentBase64, "base64");
+    const key = storage.buildKey({
+      agencyId: AGENCY_ID,
+      category: "documents",
+      id,
+      filename,
+    });
+    try {
+      await storage.uploadBytes(
+        key,
+        bytes,
+        body.data.contentType ?? "application/octet-stream",
+      );
+    } catch (err) {
+      req.log.warn({ err }, "object storage upload failed; continuing");
+    }
+    const initialType =
+      (body.data.documentType as string | undefined) ?? "OTHER";
+    const [row] = await db
+      .insert(clientDocumentsTable)
+      .values({
+        id,
+        agencyId: AGENCY_ID,
+        clientId: client.id,
+        documentType: initialType,
+        fileObjectKey: key,
+        originalFilename: filename,
+        classificationStatus: "PENDING",
+        needsReview: false,
+      })
+      .returning();
+    await recordAudit({
+      action: "UPLOAD_DOCUMENT",
+      entityType: "ClientDocument",
+      entityId: id,
+      summary: `Uploaded ${filename} for ${clientName(client)} — auto-classifying`,
+      afterState: row,
+    });
+    await dispatch(
+      "ocr.extract-document",
+      { documentId: id, objectKey: key },
+      processDocumentClassify,
+    );
+    res.status(201).json(formatClientDoc(row, clientName(client)));
   },
 );
 

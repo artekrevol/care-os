@@ -19,11 +19,16 @@ import {
   CreateCaregiverDocumentParams,
   CreateCaregiverDocumentBody,
   ListExpiringDocumentsResponse,
+  UploadCaregiverDocumentParams,
+  UploadCaregiverDocumentBody,
 } from "@workspace/api-zod";
+import { storage } from "@workspace/services";
 import { AGENCY_ID } from "../lib/agency";
 import { newId } from "../lib/ids";
 import { recordAudit } from "../lib/audit";
 import { docStatus, daysUntil } from "../lib/derivedStatus";
+import { dispatch } from "../lib/dispatch";
+import { processDocumentClassify } from "../workers/documentClassifier";
 
 const router: IRouter = Router();
 
@@ -79,7 +84,18 @@ function formatDoc(
     expirationDate: d.expirationDate,
     status: docStatus(d.expirationDate),
     daysUntilExpiration: daysUntil(d.expirationDate),
-    fileUrl: d.fileUrl,
+    fileUrl: d.fileObjectKey
+      ? storage.getPresignedReadUrl(d.fileObjectKey).url
+      : d.fileUrl,
+    originalFilename: d.originalFilename,
+    classificationStatus: d.classificationStatus,
+    classifiedType: d.classifiedType,
+    classificationConfidence:
+      d.classificationConfidence != null
+        ? Number(d.classificationConfidence)
+        : null,
+    needsReview: d.needsReview,
+    agentRunId: d.agentRunId,
   };
 }
 
@@ -197,6 +213,7 @@ router.get("/caregivers/:id", async (req, res): Promise<void> => {
     GetCaregiverResponse.parse({
       ...caregiverWithDocCounts(c, docs),
       documents: docs.map((d) => formatDoc(d, cgName(c))),
+      recentVisits: [],
     }),
   );
 });
@@ -316,6 +333,7 @@ router.post("/caregivers/:id/documents", async (req, res): Promise<void> => {
       issuedDate: issued,
       expirationDate: exp,
       fileUrl: parsed.data.fileUrl ?? null,
+      classificationStatus: parsed.data.fileUrl ? "PENDING" : "NONE",
     })
     .returning();
   await recordAudit({
@@ -325,8 +343,102 @@ router.post("/caregivers/:id/documents", async (req, res): Promise<void> => {
     summary: `${row.documentType} added for ${cgName(c)}`,
     afterState: row,
   });
+  // If a file URL was supplied, fetch and re-validate the type via the
+  // classifier so every uploaded artifact passes through the same pipeline.
+  if (parsed.data.fileUrl) {
+    try {
+      const url = parsed.data.fileUrl;
+      const objectKey = url.includes("/api/storage/objects/")
+        ? decodeURIComponent(url.split("/api/storage/objects/")[1].split("?")[0])
+        : "";
+      if (objectKey) {
+        await dispatch(
+          "ocr.extract-document",
+          { documentId: id, objectKey },
+          processDocumentClassify,
+        );
+      }
+    } catch (err) {
+      req.log.warn({ err }, "failed to dispatch classifier for document");
+    }
+  }
   res.status(201).json(formatDoc(row, cgName(c)));
 });
+
+router.post(
+  "/caregivers/:id/documents/upload",
+  async (req, res): Promise<void> => {
+    const params = UploadCaregiverDocumentParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const body = UploadCaregiverDocumentBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+    const [c] = await db
+      .select()
+      .from(caregiversTable)
+      .where(
+        and(
+          eq(caregiversTable.agencyId, AGENCY_ID),
+          eq(caregiversTable.id, params.data.id),
+        ),
+      );
+    if (!c) {
+      res.status(404).json({ error: "Caregiver not found" });
+      return;
+    }
+    const id = newId("doc");
+    const filename = body.data.filename || `${id}.bin`;
+    const bytes = Buffer.from(body.data.contentBase64, "base64");
+    const key = storage.buildKey({
+      agencyId: AGENCY_ID,
+      category: "documents",
+      id,
+      filename,
+    });
+    try {
+      await storage.uploadBytes(
+        key,
+        bytes,
+        body.data.contentType ?? "application/octet-stream",
+      );
+    } catch (err) {
+      req.log.warn({ err }, "object storage upload failed; continuing");
+    }
+    const initialType =
+      (body.data.documentType as string | undefined) ?? "OTHER";
+    const [row] = await db
+      .insert(caregiverDocumentsTable)
+      .values({
+        id,
+        agencyId: AGENCY_ID,
+        caregiverId: c.id,
+        documentType: initialType,
+        fileObjectKey: key,
+        originalFilename: filename,
+        classificationStatus: "PENDING",
+        needsReview: false,
+      })
+      .returning();
+    await recordAudit({
+      action: "UPLOAD_DOCUMENT",
+      entityType: "CaregiverDocument",
+      entityId: id,
+      summary: `Uploaded ${filename} for ${cgName(c)} — auto-classifying`,
+      afterState: row,
+    });
+    await dispatch(
+      "ocr.extract-document",
+      { documentId: id, objectKey: key },
+      processDocumentClassify,
+    );
+    res.status(201).json(formatDoc(row, cgName(c)));
+  },
+);
 
 router.get("/documents/expiring", async (_req, res): Promise<void> => {
   const rows = await db

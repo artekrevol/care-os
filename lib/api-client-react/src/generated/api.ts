@@ -17,24 +17,20 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
-  AcknowledgeCarePlanBody,
   ActivityItem,
   AgentRun,
   AnomalyEvent,
-  ApproveCarePlanBody,
+  ApproveReferralBody,
+  ApproveReferralResult,
   AuditLogEntry,
   Authorization,
-  AuthorizationPipelineReport,
   CarePlan,
-  CarePlanAcknowledgment,
   Caregiver,
   CaregiverDetail,
   CaregiverDocument,
-  CaregiverSuggestionList,
-  CaregiverUtilizationReport,
   Client,
   ClientDetail,
-  ClientHoursReport,
+  ClientDocument,
   ClockInBody,
   ClockOutBody,
   ComplianceAlert,
@@ -48,27 +44,7 @@ import type {
   CreateVisitNoteBody,
   CreateVisitSignatureBody,
   DashboardSummary,
-  DocumentComplianceReport,
-  ExportAuthorizationPipelineCsvParams,
-  ExportAuthorizationPipelinePdfParams,
-  ExportCaregiverUtilizationCsvParams,
-  ExportCaregiverUtilizationPdfParams,
-  ExportClientHoursCsvParams,
-  ExportClientHoursPdfParams,
-  ExportDocumentComplianceCsvParams,
-  ExportDocumentCompliancePdfParams,
-  ExportOvertimeForecastCsvParams,
-  ExportOvertimeForecastPdfParams,
-  ExportVisitVerificationCsvParams,
-  ExportVisitVerificationPdfParams,
   FamilyUser,
-  GenerateCarePlanFromAuthorizationBody,
-  GetAuthorizationPipelineReportParams,
-  GetCaregiverUtilizationReportParams,
-  GetClientHoursReportParams,
-  GetDocumentComplianceReportParams,
-  GetOvertimeForecastReportParams,
-  GetVisitVerificationReportParams,
   HealthStatus,
   InviteFamilyUserBody,
   LaborRuleSet,
@@ -81,35 +57,28 @@ import type {
   ListComplianceAlertsParams,
   ListFamilyUsersParams,
   ListMessageThreadsParams,
-  ListPendingFamilyAcknowledgmentsParams,
   ListSchedulesParams,
   ListVisitsParams,
   Message,
   MessageThread,
   NotificationPreference,
   NotificationType,
-  OvertimeForecastReport,
   OvertimeProjection,
   PayPeriod,
   PayPeriodDetail,
-  PendingFamilyAcknowledgment,
   PostMessageBody,
   ReferralDraft,
   RegisterPushSubscriptionBody,
-  RejectCarePlanBody,
   Schedule,
   ScheduleCreateResult,
-  ScheduleDryRunBody,
-  ScheduleDryRunResult,
   SetActiveLaborRuleBody,
-  SubmitCarePlanBody,
-  SuggestCaregiversBody,
-  TaskTemplate,
-  UpdateCarePlanBody,
   UpdateCaregiverBody,
   UpdateClientBody,
   UpdateNotificationPreferenceBody,
   UpdateScheduleBody,
+  UploadCaregiverDocumentBody,
+  UploadClientDocumentBody,
+  UploadReferralBody,
   VapidPublicKey,
   VerifyVisitBody,
   Visit,
@@ -117,7 +86,6 @@ import type {
   VisitIncident,
   VisitNote,
   VisitSignature,
-  VisitVerificationReport,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -1728,178 +1696,6 @@ export const useCreateSchedule = <
   return useMutation(getCreateScheduleMutationOptions(options));
 };
 
-/**
- * @summary Validate a proposed shift and project OT impact without persisting.
- */
-export const getDryRunScheduleUrl = () => {
-  return `/api/schedules/dry-run`;
-};
-
-export const dryRunSchedule = async (
-  scheduleDryRunBody: ScheduleDryRunBody,
-  options?: RequestInit,
-): Promise<ScheduleDryRunResult> => {
-  return customFetch<ScheduleDryRunResult>(getDryRunScheduleUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(scheduleDryRunBody),
-  });
-};
-
-export const getDryRunScheduleMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof dryRunSchedule>>,
-    TError,
-    { data: BodyType<ScheduleDryRunBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof dryRunSchedule>>,
-  TError,
-  { data: BodyType<ScheduleDryRunBody> },
-  TContext
-> => {
-  const mutationKey = ["dryRunSchedule"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof dryRunSchedule>>,
-    { data: BodyType<ScheduleDryRunBody> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return dryRunSchedule(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type DryRunScheduleMutationResult = NonNullable<
-  Awaited<ReturnType<typeof dryRunSchedule>>
->;
-export type DryRunScheduleMutationBody = BodyType<ScheduleDryRunBody>;
-export type DryRunScheduleMutationError = ErrorType<unknown>;
-
-/**
- * @summary Validate a proposed shift and project OT impact without persisting.
- */
-export const useDryRunSchedule = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof dryRunSchedule>>,
-    TError,
-    { data: BodyType<ScheduleDryRunBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof dryRunSchedule>>,
-  TError,
-  { data: BodyType<ScheduleDryRunBody> },
-  TContext
-> => {
-  return useMutation(getDryRunScheduleMutationOptions(options));
-};
-
-/**
- * @summary Schedule Optimizer Agent — top 5 caregivers ranked by compatibility.
- */
-export const getSuggestCaregiversUrl = () => {
-  return `/api/schedules/suggest-caregivers`;
-};
-
-export const suggestCaregivers = async (
-  suggestCaregiversBody: SuggestCaregiversBody,
-  options?: RequestInit,
-): Promise<CaregiverSuggestionList> => {
-  return customFetch<CaregiverSuggestionList>(getSuggestCaregiversUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(suggestCaregiversBody),
-  });
-};
-
-export const getSuggestCaregiversMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof suggestCaregivers>>,
-    TError,
-    { data: BodyType<SuggestCaregiversBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof suggestCaregivers>>,
-  TError,
-  { data: BodyType<SuggestCaregiversBody> },
-  TContext
-> => {
-  const mutationKey = ["suggestCaregivers"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof suggestCaregivers>>,
-    { data: BodyType<SuggestCaregiversBody> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return suggestCaregivers(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type SuggestCaregiversMutationResult = NonNullable<
-  Awaited<ReturnType<typeof suggestCaregivers>>
->;
-export type SuggestCaregiversMutationBody = BodyType<SuggestCaregiversBody>;
-export type SuggestCaregiversMutationError = ErrorType<unknown>;
-
-/**
- * @summary Schedule Optimizer Agent — top 5 caregivers ranked by compatibility.
- */
-export const useSuggestCaregivers = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof suggestCaregivers>>,
-    TError,
-    { data: BodyType<SuggestCaregiversBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof suggestCaregivers>>,
-  TError,
-  { data: BodyType<SuggestCaregiversBody> },
-  TContext
-> => {
-  return useMutation(getSuggestCaregiversMutationOptions(options));
-};
-
 export const getUpdateScheduleUrl = (id: string) => {
   return `/api/schedules/${id}`;
 };
@@ -1908,8 +1704,8 @@ export const updateSchedule = async (
   id: string,
   updateScheduleBody: UpdateScheduleBody,
   options?: RequestInit,
-): Promise<ScheduleCreateResult> => {
-  return customFetch<ScheduleCreateResult>(getUpdateScheduleUrl(id), {
+): Promise<Schedule> => {
+  return customFetch<Schedule>(getUpdateScheduleUrl(id), {
     ...options,
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -3500,182 +3296,17 @@ export function useGetCarePlan<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-export const getUpdateCarePlanUrl = (id: string) => {
-  return `/api/care-plans/${id}`;
-};
-
-export const updateCarePlan = async (
-  id: string,
-  updateCarePlanBody: UpdateCarePlanBody,
-  options?: RequestInit,
-): Promise<CarePlan> => {
-  return customFetch<CarePlan>(getUpdateCarePlanUrl(id), {
-    ...options,
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(updateCarePlanBody),
-  });
-};
-
-export const getUpdateCarePlanMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateCarePlan>>,
-    TError,
-    { id: string; data: BodyType<UpdateCarePlanBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof updateCarePlan>>,
-  TError,
-  { id: string; data: BodyType<UpdateCarePlanBody> },
-  TContext
-> => {
-  const mutationKey = ["updateCarePlan"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateCarePlan>>,
-    { id: string; data: BodyType<UpdateCarePlanBody> }
-  > = (props) => {
-    const { id, data } = props ?? {};
-
-    return updateCarePlan(id, data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type UpdateCarePlanMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updateCarePlan>>
->;
-export type UpdateCarePlanMutationBody = BodyType<UpdateCarePlanBody>;
-export type UpdateCarePlanMutationError = ErrorType<unknown>;
-
-export const useUpdateCarePlan = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateCarePlan>>,
-    TError,
-    { id: string; data: BodyType<UpdateCarePlanBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof updateCarePlan>>,
-  TError,
-  { id: string; data: BodyType<UpdateCarePlanBody> },
-  TContext
-> => {
-  return useMutation(getUpdateCarePlanMutationOptions(options));
-};
-
-export const getSubmitCarePlanUrl = (id: string) => {
-  return `/api/care-plans/${id}/submit`;
-};
-
-export const submitCarePlan = async (
-  id: string,
-  submitCarePlanBody?: SubmitCarePlanBody,
-  options?: RequestInit,
-): Promise<CarePlan> => {
-  return customFetch<CarePlan>(getSubmitCarePlanUrl(id), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(submitCarePlanBody),
-  });
-};
-
-export const getSubmitCarePlanMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof submitCarePlan>>,
-    TError,
-    { id: string; data: BodyType<SubmitCarePlanBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof submitCarePlan>>,
-  TError,
-  { id: string; data: BodyType<SubmitCarePlanBody> },
-  TContext
-> => {
-  const mutationKey = ["submitCarePlan"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof submitCarePlan>>,
-    { id: string; data: BodyType<SubmitCarePlanBody> }
-  > = (props) => {
-    const { id, data } = props ?? {};
-
-    return submitCarePlan(id, data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type SubmitCarePlanMutationResult = NonNullable<
-  Awaited<ReturnType<typeof submitCarePlan>>
->;
-export type SubmitCarePlanMutationBody = BodyType<SubmitCarePlanBody>;
-export type SubmitCarePlanMutationError = ErrorType<unknown>;
-
-export const useSubmitCarePlan = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof submitCarePlan>>,
-    TError,
-    { id: string; data: BodyType<SubmitCarePlanBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof submitCarePlan>>,
-  TError,
-  { id: string; data: BodyType<SubmitCarePlanBody> },
-  TContext
-> => {
-  return useMutation(getSubmitCarePlanMutationOptions(options));
-};
-
 export const getApproveCarePlanUrl = (id: string) => {
   return `/api/care-plans/${id}/approve`;
 };
 
 export const approveCarePlan = async (
   id: string,
-  approveCarePlanBody?: ApproveCarePlanBody,
   options?: RequestInit,
 ): Promise<CarePlan> => {
   return customFetch<CarePlan>(getApproveCarePlanUrl(id), {
     ...options,
     method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(approveCarePlanBody),
   });
 };
 
@@ -3686,14 +3317,14 @@ export const getApproveCarePlanMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof approveCarePlan>>,
     TError,
-    { id: string; data: BodyType<ApproveCarePlanBody> },
+    { id: string },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof approveCarePlan>>,
   TError,
-  { id: string; data: BodyType<ApproveCarePlanBody> },
+  { id: string },
   TContext
 > => {
   const mutationKey = ["approveCarePlan"];
@@ -3707,11 +3338,11 @@ export const getApproveCarePlanMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof approveCarePlan>>,
-    { id: string; data: BodyType<ApproveCarePlanBody> }
+    { id: string }
   > = (props) => {
-    const { id, data } = props ?? {};
+    const { id } = props ?? {};
 
-    return approveCarePlan(id, data, requestOptions);
+    return approveCarePlan(id, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3720,7 +3351,7 @@ export const getApproveCarePlanMutationOptions = <
 export type ApproveCarePlanMutationResult = NonNullable<
   Awaited<ReturnType<typeof approveCarePlan>>
 >;
-export type ApproveCarePlanMutationBody = BodyType<ApproveCarePlanBody>;
+
 export type ApproveCarePlanMutationError = ErrorType<unknown>;
 
 export const useApproveCarePlan = <
@@ -3730,601 +3361,18 @@ export const useApproveCarePlan = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof approveCarePlan>>,
     TError,
-    { id: string; data: BodyType<ApproveCarePlanBody> },
+    { id: string },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof approveCarePlan>>,
   TError,
-  { id: string; data: BodyType<ApproveCarePlanBody> },
+  { id: string },
   TContext
 > => {
   return useMutation(getApproveCarePlanMutationOptions(options));
 };
-
-export const getRejectCarePlanUrl = (id: string) => {
-  return `/api/care-plans/${id}/reject`;
-};
-
-export const rejectCarePlan = async (
-  id: string,
-  rejectCarePlanBody: RejectCarePlanBody,
-  options?: RequestInit,
-): Promise<CarePlan> => {
-  return customFetch<CarePlan>(getRejectCarePlanUrl(id), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(rejectCarePlanBody),
-  });
-};
-
-export const getRejectCarePlanMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof rejectCarePlan>>,
-    TError,
-    { id: string; data: BodyType<RejectCarePlanBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof rejectCarePlan>>,
-  TError,
-  { id: string; data: BodyType<RejectCarePlanBody> },
-  TContext
-> => {
-  const mutationKey = ["rejectCarePlan"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof rejectCarePlan>>,
-    { id: string; data: BodyType<RejectCarePlanBody> }
-  > = (props) => {
-    const { id, data } = props ?? {};
-
-    return rejectCarePlan(id, data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type RejectCarePlanMutationResult = NonNullable<
-  Awaited<ReturnType<typeof rejectCarePlan>>
->;
-export type RejectCarePlanMutationBody = BodyType<RejectCarePlanBody>;
-export type RejectCarePlanMutationError = ErrorType<unknown>;
-
-export const useRejectCarePlan = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof rejectCarePlan>>,
-    TError,
-    { id: string; data: BodyType<RejectCarePlanBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof rejectCarePlan>>,
-  TError,
-  { id: string; data: BodyType<RejectCarePlanBody> },
-  TContext
-> => {
-  return useMutation(getRejectCarePlanMutationOptions(options));
-};
-
-export const getAcknowledgeCarePlanUrl = (id: string) => {
-  return `/api/care-plans/${id}/acknowledge`;
-};
-
-export const acknowledgeCarePlan = async (
-  id: string,
-  acknowledgeCarePlanBody: AcknowledgeCarePlanBody,
-  options?: RequestInit,
-): Promise<CarePlanAcknowledgment> => {
-  return customFetch<CarePlanAcknowledgment>(getAcknowledgeCarePlanUrl(id), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(acknowledgeCarePlanBody),
-  });
-};
-
-export const getAcknowledgeCarePlanMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof acknowledgeCarePlan>>,
-    TError,
-    { id: string; data: BodyType<AcknowledgeCarePlanBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof acknowledgeCarePlan>>,
-  TError,
-  { id: string; data: BodyType<AcknowledgeCarePlanBody> },
-  TContext
-> => {
-  const mutationKey = ["acknowledgeCarePlan"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof acknowledgeCarePlan>>,
-    { id: string; data: BodyType<AcknowledgeCarePlanBody> }
-  > = (props) => {
-    const { id, data } = props ?? {};
-
-    return acknowledgeCarePlan(id, data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type AcknowledgeCarePlanMutationResult = NonNullable<
-  Awaited<ReturnType<typeof acknowledgeCarePlan>>
->;
-export type AcknowledgeCarePlanMutationBody = BodyType<AcknowledgeCarePlanBody>;
-export type AcknowledgeCarePlanMutationError = ErrorType<unknown>;
-
-export const useAcknowledgeCarePlan = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof acknowledgeCarePlan>>,
-    TError,
-    { id: string; data: BodyType<AcknowledgeCarePlanBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof acknowledgeCarePlan>>,
-  TError,
-  { id: string; data: BodyType<AcknowledgeCarePlanBody> },
-  TContext
-> => {
-  return useMutation(getAcknowledgeCarePlanMutationOptions(options));
-};
-
-export const getListClientCarePlansUrl = (id: string) => {
-  return `/api/clients/${id}/care-plans`;
-};
-
-export const listClientCarePlans = async (
-  id: string,
-  options?: RequestInit,
-): Promise<CarePlan[]> => {
-  return customFetch<CarePlan[]>(getListClientCarePlansUrl(id), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getListClientCarePlansQueryKey = (id: string) => {
-  return [`/api/clients/${id}/care-plans`] as const;
-};
-
-export const getListClientCarePlansQueryOptions = <
-  TData = Awaited<ReturnType<typeof listClientCarePlans>>,
-  TError = ErrorType<unknown>,
->(
-  id: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof listClientCarePlans>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getListClientCarePlansQueryKey(id);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listClientCarePlans>>
-  > = ({ signal }) => listClientCarePlans(id, { signal, ...requestOptions });
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: !!id,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof listClientCarePlans>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ListClientCarePlansQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listClientCarePlans>>
->;
-export type ListClientCarePlansQueryError = ErrorType<unknown>;
-
-export function useListClientCarePlans<
-  TData = Awaited<ReturnType<typeof listClientCarePlans>>,
-  TError = ErrorType<unknown>,
->(
-  id: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof listClientCarePlans>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListClientCarePlansQueryOptions(id, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getGetActiveCarePlanUrl = (id: string) => {
-  return `/api/clients/${id}/care-plan/active`;
-};
-
-export const getActiveCarePlan = async (
-  id: string,
-  options?: RequestInit,
-): Promise<CarePlan> => {
-  return customFetch<CarePlan>(getGetActiveCarePlanUrl(id), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getGetActiveCarePlanQueryKey = (id: string) => {
-  return [`/api/clients/${id}/care-plan/active`] as const;
-};
-
-export const getGetActiveCarePlanQueryOptions = <
-  TData = Awaited<ReturnType<typeof getActiveCarePlan>>,
-  TError = ErrorType<void>,
->(
-  id: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getActiveCarePlan>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getGetActiveCarePlanQueryKey(id);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getActiveCarePlan>>
-  > = ({ signal }) => getActiveCarePlan(id, { signal, ...requestOptions });
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: !!id,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getActiveCarePlan>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetActiveCarePlanQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getActiveCarePlan>>
->;
-export type GetActiveCarePlanQueryError = ErrorType<void>;
-
-export function useGetActiveCarePlan<
-  TData = Awaited<ReturnType<typeof getActiveCarePlan>>,
-  TError = ErrorType<void>,
->(
-  id: string,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getActiveCarePlan>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetActiveCarePlanQueryOptions(id, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-/**
- * @summary AI drafter — propose a starter plan from authorization scope
- */
-export const getGenerateCarePlanFromAuthorizationUrl = (id: string) => {
-  return `/api/clients/${id}/care-plans/generate`;
-};
-
-export const generateCarePlanFromAuthorization = async (
-  id: string,
-  generateCarePlanFromAuthorizationBody: GenerateCarePlanFromAuthorizationBody,
-  options?: RequestInit,
-): Promise<CarePlan> => {
-  return customFetch<CarePlan>(getGenerateCarePlanFromAuthorizationUrl(id), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(generateCarePlanFromAuthorizationBody),
-  });
-};
-
-export const getGenerateCarePlanFromAuthorizationMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
-    TError,
-    { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
-  TError,
-  { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> },
-  TContext
-> => {
-  const mutationKey = ["generateCarePlanFromAuthorization"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
-    { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> }
-  > = (props) => {
-    const { id, data } = props ?? {};
-
-    return generateCarePlanFromAuthorization(id, data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type GenerateCarePlanFromAuthorizationMutationResult = NonNullable<
-  Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>
->;
-export type GenerateCarePlanFromAuthorizationMutationBody =
-  BodyType<GenerateCarePlanFromAuthorizationBody>;
-export type GenerateCarePlanFromAuthorizationMutationError = ErrorType<unknown>;
-
-/**
- * @summary AI drafter — propose a starter plan from authorization scope
- */
-export const useGenerateCarePlanFromAuthorization = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
-    TError,
-    { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
-  TError,
-  { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> },
-  TContext
-> => {
-  return useMutation(
-    getGenerateCarePlanFromAuthorizationMutationOptions(options),
-  );
-};
-
-export const getListTaskTemplatesUrl = () => {
-  return `/api/task-templates`;
-};
-
-export const listTaskTemplates = async (
-  options?: RequestInit,
-): Promise<TaskTemplate[]> => {
-  return customFetch<TaskTemplate[]>(getListTaskTemplatesUrl(), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getListTaskTemplatesQueryKey = () => {
-  return [`/api/task-templates`] as const;
-};
-
-export const getListTaskTemplatesQueryOptions = <
-  TData = Awaited<ReturnType<typeof listTaskTemplates>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listTaskTemplates>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getListTaskTemplatesQueryKey();
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listTaskTemplates>>
-  > = ({ signal }) => listTaskTemplates({ signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listTaskTemplates>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ListTaskTemplatesQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listTaskTemplates>>
->;
-export type ListTaskTemplatesQueryError = ErrorType<unknown>;
-
-export function useListTaskTemplates<
-  TData = Awaited<ReturnType<typeof listTaskTemplates>>,
-  TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listTaskTemplates>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListTaskTemplatesQueryOptions(options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getListPendingFamilyAcknowledgmentsUrl = (
-  params?: ListPendingFamilyAcknowledgmentsParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/family/pending-acknowledgments?${stringifiedParams}`
-    : `/api/family/pending-acknowledgments`;
-};
-
-export const listPendingFamilyAcknowledgments = async (
-  params?: ListPendingFamilyAcknowledgmentsParams,
-  options?: RequestInit,
-): Promise<PendingFamilyAcknowledgment[]> => {
-  return customFetch<PendingFamilyAcknowledgment[]>(
-    getListPendingFamilyAcknowledgmentsUrl(params),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getListPendingFamilyAcknowledgmentsQueryKey = (
-  params?: ListPendingFamilyAcknowledgmentsParams,
-) => {
-  return [
-    `/api/family/pending-acknowledgments`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getListPendingFamilyAcknowledgmentsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ListPendingFamilyAcknowledgmentsParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ??
-    getListPendingFamilyAcknowledgmentsQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>
-  > = ({ signal }) =>
-    listPendingFamilyAcknowledgments(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ListPendingFamilyAcknowledgmentsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>
->;
-export type ListPendingFamilyAcknowledgmentsQueryError = ErrorType<unknown>;
-
-export function useListPendingFamilyAcknowledgments<
-  TData = Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ListPendingFamilyAcknowledgmentsParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListPendingFamilyAcknowledgmentsQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
 
 export const getGetVisitChecklistUrl = (id: string) => {
   return `/api/visits/${id}/checklist`;
@@ -5782,1791 +4830,6 @@ export function useListAnomalyEvents<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-export const getGetCaregiverUtilizationReportUrl = (
-  params?: GetCaregiverUtilizationReportParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/caregiver-utilization?${stringifiedParams}`
-    : `/api/reports/caregiver-utilization`;
-};
-
-export const getCaregiverUtilizationReport = async (
-  params?: GetCaregiverUtilizationReportParams,
-  options?: RequestInit,
-): Promise<CaregiverUtilizationReport> => {
-  return customFetch<CaregiverUtilizationReport>(
-    getGetCaregiverUtilizationReportUrl(params),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getGetCaregiverUtilizationReportQueryKey = (
-  params?: GetCaregiverUtilizationReportParams,
-) => {
-  return [
-    `/api/reports/caregiver-utilization`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getGetCaregiverUtilizationReportQueryOptions = <
-  TData = Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetCaregiverUtilizationReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetCaregiverUtilizationReportQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getCaregiverUtilizationReport>>
-  > = ({ signal }) =>
-    getCaregiverUtilizationReport(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetCaregiverUtilizationReportQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getCaregiverUtilizationReport>>
->;
-export type GetCaregiverUtilizationReportQueryError = ErrorType<unknown>;
-
-export function useGetCaregiverUtilizationReport<
-  TData = Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetCaregiverUtilizationReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetCaregiverUtilizationReportQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportCaregiverUtilizationCsvUrl = (
-  params?: ExportCaregiverUtilizationCsvParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/caregiver-utilization.csv?${stringifiedParams}`
-    : `/api/reports/caregiver-utilization.csv`;
-};
-
-export const exportCaregiverUtilizationCsv = async (
-  params?: ExportCaregiverUtilizationCsvParams,
-  options?: RequestInit,
-): Promise<string> => {
-  return customFetch<string>(getExportCaregiverUtilizationCsvUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportCaregiverUtilizationCsvQueryKey = (
-  params?: ExportCaregiverUtilizationCsvParams,
-) => {
-  return [
-    `/api/reports/caregiver-utilization.csv`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportCaregiverUtilizationCsvQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportCaregiverUtilizationCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportCaregiverUtilizationCsvQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>
-  > = ({ signal }) =>
-    exportCaregiverUtilizationCsv(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportCaregiverUtilizationCsvQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>
->;
-export type ExportCaregiverUtilizationCsvQueryError = ErrorType<unknown>;
-
-export function useExportCaregiverUtilizationCsv<
-  TData = Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportCaregiverUtilizationCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportCaregiverUtilizationCsvQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportCaregiverUtilizationPdfUrl = (
-  params?: ExportCaregiverUtilizationPdfParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/caregiver-utilization.pdf?${stringifiedParams}`
-    : `/api/reports/caregiver-utilization.pdf`;
-};
-
-export const exportCaregiverUtilizationPdf = async (
-  params?: ExportCaregiverUtilizationPdfParams,
-  options?: RequestInit,
-): Promise<Blob> => {
-  return customFetch<Blob>(getExportCaregiverUtilizationPdfUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportCaregiverUtilizationPdfQueryKey = (
-  params?: ExportCaregiverUtilizationPdfParams,
-) => {
-  return [
-    `/api/reports/caregiver-utilization.pdf`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportCaregiverUtilizationPdfQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportCaregiverUtilizationPdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportCaregiverUtilizationPdfQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>
-  > = ({ signal }) =>
-    exportCaregiverUtilizationPdf(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportCaregiverUtilizationPdfQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>
->;
-export type ExportCaregiverUtilizationPdfQueryError = ErrorType<unknown>;
-
-export function useExportCaregiverUtilizationPdf<
-  TData = Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportCaregiverUtilizationPdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportCaregiverUtilizationPdfQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getGetClientHoursReportUrl = (
-  params?: GetClientHoursReportParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/client-hours?${stringifiedParams}`
-    : `/api/reports/client-hours`;
-};
-
-export const getClientHoursReport = async (
-  params?: GetClientHoursReportParams,
-  options?: RequestInit,
-): Promise<ClientHoursReport> => {
-  return customFetch<ClientHoursReport>(getGetClientHoursReportUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getGetClientHoursReportQueryKey = (
-  params?: GetClientHoursReportParams,
-) => {
-  return [`/api/reports/client-hours`, ...(params ? [params] : [])] as const;
-};
-
-export const getGetClientHoursReportQueryOptions = <
-  TData = Awaited<ReturnType<typeof getClientHoursReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetClientHoursReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getClientHoursReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetClientHoursReportQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getClientHoursReport>>
-  > = ({ signal }) =>
-    getClientHoursReport(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getClientHoursReport>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetClientHoursReportQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getClientHoursReport>>
->;
-export type GetClientHoursReportQueryError = ErrorType<unknown>;
-
-export function useGetClientHoursReport<
-  TData = Awaited<ReturnType<typeof getClientHoursReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetClientHoursReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getClientHoursReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetClientHoursReportQueryOptions(params, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportClientHoursCsvUrl = (
-  params?: ExportClientHoursCsvParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/client-hours.csv?${stringifiedParams}`
-    : `/api/reports/client-hours.csv`;
-};
-
-export const exportClientHoursCsv = async (
-  params?: ExportClientHoursCsvParams,
-  options?: RequestInit,
-): Promise<string> => {
-  return customFetch<string>(getExportClientHoursCsvUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportClientHoursCsvQueryKey = (
-  params?: ExportClientHoursCsvParams,
-) => {
-  return [
-    `/api/reports/client-hours.csv`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportClientHoursCsvQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportClientHoursCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportClientHoursCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportClientHoursCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportClientHoursCsvQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportClientHoursCsv>>
-  > = ({ signal }) =>
-    exportClientHoursCsv(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportClientHoursCsv>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportClientHoursCsvQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportClientHoursCsv>>
->;
-export type ExportClientHoursCsvQueryError = ErrorType<unknown>;
-
-export function useExportClientHoursCsv<
-  TData = Awaited<ReturnType<typeof exportClientHoursCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportClientHoursCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportClientHoursCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportClientHoursCsvQueryOptions(params, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportClientHoursPdfUrl = (
-  params?: ExportClientHoursPdfParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/client-hours.pdf?${stringifiedParams}`
-    : `/api/reports/client-hours.pdf`;
-};
-
-export const exportClientHoursPdf = async (
-  params?: ExportClientHoursPdfParams,
-  options?: RequestInit,
-): Promise<Blob> => {
-  return customFetch<Blob>(getExportClientHoursPdfUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportClientHoursPdfQueryKey = (
-  params?: ExportClientHoursPdfParams,
-) => {
-  return [
-    `/api/reports/client-hours.pdf`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportClientHoursPdfQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportClientHoursPdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportClientHoursPdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportClientHoursPdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportClientHoursPdfQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportClientHoursPdf>>
-  > = ({ signal }) =>
-    exportClientHoursPdf(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportClientHoursPdf>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportClientHoursPdfQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportClientHoursPdf>>
->;
-export type ExportClientHoursPdfQueryError = ErrorType<unknown>;
-
-export function useExportClientHoursPdf<
-  TData = Awaited<ReturnType<typeof exportClientHoursPdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportClientHoursPdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportClientHoursPdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportClientHoursPdfQueryOptions(params, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getGetDocumentComplianceReportUrl = (
-  params?: GetDocumentComplianceReportParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/document-compliance?${stringifiedParams}`
-    : `/api/reports/document-compliance`;
-};
-
-export const getDocumentComplianceReport = async (
-  params?: GetDocumentComplianceReportParams,
-  options?: RequestInit,
-): Promise<DocumentComplianceReport> => {
-  return customFetch<DocumentComplianceReport>(
-    getGetDocumentComplianceReportUrl(params),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getGetDocumentComplianceReportQueryKey = (
-  params?: GetDocumentComplianceReportParams,
-) => {
-  return [
-    `/api/reports/document-compliance`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getGetDocumentComplianceReportQueryOptions = <
-  TData = Awaited<ReturnType<typeof getDocumentComplianceReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetDocumentComplianceReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getDocumentComplianceReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetDocumentComplianceReportQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getDocumentComplianceReport>>
-  > = ({ signal }) =>
-    getDocumentComplianceReport(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getDocumentComplianceReport>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetDocumentComplianceReportQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getDocumentComplianceReport>>
->;
-export type GetDocumentComplianceReportQueryError = ErrorType<unknown>;
-
-export function useGetDocumentComplianceReport<
-  TData = Awaited<ReturnType<typeof getDocumentComplianceReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetDocumentComplianceReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getDocumentComplianceReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetDocumentComplianceReportQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportDocumentComplianceCsvUrl = (
-  params?: ExportDocumentComplianceCsvParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/document-compliance.csv?${stringifiedParams}`
-    : `/api/reports/document-compliance.csv`;
-};
-
-export const exportDocumentComplianceCsv = async (
-  params?: ExportDocumentComplianceCsvParams,
-  options?: RequestInit,
-): Promise<string> => {
-  return customFetch<string>(getExportDocumentComplianceCsvUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportDocumentComplianceCsvQueryKey = (
-  params?: ExportDocumentComplianceCsvParams,
-) => {
-  return [
-    `/api/reports/document-compliance.csv`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportDocumentComplianceCsvQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportDocumentComplianceCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportDocumentComplianceCsvQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportDocumentComplianceCsv>>
-  > = ({ signal }) =>
-    exportDocumentComplianceCsv(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportDocumentComplianceCsvQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportDocumentComplianceCsv>>
->;
-export type ExportDocumentComplianceCsvQueryError = ErrorType<unknown>;
-
-export function useExportDocumentComplianceCsv<
-  TData = Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportDocumentComplianceCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportDocumentComplianceCsvQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportDocumentCompliancePdfUrl = (
-  params?: ExportDocumentCompliancePdfParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/document-compliance.pdf?${stringifiedParams}`
-    : `/api/reports/document-compliance.pdf`;
-};
-
-export const exportDocumentCompliancePdf = async (
-  params?: ExportDocumentCompliancePdfParams,
-  options?: RequestInit,
-): Promise<Blob> => {
-  return customFetch<Blob>(getExportDocumentCompliancePdfUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportDocumentCompliancePdfQueryKey = (
-  params?: ExportDocumentCompliancePdfParams,
-) => {
-  return [
-    `/api/reports/document-compliance.pdf`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportDocumentCompliancePdfQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportDocumentCompliancePdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportDocumentCompliancePdfQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportDocumentCompliancePdf>>
-  > = ({ signal }) =>
-    exportDocumentCompliancePdf(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportDocumentCompliancePdfQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportDocumentCompliancePdf>>
->;
-export type ExportDocumentCompliancePdfQueryError = ErrorType<unknown>;
-
-export function useExportDocumentCompliancePdf<
-  TData = Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportDocumentCompliancePdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportDocumentCompliancePdfQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getGetOvertimeForecastReportUrl = (
-  params?: GetOvertimeForecastReportParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/overtime-forecast?${stringifiedParams}`
-    : `/api/reports/overtime-forecast`;
-};
-
-export const getOvertimeForecastReport = async (
-  params?: GetOvertimeForecastReportParams,
-  options?: RequestInit,
-): Promise<OvertimeForecastReport> => {
-  return customFetch<OvertimeForecastReport>(
-    getGetOvertimeForecastReportUrl(params),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getGetOvertimeForecastReportQueryKey = (
-  params?: GetOvertimeForecastReportParams,
-) => {
-  return [
-    `/api/reports/overtime-forecast`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getGetOvertimeForecastReportQueryOptions = <
-  TData = Awaited<ReturnType<typeof getOvertimeForecastReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetOvertimeForecastReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getOvertimeForecastReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetOvertimeForecastReportQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getOvertimeForecastReport>>
-  > = ({ signal }) =>
-    getOvertimeForecastReport(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getOvertimeForecastReport>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetOvertimeForecastReportQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getOvertimeForecastReport>>
->;
-export type GetOvertimeForecastReportQueryError = ErrorType<unknown>;
-
-export function useGetOvertimeForecastReport<
-  TData = Awaited<ReturnType<typeof getOvertimeForecastReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetOvertimeForecastReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getOvertimeForecastReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetOvertimeForecastReportQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportOvertimeForecastCsvUrl = (
-  params?: ExportOvertimeForecastCsvParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/overtime-forecast.csv?${stringifiedParams}`
-    : `/api/reports/overtime-forecast.csv`;
-};
-
-export const exportOvertimeForecastCsv = async (
-  params?: ExportOvertimeForecastCsvParams,
-  options?: RequestInit,
-): Promise<string> => {
-  return customFetch<string>(getExportOvertimeForecastCsvUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportOvertimeForecastCsvQueryKey = (
-  params?: ExportOvertimeForecastCsvParams,
-) => {
-  return [
-    `/api/reports/overtime-forecast.csv`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportOvertimeForecastCsvQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportOvertimeForecastCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportOvertimeForecastCsvQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportOvertimeForecastCsv>>
-  > = ({ signal }) =>
-    exportOvertimeForecastCsv(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportOvertimeForecastCsvQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportOvertimeForecastCsv>>
->;
-export type ExportOvertimeForecastCsvQueryError = ErrorType<unknown>;
-
-export function useExportOvertimeForecastCsv<
-  TData = Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportOvertimeForecastCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportOvertimeForecastCsvQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportOvertimeForecastPdfUrl = (
-  params?: ExportOvertimeForecastPdfParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/overtime-forecast.pdf?${stringifiedParams}`
-    : `/api/reports/overtime-forecast.pdf`;
-};
-
-export const exportOvertimeForecastPdf = async (
-  params?: ExportOvertimeForecastPdfParams,
-  options?: RequestInit,
-): Promise<Blob> => {
-  return customFetch<Blob>(getExportOvertimeForecastPdfUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportOvertimeForecastPdfQueryKey = (
-  params?: ExportOvertimeForecastPdfParams,
-) => {
-  return [
-    `/api/reports/overtime-forecast.pdf`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportOvertimeForecastPdfQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportOvertimeForecastPdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportOvertimeForecastPdfQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportOvertimeForecastPdf>>
-  > = ({ signal }) =>
-    exportOvertimeForecastPdf(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportOvertimeForecastPdfQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportOvertimeForecastPdf>>
->;
-export type ExportOvertimeForecastPdfQueryError = ErrorType<unknown>;
-
-export function useExportOvertimeForecastPdf<
-  TData = Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportOvertimeForecastPdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportOvertimeForecastPdfQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getGetVisitVerificationReportUrl = (
-  params?: GetVisitVerificationReportParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/visit-verification?${stringifiedParams}`
-    : `/api/reports/visit-verification`;
-};
-
-export const getVisitVerificationReport = async (
-  params?: GetVisitVerificationReportParams,
-  options?: RequestInit,
-): Promise<VisitVerificationReport> => {
-  return customFetch<VisitVerificationReport>(
-    getGetVisitVerificationReportUrl(params),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getGetVisitVerificationReportQueryKey = (
-  params?: GetVisitVerificationReportParams,
-) => {
-  return [
-    `/api/reports/visit-verification`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getGetVisitVerificationReportQueryOptions = <
-  TData = Awaited<ReturnType<typeof getVisitVerificationReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetVisitVerificationReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getVisitVerificationReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetVisitVerificationReportQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getVisitVerificationReport>>
-  > = ({ signal }) =>
-    getVisitVerificationReport(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getVisitVerificationReport>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetVisitVerificationReportQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getVisitVerificationReport>>
->;
-export type GetVisitVerificationReportQueryError = ErrorType<unknown>;
-
-export function useGetVisitVerificationReport<
-  TData = Awaited<ReturnType<typeof getVisitVerificationReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetVisitVerificationReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getVisitVerificationReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetVisitVerificationReportQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportVisitVerificationCsvUrl = (
-  params?: ExportVisitVerificationCsvParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/visit-verification.csv?${stringifiedParams}`
-    : `/api/reports/visit-verification.csv`;
-};
-
-export const exportVisitVerificationCsv = async (
-  params?: ExportVisitVerificationCsvParams,
-  options?: RequestInit,
-): Promise<string> => {
-  return customFetch<string>(getExportVisitVerificationCsvUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportVisitVerificationCsvQueryKey = (
-  params?: ExportVisitVerificationCsvParams,
-) => {
-  return [
-    `/api/reports/visit-verification.csv`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportVisitVerificationCsvQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportVisitVerificationCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportVisitVerificationCsvQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportVisitVerificationCsv>>
-  > = ({ signal }) =>
-    exportVisitVerificationCsv(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportVisitVerificationCsvQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportVisitVerificationCsv>>
->;
-export type ExportVisitVerificationCsvQueryError = ErrorType<unknown>;
-
-export function useExportVisitVerificationCsv<
-  TData = Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportVisitVerificationCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportVisitVerificationCsvQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportVisitVerificationPdfUrl = (
-  params?: ExportVisitVerificationPdfParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/visit-verification.pdf?${stringifiedParams}`
-    : `/api/reports/visit-verification.pdf`;
-};
-
-export const exportVisitVerificationPdf = async (
-  params?: ExportVisitVerificationPdfParams,
-  options?: RequestInit,
-): Promise<Blob> => {
-  return customFetch<Blob>(getExportVisitVerificationPdfUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportVisitVerificationPdfQueryKey = (
-  params?: ExportVisitVerificationPdfParams,
-) => {
-  return [
-    `/api/reports/visit-verification.pdf`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportVisitVerificationPdfQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportVisitVerificationPdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportVisitVerificationPdfQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportVisitVerificationPdf>>
-  > = ({ signal }) =>
-    exportVisitVerificationPdf(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportVisitVerificationPdfQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportVisitVerificationPdf>>
->;
-export type ExportVisitVerificationPdfQueryError = ErrorType<unknown>;
-
-export function useExportVisitVerificationPdf<
-  TData = Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportVisitVerificationPdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportVisitVerificationPdfQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getGetAuthorizationPipelineReportUrl = (
-  params?: GetAuthorizationPipelineReportParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/authorization-pipeline?${stringifiedParams}`
-    : `/api/reports/authorization-pipeline`;
-};
-
-export const getAuthorizationPipelineReport = async (
-  params?: GetAuthorizationPipelineReportParams,
-  options?: RequestInit,
-): Promise<AuthorizationPipelineReport> => {
-  return customFetch<AuthorizationPipelineReport>(
-    getGetAuthorizationPipelineReportUrl(params),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getGetAuthorizationPipelineReportQueryKey = (
-  params?: GetAuthorizationPipelineReportParams,
-) => {
-  return [
-    `/api/reports/authorization-pipeline`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getGetAuthorizationPipelineReportQueryOptions = <
-  TData = Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetAuthorizationPipelineReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetAuthorizationPipelineReportQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getAuthorizationPipelineReport>>
-  > = ({ signal }) =>
-    getAuthorizationPipelineReport(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetAuthorizationPipelineReportQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getAuthorizationPipelineReport>>
->;
-export type GetAuthorizationPipelineReportQueryError = ErrorType<unknown>;
-
-export function useGetAuthorizationPipelineReport<
-  TData = Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetAuthorizationPipelineReportParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetAuthorizationPipelineReportQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportAuthorizationPipelineCsvUrl = (
-  params?: ExportAuthorizationPipelineCsvParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/authorization-pipeline.csv?${stringifiedParams}`
-    : `/api/reports/authorization-pipeline.csv`;
-};
-
-export const exportAuthorizationPipelineCsv = async (
-  params?: ExportAuthorizationPipelineCsvParams,
-  options?: RequestInit,
-): Promise<string> => {
-  return customFetch<string>(getExportAuthorizationPipelineCsvUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportAuthorizationPipelineCsvQueryKey = (
-  params?: ExportAuthorizationPipelineCsvParams,
-) => {
-  return [
-    `/api/reports/authorization-pipeline.csv`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportAuthorizationPipelineCsvQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportAuthorizationPipelineCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportAuthorizationPipelineCsvQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>
-  > = ({ signal }) =>
-    exportAuthorizationPipelineCsv(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportAuthorizationPipelineCsvQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>
->;
-export type ExportAuthorizationPipelineCsvQueryError = ErrorType<unknown>;
-
-export function useExportAuthorizationPipelineCsv<
-  TData = Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportAuthorizationPipelineCsvParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportAuthorizationPipelineCsvQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getExportAuthorizationPipelinePdfUrl = (
-  params?: ExportAuthorizationPipelinePdfParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/reports/authorization-pipeline.pdf?${stringifiedParams}`
-    : `/api/reports/authorization-pipeline.pdf`;
-};
-
-export const exportAuthorizationPipelinePdf = async (
-  params?: ExportAuthorizationPipelinePdfParams,
-  options?: RequestInit,
-): Promise<Blob> => {
-  return customFetch<Blob>(getExportAuthorizationPipelinePdfUrl(params), {
-    ...options,
-    method: "GET",
-  });
-};
-
-export const getExportAuthorizationPipelinePdfQueryKey = (
-  params?: ExportAuthorizationPipelinePdfParams,
-) => {
-  return [
-    `/api/reports/authorization-pipeline.pdf`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getExportAuthorizationPipelinePdfQueryOptions = <
-  TData = Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportAuthorizationPipelinePdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getExportAuthorizationPipelinePdfQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>
-  > = ({ signal }) =>
-    exportAuthorizationPipelinePdf(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type ExportAuthorizationPipelinePdfQueryResult = NonNullable<
-  Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>
->;
-export type ExportAuthorizationPipelinePdfQueryError = ErrorType<unknown>;
-
-export function useExportAuthorizationPipelinePdf<
-  TData = Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ExportAuthorizationPipelinePdfParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getExportAuthorizationPipelinePdfQueryOptions(
-    params,
-    options,
-  );
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
 export const getListReferralDraftsUrl = () => {
   return `/api/referral-drafts`;
 };
@@ -7634,3 +4897,566 @@ export function useListReferralDrafts<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+export const getUploadReferralDraftUrl = () => {
+  return `/api/referral-drafts`;
+};
+
+export const uploadReferralDraft = async (
+  uploadReferralBody: UploadReferralBody,
+  options?: RequestInit,
+): Promise<ReferralDraft> => {
+  return customFetch<ReferralDraft>(getUploadReferralDraftUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(uploadReferralBody),
+  });
+};
+
+export const getUploadReferralDraftMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadReferralDraft>>,
+    TError,
+    { data: BodyType<UploadReferralBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadReferralDraft>>,
+  TError,
+  { data: BodyType<UploadReferralBody> },
+  TContext
+> => {
+  const mutationKey = ["uploadReferralDraft"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadReferralDraft>>,
+    { data: BodyType<UploadReferralBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return uploadReferralDraft(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadReferralDraftMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadReferralDraft>>
+>;
+export type UploadReferralDraftMutationBody = BodyType<UploadReferralBody>;
+export type UploadReferralDraftMutationError = ErrorType<unknown>;
+
+export const useUploadReferralDraft = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadReferralDraft>>,
+    TError,
+    { data: BodyType<UploadReferralBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadReferralDraft>>,
+  TError,
+  { data: BodyType<UploadReferralBody> },
+  TContext
+> => {
+  return useMutation(getUploadReferralDraftMutationOptions(options));
+};
+
+export const getGetReferralDraftUrl = (id: string) => {
+  return `/api/referral-drafts/${id}`;
+};
+
+export const getReferralDraft = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ReferralDraft> => {
+  return customFetch<ReferralDraft>(getGetReferralDraftUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetReferralDraftQueryKey = (id: string) => {
+  return [`/api/referral-drafts/${id}`] as const;
+};
+
+export const getGetReferralDraftQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReferralDraft>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReferralDraft>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetReferralDraftQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getReferralDraft>>
+  > = ({ signal }) => getReferralDraft(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getReferralDraft>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetReferralDraftQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReferralDraft>>
+>;
+export type GetReferralDraftQueryError = ErrorType<unknown>;
+
+export function useGetReferralDraft<
+  TData = Awaited<ReturnType<typeof getReferralDraft>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getReferralDraft>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetReferralDraftQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getApproveReferralDraftUrl = (id: string) => {
+  return `/api/referral-drafts/${id}/approve`;
+};
+
+export const approveReferralDraft = async (
+  id: string,
+  approveReferralBody: ApproveReferralBody,
+  options?: RequestInit,
+): Promise<ApproveReferralResult> => {
+  return customFetch<ApproveReferralResult>(getApproveReferralDraftUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(approveReferralBody),
+  });
+};
+
+export const getApproveReferralDraftMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveReferralDraft>>,
+    TError,
+    { id: string; data: BodyType<ApproveReferralBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveReferralDraft>>,
+  TError,
+  { id: string; data: BodyType<ApproveReferralBody> },
+  TContext
+> => {
+  const mutationKey = ["approveReferralDraft"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveReferralDraft>>,
+    { id: string; data: BodyType<ApproveReferralBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return approveReferralDraft(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveReferralDraftMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveReferralDraft>>
+>;
+export type ApproveReferralDraftMutationBody = BodyType<ApproveReferralBody>;
+export type ApproveReferralDraftMutationError = ErrorType<unknown>;
+
+export const useApproveReferralDraft = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveReferralDraft>>,
+    TError,
+    { id: string; data: BodyType<ApproveReferralBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveReferralDraft>>,
+  TError,
+  { id: string; data: BodyType<ApproveReferralBody> },
+  TContext
+> => {
+  return useMutation(getApproveReferralDraftMutationOptions(options));
+};
+
+export const getRejectReferralDraftUrl = (id: string) => {
+  return `/api/referral-drafts/${id}/reject`;
+};
+
+export const rejectReferralDraft = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ReferralDraft> => {
+  return customFetch<ReferralDraft>(getRejectReferralDraftUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRejectReferralDraftMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectReferralDraft>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectReferralDraft>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["rejectReferralDraft"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectReferralDraft>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return rejectReferralDraft(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectReferralDraftMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectReferralDraft>>
+>;
+
+export type RejectReferralDraftMutationError = ErrorType<unknown>;
+
+export const useRejectReferralDraft = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectReferralDraft>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rejectReferralDraft>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRejectReferralDraftMutationOptions(options));
+};
+
+export const getListClientDocumentsUrl = (id: string) => {
+  return `/api/clients/${id}/documents`;
+};
+
+export const listClientDocuments = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ClientDocument[]> => {
+  return customFetch<ClientDocument[]>(getListClientDocumentsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListClientDocumentsQueryKey = (id: string) => {
+  return [`/api/clients/${id}/documents`] as const;
+};
+
+export const getListClientDocumentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listClientDocuments>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listClientDocuments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListClientDocumentsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listClientDocuments>>
+  > = ({ signal }) => listClientDocuments(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listClientDocuments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListClientDocumentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listClientDocuments>>
+>;
+export type ListClientDocumentsQueryError = ErrorType<unknown>;
+
+export function useListClientDocuments<
+  TData = Awaited<ReturnType<typeof listClientDocuments>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listClientDocuments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListClientDocumentsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getUploadClientDocumentUrl = (id: string) => {
+  return `/api/clients/${id}/documents/upload`;
+};
+
+export const uploadClientDocument = async (
+  id: string,
+  uploadClientDocumentBody: UploadClientDocumentBody,
+  options?: RequestInit,
+): Promise<ClientDocument> => {
+  return customFetch<ClientDocument>(getUploadClientDocumentUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(uploadClientDocumentBody),
+  });
+};
+
+export const getUploadClientDocumentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadClientDocument>>,
+    TError,
+    { id: string; data: BodyType<UploadClientDocumentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadClientDocument>>,
+  TError,
+  { id: string; data: BodyType<UploadClientDocumentBody> },
+  TContext
+> => {
+  const mutationKey = ["uploadClientDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadClientDocument>>,
+    { id: string; data: BodyType<UploadClientDocumentBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return uploadClientDocument(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadClientDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadClientDocument>>
+>;
+export type UploadClientDocumentMutationBody =
+  BodyType<UploadClientDocumentBody>;
+export type UploadClientDocumentMutationError = ErrorType<unknown>;
+
+export const useUploadClientDocument = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadClientDocument>>,
+    TError,
+    { id: string; data: BodyType<UploadClientDocumentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadClientDocument>>,
+  TError,
+  { id: string; data: BodyType<UploadClientDocumentBody> },
+  TContext
+> => {
+  return useMutation(getUploadClientDocumentMutationOptions(options));
+};
+
+export const getUploadCaregiverDocumentUrl = (id: string) => {
+  return `/api/caregivers/${id}/documents/upload`;
+};
+
+export const uploadCaregiverDocument = async (
+  id: string,
+  uploadCaregiverDocumentBody: UploadCaregiverDocumentBody,
+  options?: RequestInit,
+): Promise<CaregiverDocument> => {
+  return customFetch<CaregiverDocument>(getUploadCaregiverDocumentUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(uploadCaregiverDocumentBody),
+  });
+};
+
+export const getUploadCaregiverDocumentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadCaregiverDocument>>,
+    TError,
+    { id: string; data: BodyType<UploadCaregiverDocumentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadCaregiverDocument>>,
+  TError,
+  { id: string; data: BodyType<UploadCaregiverDocumentBody> },
+  TContext
+> => {
+  const mutationKey = ["uploadCaregiverDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadCaregiverDocument>>,
+    { id: string; data: BodyType<UploadCaregiverDocumentBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return uploadCaregiverDocument(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadCaregiverDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadCaregiverDocument>>
+>;
+export type UploadCaregiverDocumentMutationBody =
+  BodyType<UploadCaregiverDocumentBody>;
+export type UploadCaregiverDocumentMutationError = ErrorType<unknown>;
+
+export const useUploadCaregiverDocument = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadCaregiverDocument>>,
+    TError,
+    { id: string; data: BodyType<UploadCaregiverDocumentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadCaregiverDocument>>,
+  TError,
+  { id: string; data: BodyType<UploadCaregiverDocumentBody> },
+  TContext
+> => {
+  return useMutation(getUploadCaregiverDocumentMutationOptions(options));
+};
