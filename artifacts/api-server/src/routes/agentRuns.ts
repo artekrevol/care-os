@@ -1,6 +1,14 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql, count } from "drizzle-orm";
-import { db, agentRunsTable, anomalyEventsTable } from "@workspace/db";
+import {
+  db,
+  agentRunsTable,
+  anomalyEventsTable,
+  authorizationsTable,
+  clientsTable,
+  taskTemplatesTable,
+} from "@workspace/db";
+import { draftCarePlanFromAuthorization } from "../lib/carePlanDrafter";
 import { queue, storage } from "@workspace/services";
 import {
   ListAgentRunsQueryParams,
@@ -349,6 +357,75 @@ router.post(
       agentName === "schedule-optimizer"
         ? { agentRunId: row.id }
         : (meta["inputPayload"] as Record<string, unknown> | undefined);
+
+    // care-plan-drafter is invoked synchronously (no BullMQ worker), but its
+    // recorded inputPayload preserves authorizationId. We adapt that into a
+    // direct re-invocation of the drafter, which itself records a fresh
+    // agent_runs row — matching the "true retry" semantics of the queue path.
+    if (
+      agentName === "care-plan-drafter" &&
+      inputPayload &&
+      typeof (inputPayload as Record<string, unknown>)["authorizationId"] ===
+        "string"
+    ) {
+      try {
+        const authId = (inputPayload as Record<string, unknown>)[
+          "authorizationId"
+        ] as string;
+        const [auth] = await db
+          .select()
+          .from(authorizationsTable)
+          .where(
+            and(
+              eq(authorizationsTable.agencyId, AGENCY_ID),
+              eq(authorizationsTable.id, authId),
+            ),
+          );
+        if (!auth) throw new Error(`authorization ${authId} not found`);
+        const [client] = await db
+          .select()
+          .from(clientsTable)
+          .where(
+            and(
+              eq(clientsTable.agencyId, AGENCY_ID),
+              eq(clientsTable.id, auth.clientId),
+            ),
+          );
+        if (!client) throw new Error(`client ${auth.clientId} not found`);
+        const templates = await db
+          .select()
+          .from(taskTemplatesTable)
+          .where(
+            and(
+              eq(taskTemplatesTable.agencyId, AGENCY_ID),
+              eq(taskTemplatesTable.isActive, 1),
+            ),
+          );
+        const draft = await draftCarePlanFromAuthorization({
+          client,
+          authorization: auth,
+          templates,
+        });
+        await recordAudit(req.user, {
+          action: "AGENT_RUN_RETRY",
+          entityType: "agent_run",
+          entityId: row.id,
+          summary: `${req.user.name} re-drafted care plan for authorization ${authId} (new run ${draft.agentRunId})`,
+        });
+        res.json(
+          RetryAgentRunResponse.parse({
+            ok: true,
+            originalRunId: row.id,
+            newRunId: draft.agentRunId,
+            agentName,
+            message: `Re-drafted care plan (new run ${draft.agentRunId})`,
+          }),
+        );
+        return;
+      } catch (err) {
+        logger.warn({ err }, "care-plan-drafter retry failed");
+      }
+    }
 
     if (qName && inputPayload && typeof inputPayload === "object") {
       try {
