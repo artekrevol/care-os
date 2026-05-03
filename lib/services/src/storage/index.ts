@@ -64,15 +64,37 @@ export async function uploadBytes(
 export async function probe(): Promise<{ ok: boolean; message: string }> {
   const c = getClient();
   if (!c) return { ok: false, message: "not configured" };
-  const key = `_probe/${Date.now()}-${crypto.randomBytes(4).toString("hex")}.txt`;
+  const token = crypto.randomBytes(4).toString("hex");
+  const key = `_probe/${Date.now()}-${token}.txt`;
+  const payload = Buffer.from(`ok:${token}`);
   try {
-    const up = await c.uploadFromBytes(key, Buffer.from("ok"), { compress: false });
+    const up = await c.uploadFromBytes(key, payload, { compress: false });
     if (!up.ok) {
       recordError("storage", up.error);
-      return { ok: false, message: up.error.message };
+      return { ok: false, message: `upload failed: ${up.error.message}` };
+    }
+    // Round-trip read so the probe verifies both write AND read paths.
+    const dl = await c.downloadAsBytes(key);
+    if (!dl.ok) {
+      recordError("storage", dl.error);
+      return { ok: false, message: `read-back failed: ${dl.error.message}` };
+    }
+    const value = dl.value as unknown as Buffer | [Buffer];
+    const buf = Array.isArray(value) ? value[0] : value;
+    if (!buf || buf.toString("utf8") !== payload.toString("utf8")) {
+      const err = new Error("probe payload mismatch on read-back");
+      recordError("storage", err);
+      return { ok: false, message: err.message };
+    }
+    // Best-effort cleanup so probe objects don't accumulate. Failure is
+    // non-fatal — the bucket lifecycle policy can sweep _probe/ later.
+    try {
+      await c.delete(key);
+    } catch {
+      // ignore
     }
     recordSuccess("storage");
-    return { ok: true, message: "ok" };
+    return { ok: true, message: "round-trip ok" };
   } catch (err) {
     recordError("storage", err);
     return { ok: false, message: err instanceof Error ? err.message : String(err) };

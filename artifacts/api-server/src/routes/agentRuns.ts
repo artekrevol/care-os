@@ -89,20 +89,27 @@ router.get("/agent-runs", ownerGuard, async (req, res): Promise<void> => {
 
   const realStatuses =
     q.status?.filter((s) => REAL_STATUSES.has(s)) ?? [];
+  // Legacy seed rows used "COMPLETED"; expand SUCCEEDED filter to match
+  // both forms so success counts and "Succeeded" filter chips don't
+  // undercount older data. fmtRun() already normalizes the value sent
+  // back to clients.
+  const expandedStatuses = realStatuses.flatMap((s) =>
+    s === "SUCCEEDED" ? ["SUCCEEDED", "COMPLETED"] : [s],
+  );
   const wantsLowConf = q.status?.includes("LOW_CONFIDENCE") ?? false;
   // Real statuses and the LOW_CONFIDENCE virtual status are independent
   // selections — operators expect FAILED + LOW_CONFIDENCE to mean "show me
   // either", not their (empty) intersection. Combine with OR.
   const threshold = q.lowConfidenceThreshold ?? 0.7;
-  const lowConfClause = sql`(${agentRunsTable.status} = 'SUCCEEDED' AND ${agentRunsTable.confidence} IS NOT NULL AND ${agentRunsTable.confidence} < ${threshold})`;
-  if (realStatuses.length > 0 && wantsLowConf) {
+  const lowConfClause = sql`(${agentRunsTable.status} IN ('SUCCEEDED','COMPLETED') AND ${agentRunsTable.confidence} IS NOT NULL AND ${agentRunsTable.confidence} < ${threshold})`;
+  if (expandedStatuses.length > 0 && wantsLowConf) {
     const orClause = or(
-      inArray(agentRunsTable.status, realStatuses),
+      inArray(agentRunsTable.status, expandedStatuses),
       lowConfClause,
     );
     if (orClause) conds.push(orClause);
-  } else if (realStatuses.length > 0) {
-    conds.push(inArray(agentRunsTable.status, realStatuses));
+  } else if (expandedStatuses.length > 0) {
+    conds.push(inArray(agentRunsTable.status, expandedStatuses));
   } else if (wantsLowConf) {
     conds.push(lowConfClause);
   }
@@ -147,7 +154,7 @@ router.get("/agent-runs/cost-summary", ownerGuard, async (req, res): Promise<voi
     .select({
       agentName: agentRunsTable.agentName,
       runs: sql<number>`count(*)::int`,
-      succeeded: sql<number>`sum(case when ${agentRunsTable.status}='SUCCEEDED' then 1 else 0 end)::int`,
+      succeeded: sql<number>`sum(case when ${agentRunsTable.status} in ('SUCCEEDED','COMPLETED') then 1 else 0 end)::int`,
       failed: sql<number>`sum(case when ${agentRunsTable.status} in ('FAILED','TIMEOUT') then 1 else 0 end)::int`,
       avgLatencyMs: sql<string | null>`avg(${agentRunsTable.latencyMs})::text`,
       avgConfidence: sql<string | null>`avg(${agentRunsTable.confidence})::text`,
