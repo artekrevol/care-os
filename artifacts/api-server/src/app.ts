@@ -4,6 +4,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { mountBullBoard } from "./lib/bullBoard";
+import { userContext } from "./middlewares/userContext";
 
 const app: Express = express();
 
@@ -34,6 +35,6 @@ mountBullBoard(app);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-app.use("/api", router);
+app.use("/api", userContext, router);
 
 export default app;

@@ -93,7 +93,7 @@ router.post("/referral-drafts", async (req, res): Promise<void> => {
       status: "DRAFT",
     })
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "UPLOAD_REFERRAL",
     entityType: "ReferralDraft",
     entityId: id,
@@ -212,7 +212,7 @@ router.post(
       .update(referralDraftsTable)
       .set({ status: "ACCEPTED", promotedClientId: clientId })
       .where(eq(referralDraftsTable.id, draft.id));
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "APPROVE_REFERRAL",
       entityType: "ReferralDraft",
       entityId: draft.id,
@@ -246,7 +246,7 @@ router.post(
       res.status(404).json({ error: "Referral draft not found" });
       return;
     }
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "REJECT_REFERRAL",
       entityType: "ReferralDraft",
       entityId: row.id,

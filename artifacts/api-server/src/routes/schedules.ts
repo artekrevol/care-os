@@ -340,7 +340,7 @@ router.post("/schedules", async (req, res): Promise<void> => {
     })
     .returning();
   const formatted = await format(row);
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "CREATE_SCHEDULE",
     entityType: "Schedule",
     entityId: id,
@@ -425,7 +425,7 @@ router.patch("/schedules/:id", async (req, res): Promise<void> => {
     return;
   }
   const formatted = await format(row);
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "UPDATE_SCHEDULE",
     entityType: "Schedule",
     entityId: row.id,
@@ -455,7 +455,7 @@ router.delete("/schedules/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Schedule not found" });
     return;
   }
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "DELETE_SCHEDULE",
     entityType: "Schedule",
     entityId: row.id,

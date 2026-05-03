@@ -9,7 +9,7 @@ import {
 } from "@workspace/db";
 import { AGENCY_ID } from "../agency";
 import { newId } from "../ids";
-import { recordAudit } from "../audit";
+import { recordAudit, SYSTEM_ACTOR } from "../audit";
 import { applyRule, type RawWorkDay } from "../laborRuleEngine";
 import { recordAgentRun } from "../agentRun";
 
@@ -120,7 +120,7 @@ export async function autoClosePayPeriods(
           .update(payPeriodsTable)
           .set({ status: "CLOSED" })
           .where(eq(payPeriodsTable.id, p.id));
-        await recordAudit({
+        await recordAudit(SYSTEM_ACTOR, {
           action: "AUTO_CLOSE_PAY_PERIOD",
           entityType: "PayPeriod",
           entityId: p.id,

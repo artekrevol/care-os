@@ -155,7 +155,7 @@ router.post("/clients", async (req, res): Promise<void> => {
       emergencyContactPhone: parsed.data.emergencyContactPhone ?? null,
     })
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "CREATE_CLIENT",
     entityType: "Client",
     entityId: id,
@@ -233,7 +233,7 @@ router.patch("/clients/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Client not found" });
     return;
   }
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "UPDATE_CLIENT",
     entityType: "Client",
     entityId: row.id,
@@ -329,7 +329,7 @@ router.post(
         scopeOfCare: parsed.data.scopeOfCare ?? [],
       })
       .returning();
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "CREATE_AUTH",
       entityType: "Authorization",
       entityId: id,
@@ -434,7 +434,7 @@ router.post(
         needsReview: false,
       })
       .returning();
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "UPLOAD_DOCUMENT",
       entityType: "ClientDocument",
       entityId: id,

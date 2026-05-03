@@ -171,7 +171,7 @@ router.post("/caregivers", async (req, res): Promise<void> => {
       addressState: parsed.data.addressState ?? null,
     })
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "CREATE_CAREGIVER",
     entityType: "Caregiver",
     entityId: id,
@@ -251,7 +251,7 @@ router.patch("/caregivers/:id", async (req, res): Promise<void> => {
         eq(caregiverDocumentsTable.caregiverId, row.id),
       ),
     );
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "UPDATE_CAREGIVER",
     entityType: "Caregiver",
     entityId: row.id,
@@ -336,7 +336,7 @@ router.post("/caregivers/:id/documents", async (req, res): Promise<void> => {
       classificationStatus: parsed.data.fileUrl ? "PENDING" : "NONE",
     })
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "CREATE_DOCUMENT",
     entityType: "CaregiverDocument",
     entityId: id,
@@ -424,7 +424,7 @@ router.post(
         needsReview: false,
       })
       .returning();
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "UPLOAD_DOCUMENT",
       entityType: "CaregiverDocument",
       entityId: id,

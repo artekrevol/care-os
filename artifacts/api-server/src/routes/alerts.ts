@@ -51,7 +51,7 @@ router.post("/alerts/:id/acknowledge", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Alert not found" });
     return;
   }
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "ACK_ALERT",
     entityType: "ComplianceAlert",
     entityId: row.id,
@@ -80,7 +80,7 @@ router.post("/alerts/:id/resolve", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Alert not found" });
     return;
   }
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "RESOLVE_ALERT",
     entityType: "ComplianceAlert",
     entityId: row.id,

@@ -253,7 +253,7 @@ router.post(
       .returning();
 
     const t = await periodTotals(p.id);
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "CLOSE_PAY_PERIOD",
       entityType: "PayPeriod",
       entityId: p.id,
@@ -352,7 +352,7 @@ router.get("/pay-periods/:id/export", async (req, res): Promise<void> => {
       .update(payPeriodsTable)
       .set({ status: "EXPORTED", exportedAt: new Date() })
       .where(eq(payPeriodsTable.id, p.id));
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "EXPORT_PAY_PERIOD",
       entityType: "PayPeriod",
       entityId: p.id,

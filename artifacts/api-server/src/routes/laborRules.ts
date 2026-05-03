@@ -66,7 +66,7 @@ router.post("/labor-rules/active", async (req, res): Promise<void> => {
     .set({ isActive: true })
     .where(eq(laborRuleSetsTable.id, parsed.data.ruleId))
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "SET_ACTIVE_LABOR_RULE",
     entityType: "LaborRuleSet",
     entityId: activated.id,

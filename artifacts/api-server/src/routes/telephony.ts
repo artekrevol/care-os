@@ -556,13 +556,18 @@ async function handleClockIn(
     .update(schedulesTable)
     .set({ status: "IN_PROGRESS" })
     .where(eq(schedulesTable.id, sch.id));
-  await recordAudit({
-    action: "CLOCK_IN",
-    entityType: "Visit",
-    entityId: row.id,
-    summary: "Clock-in via IVR (TELEPHONY)",
-    afterState: row,
-  });
+  // Telephony (IVR) is a caregiver-driven flow with no signed-in
+   // supervisor on the request — the actor is the caregiver.
+  await recordAudit(
+    { id: cg.userId ?? cg.id, name: `${cg.firstName} ${cg.lastName}` },
+    {
+      action: "CLOCK_IN",
+      entityType: "Visit",
+      entityId: row.id,
+      summary: "Clock-in via IVR (TELEPHONY)",
+      afterState: row,
+    },
+  );
   xml(
     res,
     `<Response><Say voice="Polly.Joanna">You are clocked in. Have a great visit. Goodbye.</Say><Hangup/></Response>`,
@@ -634,13 +639,16 @@ async function handleClockOut(
       status: "OPEN",
     });
   }
-  await recordAudit({
-    action: exception === "EXCEPTION" ? "VISIT_EXCEPTION" : "CLOCK_OUT",
-    entityType: "Visit",
-    entityId: row.id,
-    summary: `Clock-out via IVR · ${dur} min${exception === "EXCEPTION" ? " (flagged)" : ""}`,
-    afterState: row,
-  });
+  await recordAudit(
+    { id: cg.userId ?? cg.id, name: `${cg.firstName} ${cg.lastName}` },
+    {
+      action: exception === "EXCEPTION" ? "VISIT_EXCEPTION" : "CLOCK_OUT",
+      entityType: "Visit",
+      entityId: row.id,
+      summary: `Clock-out via IVR · ${dur} min${exception === "EXCEPTION" ? " (flagged)" : ""}`,
+      afterState: row,
+    },
+  );
   xml(
     res,
     `<Response><Say voice="Polly.Joanna">You are clocked out. ${dur} minutes recorded. Goodbye.</Say><Hangup/></Response>`,
@@ -777,20 +785,23 @@ async function handleIncidentDone(
     status: "OPEN",
   });
 
-  await recordAudit({
-    action: "INCIDENT_REPORTED",
-    entityType: incidentId ? "VisitIncident" : "Caregiver",
-    entityId: incidentId ?? cg.id,
-    summary: "Incident reported via IVR",
-    afterState: {
-      incidentId,
-      visitId: visit?.id ?? null,
-      audioStorageKey: audioKey,
-      audioRef,
-      recordingSid,
-      recordingDuration,
+  await recordAudit(
+    { id: cg.userId ?? cg.id, name: `${cg.firstName} ${cg.lastName}` },
+    {
+      action: "INCIDENT_REPORTED",
+      entityType: incidentId ? "VisitIncident" : "Caregiver",
+      entityId: incidentId ?? cg.id,
+      summary: "Incident reported via IVR",
+      afterState: {
+        incidentId,
+        visitId: visit?.id ?? null,
+        audioStorageKey: audioKey,
+        audioRef,
+        recordingSid,
+        recordingDuration,
+      },
     },
-  });
+  );
 
   xml(
     res,

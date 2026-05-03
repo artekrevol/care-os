@@ -362,7 +362,7 @@ router.post("/visits/:id/incidents", async (req, res): Promise<void> => {
     message: parsed.data.description.slice(0, 200),
     status: "OPEN",
   });
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "CREATE_INCIDENT",
     entityType: "VisitIncident",
     entityId: row.id,

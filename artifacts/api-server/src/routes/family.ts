@@ -83,13 +83,13 @@ router.post("/family-users", async (req, res): Promise<void> => {
       relationship: parsed.data.relationship,
       accessLevel: parsed.data.accessLevel ?? "VIEWER",
       invitedAt: new Date(),
-      invitedBy: "user_admin",
+      invitedBy: req.user.id,
       isActive: true,
       inviteToken,
       inviteTokenExpiresAt: expires,
     })
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "INVITE_FAMILY",
     entityType: "FamilyUser",
     entityId: id,
@@ -159,12 +159,15 @@ router.post("/family/me/accept", async (req, res): Promise<void> => {
     })
     .where(eq(familyUsersTable.id, row.id))
     .returning();
-  await recordAudit({
-    action: "ACCEPT_FAMILY_INVITE",
-    entityType: "FamilyUser",
-    entityId: updated.id,
-    summary: `${updated.firstName} ${updated.lastName} accepted family portal invite`,
-  });
+  await recordAudit(
+    { id: updated.id, name: `${updated.firstName} ${updated.lastName}` },
+    {
+      action: "ACCEPT_FAMILY_INVITE",
+      entityType: "FamilyUser",
+      entityId: updated.id,
+      summary: `${updated.firstName} ${updated.lastName} accepted family portal invite`,
+    },
+  );
   res.json(formatFamily(updated));
 });
 

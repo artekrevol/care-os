@@ -185,7 +185,7 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
       tasks: snapshotTasks,
     });
   }
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "CLOCK_IN",
     entityType: "Visit",
     entityId: id,
@@ -265,7 +265,7 @@ router.post("/visits/:id/clock-out", async (req, res): Promise<void> => {
       status: "OPEN",
     });
   }
-  await recordAudit({
+  await recordAudit(req.user, {
     action: exception === "EXCEPTION" ? "VISIT_EXCEPTION" : "CLOCK_OUT",
     entityType: "Visit",
     entityId: row.id,
@@ -301,7 +301,7 @@ router.post("/visits/:id/verify", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Visit not found" });
     return;
   }
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "VERIFY_VISIT",
     entityType: "Visit",
     entityId: row.id,

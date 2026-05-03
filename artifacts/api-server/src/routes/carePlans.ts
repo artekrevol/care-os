@@ -37,13 +37,12 @@ import {
   ListPendingFamilyAcknowledgmentsResponse,
 } from "@workspace/api-zod";
 import { AGENCY_ID } from "../lib/agency";
+import { loadFamilyCaller } from "../lib/familyAuth";
 import { newId } from "../lib/ids";
 import { recordAudit } from "../lib/audit";
 import { draftCarePlanFromAuthorization } from "../lib/carePlanDrafter";
 
 const router: IRouter = Router();
-
-const APPROVER_USER = "user_admin";
 
 async function fetchAcknowledgments(carePlanId: string) {
   const rows = await db
@@ -200,11 +199,11 @@ router.post("/care-plans", async (req, res): Promise<void> => {
       tasks: normalizeTasks(parsed.data.tasks),
       riskFactors: parsed.data.riskFactors ?? [],
       preferences: parsed.data.preferences ?? {},
-      authoredBy: APPROVER_USER,
+      authoredBy: req.user.id,
       sourceAgentRunId: parsed.data.sourceAgentRunId ?? null,
     })
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "CREATE_CARE_PLAN",
     entityType: "CarePlan",
     entityId: id,
@@ -282,7 +281,7 @@ router.patch("/care-plans/:id", async (req, res): Promise<void> => {
     .set(update)
     .where(eq(carePlansTable.id, existing.id))
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "UPDATE_CARE_PLAN",
     entityType: "CarePlan",
     entityId: row.id,
@@ -321,7 +320,7 @@ router.post("/care-plans/:id/submit", async (req, res): Promise<void> => {
     .update(carePlansTable)
     .set({
       status: "SUBMITTED",
-      submittedBy: APPROVER_USER,
+      submittedBy: req.user.id,
       submittedAt: new Date(),
       rejectionReason: null,
       rejectedAt: null,
@@ -329,7 +328,7 @@ router.post("/care-plans/:id/submit", async (req, res): Promise<void> => {
     })
     .where(eq(carePlansTable.id, existing.id))
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "SUBMIT_CARE_PLAN",
     entityType: "CarePlan",
     entityId: row.id,
@@ -383,7 +382,7 @@ router.post("/care-plans/:id/approve", async (req, res): Promise<void> => {
     .update(carePlansTable)
     .set({
       status: "APPROVED",
-      approvedBy: APPROVER_USER,
+      approvedBy: req.user.id,
       approvedAt: new Date(),
       effectiveStart,
     })
@@ -393,7 +392,7 @@ router.post("/care-plans/:id/approve", async (req, res): Promise<void> => {
     .update(clientsTable)
     .set({ activeCarePlanId: row.id })
     .where(eq(clientsTable.id, row.clientId));
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "APPROVE_CARE_PLAN",
     entityType: "CarePlan",
     entityId: row.id,
@@ -433,13 +432,13 @@ router.post("/care-plans/:id/reject", async (req, res): Promise<void> => {
     .update(carePlansTable)
     .set({
       status: "REJECTED",
-      rejectedBy: APPROVER_USER,
+      rejectedBy: req.user.id,
       rejectedAt: new Date(),
       rejectionReason: parsed.data.reason,
     })
     .where(eq(carePlansTable.id, existing.id))
     .returning();
-  await recordAudit({
+  await recordAudit(req.user, {
     action: "REJECT_CARE_PLAN",
     entityType: "CarePlan",
     entityId: row.id,
@@ -458,6 +457,27 @@ router.post("/care-plans/:id/acknowledge", async (req, res): Promise<void> => {
       .json({ error: !params.success ? params.error.message : parsed.error!.message });
     return;
   }
+  // The acknowledge endpoint is the family-portal caller, not a supervisor.
+  // We bind the actor to the verified family caller resolved from the
+  // shared `x-family-user-id` header (same convention used by messaging,
+  // notifications, and the rest of family.ts), and reject any
+  // body-supplied `familyUserId` that doesn't match it. This prevents a
+  // caller from impersonating an arbitrary family member by passing a
+  // different id in the request body.
+  const caller = await loadFamilyCaller(req);
+  if (!caller) {
+    res.status(401).json({ error: "Unknown family user" });
+    return;
+  }
+  if (
+    parsed.data.familyUserId &&
+    parsed.data.familyUserId !== caller.userId
+  ) {
+    res
+      .status(403)
+      .json({ error: "familyUserId does not match authenticated family caller" });
+    return;
+  }
   const [plan] = await db
     .select()
     .from(carePlansTable)
@@ -471,14 +491,15 @@ router.post("/care-plans/:id/acknowledge", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Care plan not found" });
     return;
   }
-  const [family] = await db
-    .select()
-    .from(familyUsersTable)
-    .where(eq(familyUsersTable.id, parsed.data.familyUserId));
-  if (!family) {
-    res.status(404).json({ error: "Family user not found" });
+  if (caller.clientId !== plan.clientId) {
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
+  const family = {
+    id: caller.userId,
+    firstName: caller.firstName,
+    lastName: caller.lastName,
+  };
   const id = newId("cpa");
   const [ack] = await db
     .insert(carePlanAcknowledgmentsTable)
@@ -490,13 +511,18 @@ router.post("/care-plans/:id/acknowledge", async (req, res): Promise<void> => {
       notes: parsed.data.notes ?? null,
     })
     .returning();
-  await recordAudit({
-    action: "ACKNOWLEDGE_CARE_PLAN",
-    entityType: "CarePlan",
-    entityId: plan.id,
-    summary: `${family.firstName} ${family.lastName} acknowledged care plan v${plan.version}`,
-    afterState: ack,
-  });
+  // The actor on a family acknowledgment is the family member, not the
+  // signed-in supervisor (who isn't involved in this action).
+  await recordAudit(
+    { id: family.id, name: `${family.firstName} ${family.lastName}` },
+    {
+      action: "ACKNOWLEDGE_CARE_PLAN",
+      entityType: "CarePlan",
+      entityId: plan.id,
+      summary: `${family.firstName} ${family.lastName} acknowledged care plan v${plan.version}`,
+      afterState: ack,
+    },
+  );
   res.json(
     AcknowledgeCarePlanResponse.parse({
       id: ack.id,
@@ -639,11 +665,11 @@ router.post(
         tasks: normalizeTasks(draft.tasks),
         riskFactors: draft.riskFactors,
         preferences: draft.preferences,
-        authoredBy: APPROVER_USER,
+        authoredBy: req.user.id,
         sourceAgentRunId: draft.agentRunId,
       })
       .returning();
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "GENERATE_CARE_PLAN",
       entityType: "CarePlan",
       entityId: id,
