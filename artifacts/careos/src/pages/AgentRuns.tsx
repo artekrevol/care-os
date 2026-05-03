@@ -7,7 +7,7 @@ import { format } from "date-fns";
 
 export default function AgentRuns() {
   const { data: runs, isLoading } = useListAgentRuns(undefined, {
-    query: { refetchInterval: 4000 },
+    query: { refetchInterval: 4000 } as any,
   });
 
   return (

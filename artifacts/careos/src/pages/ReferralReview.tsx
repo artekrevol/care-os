@@ -82,7 +82,7 @@ export default function ReferralReview() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: draft, refetch } = useGetReferralDraft(id!, {
-    query: { enabled: !!id, refetchInterval: 2000 },
+    query: { enabled: !!id, refetchInterval: 2000 } as any,
   });
   const approve = useApproveReferralDraft();
   const reject = useRejectReferralDraft();

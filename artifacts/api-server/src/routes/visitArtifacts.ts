@@ -154,7 +154,7 @@ router.post(
       })
       .where(eq(visitChecklistInstancesTable.id, row.id))
       .returning();
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "COMPLETE_VISIT_TASK",
       entityType: "Visit",
       entityId: row.visitId,
@@ -208,7 +208,7 @@ router.post(
       })
       .where(eq(visitChecklistInstancesTable.id, row.id))
       .returning();
-    await recordAudit({
+    await recordAudit(req.user, {
       action: "SKIP_VISIT_TASK",
       entityType: "Visit",
       entityId: row.visitId,

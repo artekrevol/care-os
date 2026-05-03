@@ -11,7 +11,7 @@ import {
 import { M } from "@workspace/api-zod";
 import { AGENCY_ID } from "../../lib/agency";
 import { newId } from "../../lib/ids";
-import { recordAudit } from "../../lib/audit";
+import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import { notifications } from "@workspace/services";
 import {
   hashToken,
@@ -120,7 +120,7 @@ router.post("/m/auth/request-otp", async (req, res): Promise<void> => {
   } catch {
     sent = false;
   }
-  await recordAudit({
+  await recordAudit(SYSTEM_ACTOR, {
     action: "CAREGIVER_OTP_REQUEST",
     entityType: "Caregiver",
     entityId: cg.id,
@@ -177,7 +177,7 @@ router.post("/m/auth/verify-otp", async (req, res): Promise<void> => {
     parsed.data.deviceLabel,
     req.header("user-agent") ?? undefined,
   );
-  await recordAudit({
+  await recordAudit(SYSTEM_ACTOR, {
     action: "CAREGIVER_LOGIN_OTP",
     entityType: "Caregiver",
     entityId: cg.id,
@@ -220,7 +220,7 @@ router.post(
       .where(eq(caregiverSessionsTable.caregiverId, caregiverId))
       .orderBy(desc(caregiverSessionsTable.createdAt))
       .limit(1);
-    await recordAudit({
+    await recordAudit(SYSTEM_ACTOR, {
       action: "CAREGIVER_SET_PIN",
       entityType: "Caregiver",
       entityId: caregiverId,
@@ -283,7 +283,7 @@ router.post("/m/auth/login-pin", async (req, res): Promise<void> => {
     parsed.data.deviceLabel,
     req.header("user-agent") ?? undefined,
   );
-  await recordAudit({
+  await recordAudit(SYSTEM_ACTOR, {
     action: "CAREGIVER_LOGIN_PIN",
     entityType: "Caregiver",
     entityId: cg.id,
@@ -355,7 +355,7 @@ router.post("/m/auth/webauthn/login", async (req, res): Promise<void> => {
     parsed.data.deviceLabel,
     req.header("user-agent") ?? undefined,
   );
-  await recordAudit({
+  await recordAudit(SYSTEM_ACTOR, {
     action: "CAREGIVER_LOGIN_WEBAUTHN",
     entityType: "Caregiver",
     entityId: cg.id,

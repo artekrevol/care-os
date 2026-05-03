@@ -29,7 +29,7 @@ function fileToBase64(file: File): Promise<string> {
 
 export default function Intake() {
   const { data: drafts, refetch } = useListReferralDrafts({
-    query: { refetchInterval: 3000 },
+    query: { refetchInterval: 3000 } as any,
   });
   const upload = useUploadReferralDraft();
   const queryClient = useQueryClient();

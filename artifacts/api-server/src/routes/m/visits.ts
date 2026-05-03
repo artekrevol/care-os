@@ -15,7 +15,7 @@ import {
 import { M } from "@workspace/api-zod";
 import { AGENCY_ID } from "../../lib/agency";
 import { newId } from "../../lib/ids";
-import { recordAudit } from "../../lib/audit";
+import { recordAudit, SYSTEM_ACTOR } from "../../lib/audit";
 import { storage } from "@workspace/services";
 import { requireCaregiverSession, type MAuthedRequest } from "./middleware";
 import { transcribeAudioBase64 } from "./transcribe";
@@ -278,7 +278,7 @@ router.post(
         tasks,
       });
     }
-    await recordAudit({
+    await recordAudit(SYSTEM_ACTOR, {
       action: "CLOCK_IN",
       entityType: "Visit",
       entityId: row.id,
@@ -379,7 +379,7 @@ router.post(
         status: "OPEN",
       });
     }
-    await recordAudit({
+    await recordAudit(SYSTEM_ACTOR, {
       action: exception === "EXCEPTION" ? "VISIT_EXCEPTION" : "CLOCK_OUT",
       entityType: "Visit",
       entityId: row.id,
@@ -581,7 +581,7 @@ router.post(
       message: parsed.data.description,
       status: "OPEN",
     });
-    await recordAudit({
+    await recordAudit(SYSTEM_ACTOR, {
       action: "VISIT_INCIDENT",
       entityType: "Visit",
       entityId: v.id,
