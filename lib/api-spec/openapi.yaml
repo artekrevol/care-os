@@ -3,20 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CareOS API — home care operating system foundation.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: dashboard
+  - name: clients
+  - name: authorizations
+  - name: caregivers
+  - name: documents
+  - name: schedules
+  - name: visits
+  - name: payroll
+  - name: rules
+  - name: alerts
+  - name: audit
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +33,689 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Operational dashboard summary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Recent activity feed
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/ot-projection:
+    get:
+      operationId: getOvertimeProjection
+      tags: [dashboard, payroll]
+      summary: Live overtime projection for the open pay period
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OvertimeProjection"
+
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/ClientStatus"
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [clients]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClientBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+    patch:
+      operationId: updateClient
+      tags: [clients]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClientBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /clients/{id}/authorizations:
+    get:
+      operationId: listClientAuthorizations
+      tags: [authorizations]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Authorization"
+    post:
+      operationId: createClientAuthorization
+      tags: [authorizations]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAuthorizationBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Authorization"
+
+  /authorizations/expiring:
+    get:
+      operationId: listExpiringAuthorizations
+      tags: [authorizations]
+      summary: Authorizations expiring or exhausted soon
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Authorization"
+
+  /caregivers:
+    get:
+      operationId: listCaregivers
+      tags: [caregivers]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Caregiver"
+    post:
+      operationId: createCaregiver
+      tags: [caregivers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCaregiverBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Caregiver"
+
+  /caregivers/{id}:
+    get:
+      operationId: getCaregiver
+      tags: [caregivers]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaregiverDetail"
+    patch:
+      operationId: updateCaregiver
+      tags: [caregivers]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCaregiverBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Caregiver"
+
+  /caregivers/{id}/documents:
+    get:
+      operationId: listCaregiverDocuments
+      tags: [documents]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CaregiverDocument"
+    post:
+      operationId: createCaregiverDocument
+      tags: [documents]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCaregiverDocumentBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaregiverDocument"
+
+  /documents/expiring:
+    get:
+      operationId: listExpiringDocuments
+      tags: [documents]
+      summary: Caregiver documents expiring soon
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CaregiverDocument"
+
+  /schedules:
+    get:
+      operationId: listSchedules
+      tags: [schedules]
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: caregiverId
+          schema:
+            type: string
+        - in: query
+          name: clientId
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Schedule"
+    post:
+      operationId: createSchedule
+      tags: [schedules]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScheduleBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleCreateResult"
+
+  /schedules/{id}:
+    patch:
+      operationId: updateSchedule
+      tags: [schedules]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateScheduleBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Schedule"
+    delete:
+      operationId: deleteSchedule
+      tags: [schedules]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+
+  /visits:
+    get:
+      operationId: listVisits
+      tags: [visits]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/VisitVerificationStatus"
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Visit"
+
+  /visits/clock-in:
+    post:
+      operationId: clockIn
+      tags: [visits]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockInBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Visit"
+
+  /visits/{id}/clock-out:
+    post:
+      operationId: clockOut
+      tags: [visits]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockOutBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Visit"
+
+  /visits/{id}/verify:
+    post:
+      operationId: verifyVisit
+      tags: [visits]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyVisitBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Visit"
+
+  /pay-periods:
+    get:
+      operationId: listPayPeriods
+      tags: [payroll]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayPeriod"
+
+  /pay-periods/{id}:
+    get:
+      operationId: getPayPeriod
+      tags: [payroll]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayPeriodDetail"
+
+  /pay-periods/{id}/close:
+    post:
+      operationId: closePayPeriod
+      tags: [payroll]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayPeriod"
+
+  /pay-periods/{id}/export:
+    get:
+      operationId: exportPayPeriodCsv
+      tags: [payroll]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ADP-compatible CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /labor-rules:
+    get:
+      operationId: listLaborRules
+      tags: [rules]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LaborRuleSet"
+
+  /labor-rules/active:
+    get:
+      operationId: getActiveLaborRule
+      tags: [rules]
+      summary: Currently active labor rule for the agency
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaborRuleSet"
+    post:
+      operationId: setActiveLaborRule
+      tags: [rules]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetActiveLaborRuleBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaborRuleSet"
+
+  /alerts:
+    get:
+      operationId: listComplianceAlerts
+      tags: [alerts]
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/ComplianceAlertStatus"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ComplianceAlert"
+
+  /alerts/{id}/acknowledge:
+    post:
+      operationId: acknowledgeAlert
+      tags: [alerts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceAlert"
+
+  /alerts/{id}/resolve:
+    post:
+      operationId: resolveAlert
+      tags: [alerts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceAlert"
+
+  /audit-log:
+    get:
+      operationId: listAuditLog
+      tags: [audit]
+      parameters:
+        - in: query
+          name: entityType
+          schema:
+            type: string
+        - in: query
+          name: entityId
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLogEntry"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +723,778 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ClientStatus:
+      type: string
+      enum: [PROSPECT, ACTIVE, ON_HOLD, DISCHARGED]
+
+    PayerType:
+      type: string
+      enum: [PRIVATE_PAY, VA_CCN, MEDICAID_HCBS, COUNTY_IHSS, LTC_INSURANCE]
+
+    Client:
+      type: object
+      properties:
+        id: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        dob: { type: string, format: date }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true }
+        addressLine1: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        postalCode: { type: string, nullable: true }
+        primaryPayer:
+          $ref: "#/components/schemas/PayerType"
+        status:
+          $ref: "#/components/schemas/ClientStatus"
+        intakeDate: { type: string, format: date, nullable: true }
+        languages:
+          type: array
+          items: { type: string }
+        carePreferences: { type: string, nullable: true }
+        allergies: { type: string, nullable: true }
+        emergencyContactName: { type: string, nullable: true }
+        emergencyContactPhone: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required:
+        [id, firstName, lastName, dob, primaryPayer, status, languages, createdAt]
+
+    ClientDetail:
+      allOf:
+        - $ref: "#/components/schemas/Client"
+        - type: object
+          properties:
+            authorizations:
+              type: array
+              items:
+                $ref: "#/components/schemas/Authorization"
+            recentVisits:
+              type: array
+              items:
+                $ref: "#/components/schemas/Visit"
+          required: [authorizations, recentVisits]
+
+    CreateClientBody:
+      type: object
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        dob: { type: string, format: date }
+        phone: { type: string }
+        email: { type: string }
+        addressLine1: { type: string }
+        city: { type: string }
+        state: { type: string }
+        postalCode: { type: string }
+        primaryPayer:
+          $ref: "#/components/schemas/PayerType"
+        languages:
+          type: array
+          items: { type: string }
+        carePreferences: { type: string }
+        allergies: { type: string }
+        emergencyContactName: { type: string }
+        emergencyContactPhone: { type: string }
+      required: [firstName, lastName, dob, primaryPayer]
+
+    UpdateClientBody:
+      type: object
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        addressLine1: { type: string }
+        city: { type: string }
+        state: { type: string }
+        postalCode: { type: string }
+        status:
+          $ref: "#/components/schemas/ClientStatus"
+        primaryPayer:
+          $ref: "#/components/schemas/PayerType"
+        carePreferences: { type: string }
+        allergies: { type: string }
+        emergencyContactName: { type: string }
+        emergencyContactPhone: { type: string }
+
+    AuthorizationStatus:
+      type: string
+      enum: [ACTIVE, EXPIRING_SOON, EXPIRED, EXHAUSTED]
+
+    Authorization:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        payer:
+          $ref: "#/components/schemas/PayerType"
+        authNumber: { type: string }
+        issuedDate: { type: string, format: date }
+        expirationDate: { type: string, format: date }
+        approvedHoursPerWeek: { type: number }
+        approvedHoursTotal: { type: number }
+        hoursUsed: { type: number }
+        hoursRemaining: { type: number }
+        scopeOfCare:
+          type: array
+          items: { type: string }
+        status:
+          $ref: "#/components/schemas/AuthorizationStatus"
+        daysUntilExpiration: { type: integer }
+      required:
+        [
+          id,
+          clientId,
+          clientName,
+          payer,
+          authNumber,
+          issuedDate,
+          expirationDate,
+          approvedHoursPerWeek,
+          approvedHoursTotal,
+          hoursUsed,
+          hoursRemaining,
+          scopeOfCare,
+          status,
+          daysUntilExpiration,
+        ]
+
+    CreateAuthorizationBody:
+      type: object
+      properties:
+        payer:
+          $ref: "#/components/schemas/PayerType"
+        authNumber: { type: string }
+        issuedDate: { type: string, format: date }
+        expirationDate: { type: string, format: date }
+        approvedHoursPerWeek: { type: number }
+        approvedHoursTotal: { type: number }
+        scopeOfCare:
+          type: array
+          items: { type: string }
+      required:
+        [
+          payer,
+          authNumber,
+          issuedDate,
+          expirationDate,
+          approvedHoursPerWeek,
+          approvedHoursTotal,
+        ]
+
+    EmploymentType:
+      type: string
+      enum: [W2, "1099"]
+
+    CaregiverStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE, TERMINATED]
+
+    Caregiver:
+      type: object
+      properties:
+        id: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        employmentType:
+          $ref: "#/components/schemas/EmploymentType"
+        hireDate: { type: string, format: date, nullable: true }
+        status:
+          $ref: "#/components/schemas/CaregiverStatus"
+        languages:
+          type: array
+          items: { type: string }
+        skills:
+          type: array
+          items: { type: string }
+        payRate: { type: number }
+        hasVehicle: { type: boolean }
+        addressCity: { type: string, nullable: true }
+        addressState: { type: string, nullable: true }
+        documentsValid: { type: integer }
+        documentsExpiring: { type: integer }
+        documentsExpired: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required:
+        [
+          id,
+          firstName,
+          lastName,
+          employmentType,
+          status,
+          languages,
+          skills,
+          payRate,
+          hasVehicle,
+          documentsValid,
+          documentsExpiring,
+          documentsExpired,
+          createdAt,
+        ]
+
+    CaregiverDetail:
+      allOf:
+        - $ref: "#/components/schemas/Caregiver"
+        - type: object
+          properties:
+            documents:
+              type: array
+              items:
+                $ref: "#/components/schemas/CaregiverDocument"
+            recentVisits:
+              type: array
+              items:
+                $ref: "#/components/schemas/Visit"
+          required: [documents, recentVisits]
+
+    CreateCaregiverBody:
+      type: object
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        employmentType:
+          $ref: "#/components/schemas/EmploymentType"
+        hireDate: { type: string, format: date }
+        languages:
+          type: array
+          items: { type: string }
+        skills:
+          type: array
+          items: { type: string }
+        payRate: { type: number }
+        hasVehicle: { type: boolean }
+        addressCity: { type: string }
+        addressState: { type: string }
+      required: [firstName, lastName, employmentType, payRate]
+
+    UpdateCaregiverBody:
+      type: object
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        status:
+          $ref: "#/components/schemas/CaregiverStatus"
+        payRate: { type: number }
+        hasVehicle: { type: boolean }
+        languages:
+          type: array
+          items: { type: string }
+        skills:
+          type: array
+          items: { type: string }
+
+    DocumentType:
+      type: string
+      enum:
+        [
+          BACKGROUND_CHECK,
+          TB_TEST,
+          CPR,
+          TRAINING,
+          LICENSE,
+          I9,
+          W4,
+          DIRECT_DEPOSIT,
+        ]
+
+    DocumentStatus:
+      type: string
+      enum: [VALID, EXPIRING, EXPIRED, MISSING]
+
+    CaregiverDocument:
+      type: object
+      properties:
+        id: { type: string }
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        documentType:
+          $ref: "#/components/schemas/DocumentType"
+        issuedDate: { type: string, format: date, nullable: true }
+        expirationDate: { type: string, format: date, nullable: true }
+        status:
+          $ref: "#/components/schemas/DocumentStatus"
+        daysUntilExpiration: { type: integer, nullable: true }
+        fileUrl: { type: string, nullable: true }
+      required: [id, caregiverId, caregiverName, documentType, status]
+
+    CreateCaregiverDocumentBody:
+      type: object
+      properties:
+        documentType:
+          $ref: "#/components/schemas/DocumentType"
+        issuedDate: { type: string, format: date }
+        expirationDate: { type: string, format: date }
+        fileUrl: { type: string }
+      required: [documentType]
+
+    ScheduleStatus:
+      type: string
+      enum: [SCHEDULED, IN_PROGRESS, COMPLETED, MISSED, CANCELLED]
+
+    Schedule:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        scheduledMinutes: { type: integer }
+        serviceCode: { type: string }
+        serviceDescription: { type: string }
+        authorizationId: { type: string, nullable: true }
+        status:
+          $ref: "#/components/schemas/ScheduleStatus"
+        notes: { type: string, nullable: true }
+      required:
+        [
+          id,
+          clientId,
+          clientName,
+          caregiverId,
+          caregiverName,
+          startTime,
+          endTime,
+          scheduledMinutes,
+          serviceCode,
+          serviceDescription,
+          status,
+        ]
+
+    CreateScheduleBody:
+      type: object
+      properties:
+        clientId: { type: string }
+        caregiverId: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        serviceCode: { type: string }
+        serviceDescription: { type: string }
+        authorizationId: { type: string }
+        notes: { type: string }
+      required: [clientId, caregiverId, startTime, endTime, serviceCode]
+
+    UpdateScheduleBody:
+      type: object
+      properties:
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        caregiverId: { type: string }
+        status:
+          $ref: "#/components/schemas/ScheduleStatus"
+        notes: { type: string }
+
+    ScheduleConflict:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            [
+              DOUBLE_BOOK,
+              EXPIRED_CREDENTIAL,
+              AUTH_OVERRUN,
+              AUTH_EXPIRED,
+              OT_THRESHOLD,
+            ]
+        message: { type: string }
+        severity:
+          type: string
+          enum: [WARNING, BLOCK]
+      required: [type, message, severity]
+
+    ScheduleCreateResult:
+      type: object
+      properties:
+        schedule:
+          $ref: "#/components/schemas/Schedule"
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleConflict"
+      required: [schedule, conflicts]
+
+    VisitVerificationStatus:
+      type: string
+      enum: [PENDING, VERIFIED, EXCEPTION, REJECTED]
+
+    ClockMethod:
+      type: string
+      enum: [GPS, TELEPHONY, FOB, MANUAL]
+
+    Visit:
+      type: object
+      properties:
+        id: { type: string }
+        scheduleId: { type: string, nullable: true }
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        clockInTime: { type: string, format: date-time, nullable: true }
+        clockInLat: { type: number, nullable: true }
+        clockInLng: { type: number, nullable: true }
+        clockInMethod:
+          $ref: "#/components/schemas/ClockMethod"
+        clockOutTime: { type: string, format: date-time, nullable: true }
+        clockOutLat: { type: number, nullable: true }
+        clockOutLng: { type: number, nullable: true }
+        clockOutMethod:
+          $ref: "#/components/schemas/ClockMethod"
+        durationMinutes: { type: integer, nullable: true }
+        tasksCompleted:
+          type: array
+          items: { type: string }
+        caregiverNotes: { type: string, nullable: true }
+        supervisorNotes: { type: string, nullable: true }
+        verificationStatus:
+          $ref: "#/components/schemas/VisitVerificationStatus"
+        exceptionReason: { type: string, nullable: true }
+        geoFenceMatch: { type: boolean }
+      required:
+        [
+          id,
+          caregiverId,
+          caregiverName,
+          clientId,
+          clientName,
+          clockInMethod,
+          clockOutMethod,
+          tasksCompleted,
+          verificationStatus,
+          geoFenceMatch,
+        ]
+
+    ClockInBody:
+      type: object
+      properties:
+        scheduleId: { type: string }
+        caregiverId: { type: string }
+        clientId: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        method:
+          $ref: "#/components/schemas/ClockMethod"
+      required: [caregiverId, clientId, method]
+
+    ClockOutBody:
+      type: object
+      properties:
+        latitude: { type: number }
+        longitude: { type: number }
+        method:
+          $ref: "#/components/schemas/ClockMethod"
+        tasksCompleted:
+          type: array
+          items: { type: string }
+        caregiverNotes: { type: string }
+      required: [method]
+
+    VerifyVisitBody:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [VERIFIED, REJECTED]
+        supervisorNotes: { type: string }
+      required: [decision]
+
+    PayPeriodStatus:
+      type: string
+      enum: [OPEN, CLOSED, EXPORTED, PAID]
+
+    PayPeriod:
+      type: object
+      properties:
+        id: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        status:
+          $ref: "#/components/schemas/PayPeriodStatus"
+        totalRegularHours: { type: number }
+        totalOvertimeHours: { type: number }
+        totalDoubleTimeHours: { type: number }
+        totalGrossPay: { type: number }
+        caregiverCount: { type: integer }
+        exportedAt: { type: string, format: date-time, nullable: true }
+      required:
+        [
+          id,
+          startDate,
+          endDate,
+          status,
+          totalRegularHours,
+          totalOvertimeHours,
+          totalDoubleTimeHours,
+          totalGrossPay,
+          caregiverCount,
+        ]
+
+    TimeEntry:
+      type: object
+      properties:
+        id: { type: string }
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        visitId: { type: string }
+        workDate: { type: string, format: date }
+        regularMinutes: { type: integer }
+        overtimeMinutes: { type: integer }
+        doubleTimeMinutes: { type: integer }
+        payRate: { type: number }
+        regularPay: { type: number }
+        overtimePay: { type: number }
+        doubleTimePay: { type: number }
+        totalPay: { type: number }
+        ruleEngineVersion: { type: string }
+      required:
+        [
+          id,
+          caregiverId,
+          caregiverName,
+          visitId,
+          workDate,
+          regularMinutes,
+          overtimeMinutes,
+          doubleTimeMinutes,
+          payRate,
+          regularPay,
+          overtimePay,
+          doubleTimePay,
+          totalPay,
+          ruleEngineVersion,
+        ]
+
+    PayPeriodDetail:
+      allOf:
+        - $ref: "#/components/schemas/PayPeriod"
+        - type: object
+          properties:
+            entries:
+              type: array
+              items:
+                $ref: "#/components/schemas/TimeEntry"
+            byCaregiver:
+              type: array
+              items:
+                $ref: "#/components/schemas/CaregiverPayrollSummary"
+          required: [entries, byCaregiver]
+
+    CaregiverPayrollSummary:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        regularMinutes: { type: integer }
+        overtimeMinutes: { type: integer }
+        doubleTimeMinutes: { type: integer }
+        regularPay: { type: number }
+        overtimePay: { type: number }
+        doubleTimePay: { type: number }
+        totalPay: { type: number }
+      required:
+        [
+          caregiverId,
+          caregiverName,
+          regularMinutes,
+          overtimeMinutes,
+          doubleTimeMinutes,
+          regularPay,
+          overtimePay,
+          doubleTimePay,
+          totalPay,
+        ]
+
+    LaborRuleSet:
+      type: object
+      properties:
+        id: { type: string }
+        state: { type: string }
+        name: { type: string }
+        description: { type: string }
+        version: { type: string }
+        overtimeThresholdDailyMinutes: { type: integer, nullable: true }
+        overtimeThresholdWeeklyMinutes: { type: integer, nullable: true }
+        doubleTimeThresholdDailyMinutes: { type: integer, nullable: true }
+        seventhDayConsecutiveRule: { type: boolean }
+        travelTimeBillable: { type: boolean }
+        isActive: { type: boolean }
+      required:
+        [
+          id,
+          state,
+          name,
+          description,
+          version,
+          seventhDayConsecutiveRule,
+          travelTimeBillable,
+          isActive,
+        ]
+
+    SetActiveLaborRuleBody:
+      type: object
+      properties:
+        ruleId: { type: string }
+      required: [ruleId]
+
+    ComplianceAlertStatus:
+      type: string
+      enum: [OPEN, ACKNOWLEDGED, RESOLVED]
+
+    ComplianceAlertType:
+      type: string
+      enum:
+        [
+          AUTH_EXPIRING,
+          AUTH_EXPIRED,
+          DOC_EXPIRING,
+          DOC_EXPIRED,
+          OT_THRESHOLD,
+          MISSED_VISIT,
+          LATE_CLOCK_IN,
+          GEO_MISMATCH,
+        ]
+
+    ComplianceAlert:
+      type: object
+      properties:
+        id: { type: string }
+        alertType:
+          $ref: "#/components/schemas/ComplianceAlertType"
+        severity:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        entityType: { type: string }
+        entityId: { type: string }
+        title: { type: string }
+        message: { type: string }
+        status:
+          $ref: "#/components/schemas/ComplianceAlertStatus"
+        createdAt: { type: string, format: date-time }
+      required:
+        [
+          id,
+          alertType,
+          severity,
+          entityType,
+          entityId,
+          title,
+          message,
+          status,
+          createdAt,
+        ]
+
+    AuditLogEntry:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string, nullable: true }
+        userName: { type: string, nullable: true }
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: string, nullable: true }
+        summary: { type: string }
+        timestamp: { type: string, format: date-time }
+      required: [id, action, entityType, summary, timestamp]
+
+    ActivityItem:
+      type: object
+      properties:
+        id: { type: string }
+        kind:
+          type: string
+          enum: [VISIT_VERIFIED, VISIT_EXCEPTION, CLIENT_INTAKE, ALERT, SCHEDULE]
+        title: { type: string }
+        subtitle: { type: string }
+        timestamp: { type: string, format: date-time }
+      required: [id, kind, title, subtitle, timestamp]
+
+    DashboardSummary:
+      type: object
+      properties:
+        activeClients: { type: integer }
+        activeCaregivers: { type: integer }
+        scheduledVisitsToday: { type: integer }
+        completedVisitsToday: { type: integer }
+        pendingExceptions: { type: integer }
+        openAlerts: { type: integer }
+        expiringAuthorizations: { type: integer }
+        expiringDocuments: { type: integer }
+        weeklyHoursDelivered: { type: number }
+        weeklyHoursScheduled: { type: number }
+        projectedWeeklyOvertimeHours: { type: number }
+        projectedWeeklyOvertimeCost: { type: number }
+        activeRuleName: { type: string }
+        activeRuleState: { type: string }
+      required:
+        [
+          activeClients,
+          activeCaregivers,
+          scheduledVisitsToday,
+          completedVisitsToday,
+          pendingExceptions,
+          openAlerts,
+          expiringAuthorizations,
+          expiringDocuments,
+          weeklyHoursDelivered,
+          weeklyHoursScheduled,
+          projectedWeeklyOvertimeHours,
+          projectedWeeklyOvertimeCost,
+          activeRuleName,
+          activeRuleState,
+        ]
+
+    OvertimeProjectionEntry:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        scheduledMinutes: { type: integer }
+        projectedRegularMinutes: { type: integer }
+        projectedOvertimeMinutes: { type: integer }
+        projectedDoubleTimeMinutes: { type: integer }
+        projectedOvertimeCost: { type: number }
+      required:
+        [
+          caregiverId,
+          caregiverName,
+          scheduledMinutes,
+          projectedRegularMinutes,
+          projectedOvertimeMinutes,
+          projectedDoubleTimeMinutes,
+          projectedOvertimeCost,
+        ]
+
+    OvertimeProjection:
+      type: object
+      properties:
+        ruleName: { type: string }
+        ruleState: { type: string }
+        totalOvertimeHours: { type: number }
+        totalDoubleTimeHours: { type: number }
+        totalOvertimeCost: { type: number }
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/OvertimeProjectionEntry"
+      required:
+        [
+          ruleName,
+          ruleState,
+          totalOvertimeHours,
+          totalDoubleTimeHours,
+          totalOvertimeCost,
+          entries,
+        ]

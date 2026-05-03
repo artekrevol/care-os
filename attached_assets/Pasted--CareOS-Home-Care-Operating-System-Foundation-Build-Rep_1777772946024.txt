@@ -1,0 +1,363 @@
+# CareOS — Home Care Operating System (Foundation Build)
+
+> **Replit Build Prompt — Foundation Phase**
+> Working name: CareOS (rename later if needed)
+> Excludes billing/RCM — that's handled by an existing system (ClaimShield) and integrated via API later.
+
+---
+
+## 1. Mission
+
+Build the operational foundation for **CareOS**, an AI-native operating system for home care agencies. The platform unifies client management, caregiver management, scheduling, visit verification (EVV), time tracking, payroll, and compliance into one continuous data flow — replacing the 5–7 disconnected tools (AlayaCare, ADP, scheduling spreadsheets, fax intake, etc.) that home care agencies currently stitch together manually.
+
+The wedge is **labor compliance and operational unification.** Existing platforms hardcode federal 8-hour overtime rules and break for any agency with state-specific exemptions (California's 9-hour rule for domestic workers being the primary example). This forces agencies to run payroll manually, which produces errors, legal exposure, and wasted hours. CareOS solves this with a configurable state-by-state labor rule engine.
+
+---
+
+## 2. Build Principles
+
+1. **Multi-tenant from day one.** Every entity is scoped to an agency. No shared data across tenants ever.
+2. **HIPAA-aware.** All PHI access logged. Encryption at rest and in transit. Field-level access control for sensitive data.
+3. **Audit everything.** Every create/update/delete on PHI or financial records writes to an immutable audit log with user, timestamp, IP, before/after.
+4. **AI-native, not AI-decorated.** Background jobs handle referral parsing, schedule optimization, document classification, and anomaly detection. Don't build chat-bot wrappers; build agents that do work.
+5. **Mobile-first for caregivers.** Caregiver experience ships as a PWA in this foundation. Native app comes later.
+6. **Configurable rules, not hardcoded logic.** Labor rules, scope-of-care, document requirements, and compliance triggers all live in a rule engine, not in code.
+7. **Clean integration boundary for ClaimShield.** The billing system is external. Expose visit and payroll data via internal API; consume claim status updates via webhook.
+
+---
+
+## 3. Tech Stack
+
+Match the existing ClaimShield stack for operational consistency:
+
+- **Frontend:** Next.js 14 (App Router) + TypeScript + Tailwind + shadcn/ui
+- **Backend:** Node.js + Express OR Next.js API routes (developer's choice — keep monolith for now)
+- **Database:** PostgreSQL with Prisma ORM
+- **Auth:** Clerk or Auth.js with RBAC. Email + password + 2FA required for Admin/Owner roles.
+- **File storage:** S3-compatible (use Replit Object Storage initially, AWS S3 in production)
+- **Background jobs:** BullMQ + Redis
+- **Real-time:** Pusher or Supabase Realtime (caregiver location, schedule changes, alerts)
+- **PDF generation:** pdf-lib (matches ClaimShield approach)
+- **Mobile (caregiver):** PWA with service worker, geolocation API, push notifications
+- **Deployment:** Replit dev → Railway production
+
+---
+
+## 4. Core Domain Model
+
+Build these entities first. Every entity (except `Agency` and `User`) is scoped by `agencyId`.
+
+```
+Agency
+  ├── id, name, npi, taxId, address, state, licenseNumber
+  ├── settings (JSON: branding, default rules, payer config)
+  └── timezone
+
+User
+  ├── id, agencyId, email, phone, role (enum)
+  ├── role: OWNER | ADMIN | SCHEDULER | INTAKE_COORDINATOR | HR | CAREGIVER | FAMILY
+  └── lastLogin, status
+
+Client (Patient)
+  ├── id, agencyId, firstName, middleName, lastName, dob, ssn (encrypted)
+  ├── address, phone, email, emergencyContacts
+  ├── primaryPayer (enum: PRIVATE_PAY | VA_CCN | MEDICAID_HCBS | COUNTY_IHSS | LTC_INSURANCE)
+  ├── status (enum: PROSPECT | ACTIVE | ON_HOLD | DISCHARGED)
+  ├── intakeDate, dischargeDate
+  └── carePreferences, allergies, languages
+
+Authorization (referral / prior auth)
+  ├── id, clientId, payerId, authNumber, issuedDate, expirationDate
+  ├── approvedHoursPerWeek, approvedHoursPerDay
+  ├── scopeOfCare (JSON: permitted services)
+  ├── status (enum: ACTIVE | EXPIRING_SOON | EXPIRED | EXHAUSTED)
+  └── documentUrl
+
+CarePlan
+  ├── id, clientId, version, effectiveDate, expirationDate
+  ├── tasks (JSON array: each task has frequency, duration, instructions)
+  ├── approvedBy, signedDate
+  └── documentUrl
+
+Caregiver
+  ├── id, agencyId, userId (FK to User), firstName, lastName, dob
+  ├── ssn (encrypted), address, phone, email
+  ├── employmentType (enum: W2 | 1099)
+  ├── hireDate, terminationDate, status
+  ├── languages, skills, vehicleAccess
+  └── homeCoordinates (for drive-time calculations)
+
+CaregiverDocument
+  ├── id, caregiverId, documentType (enum: BACKGROUND_CHECK | TB_TEST | CPR | TRAINING | LICENSE | I9 | W4 | DIRECT_DEPOSIT)
+  ├── issuedDate, expirationDate, fileUrl
+  └── status (enum: VALID | EXPIRING | EXPIRED | MISSING)
+
+Schedule (Shift)
+  ├── id, agencyId, clientId, caregiverId
+  ├── startTime, endTime, scheduledMinutes
+  ├── serviceCode, serviceDescription
+  ├── status (enum: SCHEDULED | IN_PROGRESS | COMPLETED | MISSED | CANCELLED)
+  ├── recurrencePattern (JSON: for recurring shifts)
+  └── authorizationId (link to authorization being drawn down)
+
+Visit (the EVV record — actual delivery)
+  ├── id, scheduleId, caregiverId, clientId
+  ├── clockInTime, clockInLat, clockInLng, clockInMethod (enum: GPS | TELEPHONY | FOB | MANUAL)
+  ├── clockOutTime, clockOutLat, clockOutLng, clockOutMethod
+  ├── tasksCompleted (JSON: from care plan)
+  ├── caregiverNotes, supervisorNotes
+  ├── verificationStatus (enum: PENDING | VERIFIED | EXCEPTION | REJECTED)
+  └── exceptionReason, evvAggregatorPayload (for state submission later)
+
+TimeEntry (derived from Visits, used for payroll)
+  ├── id, caregiverId, visitId, payPeriodId
+  ├── workDate, regularMinutes, overtimeMinutes, doubleTimeMinutes
+  ├── payRate, regularPay, overtimePay, doubleTimePay
+  ├── travelMinutes, travelPay
+  └── ruleEngineVersion (which version of the labor rule was applied)
+
+PayPeriod
+  ├── id, agencyId, startDate, endDate, status (enum: OPEN | CLOSED | EXPORTED | PAID)
+  └── exportedToProvider (e.g., ADP), exportedAt
+
+LaborRuleSet
+  ├── id, agencyId, state, effectiveDate
+  ├── overtimeThresholdDailyMinutes (default: 480 for FLSA, 540 for CA domestic worker)
+  ├── overtimeThresholdWeeklyMinutes (default: 2400 for FLSA)
+  ├── doubleTimeThresholdDailyMinutes (e.g., 720 for CA domestic worker)
+  ├── seventhDayConsecutiveRule (boolean)
+  ├── travelTimeBillable (boolean)
+  └── customRules (JSON for edge cases)
+
+ComplianceAlert
+  ├── id, agencyId, alertType, severity, entityType, entityId
+  ├── alertType: AUTH_EXPIRING | AUTH_EXPIRED | DOC_EXPIRING | DOC_EXPIRED | OT_THRESHOLD | MISSED_VISIT | LATE_CLOCK_IN
+  └── status (enum: OPEN | ACKNOWLEDGED | RESOLVED), assignedTo
+
+AuditLog
+  ├── id, agencyId, userId, action, entityType, entityId
+  ├── beforeState (JSON), afterState (JSON), ipAddress, userAgent
+  └── timestamp (immutable)
+```
+
+---
+
+## 5. Module Specifications
+
+### 5.1 Agency & User Management
+- Agency onboarding flow: name, license, NPI, state, timezone, default labor ruleset (auto-selected based on state)
+- User invitation, RBAC enforcement on every endpoint
+- Settings: branding (logo, colors), notification preferences, default service codes, payer configuration
+- Practice profile that the future ClaimShield integration will read
+
+### 5.2 Client & Intake
+- **Intake wizard:** referral source → client demographics → emergency contacts → payer → authorization → care plan
+- **Referral parsing agent:** accept email forwards, faxes (OCR), or PDF uploads. AI parses into structured intake fields. Daniela mentioned 65-page VA referral docs — handle these.
+- **Client profile:** all data, document repository, schedule history, visit history, family contacts
+- **Authorization tracker:** all active authorizations with countdown timers, hours remaining, expiration alerts (30/14/7/1-day warnings)
+- **Care plan builder:** pull from authorization scope-of-care, generate task list, supervisor approval workflow, version history
+
+### 5.3 Caregiver Management
+- Caregiver profile: employment, contact, credentials, skills, languages, availability windows
+- **Document tracker:** background check, TB test, CPR, license, training hours. Auto-flag at 60/30/7-day expiration.
+- Availability calendar (weekly recurring + exceptions)
+- Service area (zip codes or radius from home)
+- Caregiver-client compatibility scoring (skills, languages, location, schedule fit)
+
+### 5.4 Scheduling
+- **Drag-and-drop weekly grid view** showing caregivers on Y-axis, days on X-axis (or invert based on org size)
+- **Shift creation:** auto-suggest caregivers ranked by compatibility score. Block scheduling outside authorization hours. Block scheduling for caregivers with expired credentials.
+- **Recurring shifts:** weekly/biweekly patterns with end dates or open-ended
+- **Conflict detection:** double-booking, drive-time violations, OT threshold approaches, authorization overrun
+- **Open shift marketplace:** unfilled shifts visible to qualified caregivers via PWA; first-claim or manager-approval mode
+- **Shift swap requests:** caregiver-initiated, manager-approved
+
+### 5.5 EVV / Visit Management
+- **Caregiver PWA:**
+  - Today's schedule, tap-to-clock-in with GPS capture
+  - Care plan checklist with tap-to-complete
+  - Notes (text + voice-to-text)
+  - Tap-to-clock-out with GPS capture
+  - Signature capture (client or family) for visit confirmation
+  - Offline mode: queue and sync on reconnect
+- **GPS validation:** clock-in must be within configurable radius of client address (default 500ft); flag exceptions, don't block
+- **Telephony fallback:** IVR system for caregivers without smartphones (use Twilio)
+- **Visit verification queue:** supervisor reviews exceptions (geo mismatch, late clock-in, early clock-out, unmet care plan tasks)
+- **Data model EVV-aggregator-ready:** visit records carry all fields required by Sandata, HHAeXchange, Tellus formats. Don't submit yet — just store correctly.
+
+### 5.6 Time, Payroll & Labor Engine ⭐ (THE WEDGE)
+This is the most important module. It must be correct.
+
+**Labor rule engine:**
+- State-specific rule sets seeded for: CA (9-hour daily OT, 12-hour double-time for domestic workers), NY (40-hour weekly OT for home care under HCWWPA), TX (federal FLSA 40-hour weekly), federal FLSA fallback for all other states
+- Each agency picks a rule set per state they operate in
+- Per-agency override capability with admin lock
+- Versioned rule sets — when a rule changes, existing time entries retain the rule version applied; future entries use the new version
+- Rule execution must be auditable: every TimeEntry stores `ruleEngineVersion` and the inputs that were applied
+
+**Time entry calculation:**
+- Visits → TimeEntry rows with regular/OT/DT minutes split per the active rule
+- Travel time tracking (configurable: paid or unpaid per agency)
+- Holiday pay rules (configurable)
+- Sleep-time deductions (live-in care has separate FLSA rules — flag, don't auto-handle in v1)
+
+**Pay period management:**
+- Configurable: weekly / biweekly / semi-monthly
+- Pay period close workflow: review exceptions → approve → lock → export
+- Export formats: ADP CSV, Paychex CSV, Gusto API, generic CSV
+- Once exported, period is immutable; corrections via adjustment entries only
+
+**Payroll dashboard:**
+- Live OT projection: "If current schedules execute, you'll have $X in OT this period; here are the caregivers projected to cross thresholds"
+- Anomaly detection: caregiver clocked 18 hours in a day, caregiver missed a shift, caregiver pattern deviation
+
+### 5.7 Compliance & Documents
+- **Centralized document vault** (per agency, per client, per caregiver)
+- **Expiration dashboard:** all documents and authorizations sorted by days-to-expiration, color-coded
+- **Compliance alert engine:** generate alerts on triggers (auth expiring, doc expiring, OT threshold, missed visit, geo mismatch on visit)
+- **HIPAA access log:** who accessed what PHI when (queryable, exportable)
+- **State licensing checklist:** per-state required documents and renewal cadences (seed CA, TX, NY first)
+
+### 5.8 Family / Client Portal (Lite)
+Bare minimum to ship — expand later.
+- Client/family login
+- Today's caregiver, expected arrival, real-time GPS once clocked in
+- Visit history with notes (filtered to family-appropriate fields)
+- Secure messaging to agency
+- Care plan view (read-only)
+- Invoice view (placeholder — wired up when ClaimShield integration ships)
+
+### 5.9 Reporting & Activity Log
+- **Standard reports:** caregiver utilization, client hours-vs-authorized, missed visits, document compliance, OT exposure, scheduled-vs-delivered hours
+- **Activity log:** filterable by user, entity, action type, date range — feeds the same audit log table
+- **Export:** all reports as CSV and PDF
+
+---
+
+## 6. Critical Business Rules (must be tested)
+
+1. **Daily OT for California domestic worker rule:** caregiver works 9.5 hours → 9 hours regular + 0.5 hours OT. Caregiver works 13 hours → 9 regular + 3 OT + 1 DT. **Test this with unit tests against the rule engine.**
+2. **Weekly OT under federal FLSA:** 45 hours in a week with no day exceeding 8 → 40 regular + 5 OT.
+3. **Authorization drawdown:** scheduling a shift must atomically decrement remaining hours on the authorization. Race condition protection required.
+4. **Authorization expiration:** scheduling beyond authorization expiration date must be blocked (warn for re-auth pending).
+5. **Caregiver credential block:** scheduling a caregiver with expired CPR/TB/background check must be blocked, with override permission for OWNER role only.
+6. **Geo-fence on clock-in:** clock-in outside configurable radius creates an exception, doesn't block.
+7. **PHI access logging:** every read of client SSN, DOB, or care plan writes an audit row.
+8. **Multi-tenant isolation:** every query in every endpoint must scope by `agencyId`. No exceptions. Add a Prisma middleware that enforces this and throws if not present.
+
+---
+
+## 7. UI / UX Requirements
+
+- Match ClaimShield's design system if one exists; otherwise default to shadcn/ui with a clean, professional look
+- Required fields explicitly labeled "(required)" alongside the asterisk — Daniela flagged that asterisks alone aren't clear enough
+- Use ICD/CPT terminology when codes appear, never internal jargon like "DX pointer"
+- Per-hour rate input fields with auto-calculated unit display (15-min units), not the reverse
+- Clone-line / duplicate-row functionality on any repeating data entry (schedule lines, time entries, etc.)
+- Optimistic UI updates with rollback on server error
+- All destructive actions confirmed with typed confirmation for OWNER-level operations
+
+---
+
+## 8. Integration Boundary for ClaimShield (Billing System)
+
+Billing is **out of scope** for this build. But we must leave a clean boundary.
+
+**CareOS exposes (outbound to ClaimShield):**
+- `GET /api/v1/visits` — completed and verified visits ready for billing
+- `GET /api/v1/clients/:id` — full client + authorization + payer data
+- `GET /api/v1/caregivers/:id` — caregiver NPI, credentials for rendering provider
+- Webhook on visit verification: `visit.verified` event
+
+**CareOS consumes (inbound from ClaimShield):**
+- `POST /api/v1/billing/claim-status` — claim submission status updates
+- `POST /api/v1/billing/payment-received` — ERA payment notifications
+- `POST /api/v1/billing/denial` — denial notifications, surfaced as compliance alerts
+
+Stub these endpoints now; implement when ClaimShield integration ships.
+
+---
+
+## 9. Build Phasing (Within Foundation)
+
+**Sprint 1 (Weeks 1–2): Skeleton**
+- Repo, monorepo structure, CI, deployed to Railway dev
+- Auth, agency creation, user management, RBAC
+- Core data model migrated, seed scripts for CA + TX agencies
+- Audit logging middleware
+- Multi-tenant query enforcement middleware
+
+**Sprint 2 (Weeks 3–4): Client + Caregiver foundations**
+- Client intake wizard, client profile, authorization tracker, care plan builder
+- Caregiver profile, document tracker, expiration alerts
+
+**Sprint 3 (Weeks 5–6): Scheduling**
+- Schedule grid view, shift creation with conflict detection, recurring shifts
+- Caregiver compatibility scoring, drive-time integration (Google Maps API)
+
+**Sprint 4 (Weeks 7–8): EVV + caregiver PWA**
+- Caregiver PWA, GPS clock-in/out, care plan checklist, signature capture
+- Visit verification queue, exception handling
+- Telephony fallback (Twilio)
+
+**Sprint 5 (Weeks 9–10): Labor engine + payroll** ⭐
+- Labor rule engine with full CA, NY, federal FLSA seed
+- TimeEntry generation from Visits
+- Pay period workflow, ADP/Paychex CSV export
+- Payroll dashboard with OT projection
+
+**Sprint 6 (Weeks 11–12): Compliance + family portal lite**
+- Compliance alert engine, expiration dashboards
+- Family portal (read-only basics)
+- Reporting suite, activity log UI
+
+---
+
+## 10. Initial Seed Data
+
+Seed at minimum:
+- One demo agency in California (use Chajinel as the model — design partner)
+- California domestic worker labor rule set
+- Federal FLSA labor rule set
+- Texas labor rule set
+- Standard service codes for VA Community Care home care (G0156 etc.)
+- Common care plan task templates (bathing, meal prep, mobility, medication reminders, light housekeeping)
+- Standard caregiver document types with default expiration cadences
+
+---
+
+## 11. What This Build Does NOT Include
+
+Do not implement these — they are out of scope for the foundation:
+
+- Claim submission / CMS-1500 / EDI 837 generation (ClaimShield)
+- Payer rule ingestion engine (ClaimShield)
+- Denial pattern AI (ClaimShield)
+- ERA reconciliation (ClaimShield)
+- Claims financing / instant pay (Phase 3)
+- Embedded insurance (Phase 3)
+- Reverto outreach module (separate product)
+- Caregiver-side instant pay (Phase 3)
+- State EVV aggregator submission (data model is ready; submission ships in Phase 2)
+
+When the user asks for any of the above, respond: "That's part of the ClaimShield integration / Phase 2 / Phase 3 build — not in this foundation."
+
+---
+
+## 12. Definition of Done for Foundation
+
+- [ ] An agency owner can sign up, configure their state and labor rules, and invite users
+- [ ] An intake coordinator can onboard a client end-to-end including authorization and care plan
+- [ ] A scheduler can build a week of shifts with full conflict detection
+- [ ] A caregiver can clock in and out via PWA with GPS, complete care tasks, and capture client signature
+- [ ] A supervisor can review exceptions and verify visits
+- [ ] An admin can close a pay period, see correct OT calculations under California 9-hour rule, and export to ADP CSV
+- [ ] A family member can log in and see their loved one's caregiver, today's schedule, and visit history
+- [ ] All actions are logged in the audit log
+- [ ] Multi-tenant isolation enforced on every endpoint
+
+When all 9 criteria pass, foundation is shipped.
+
+---
+
+**Build this. Ship Sprint 1 in two weeks.**

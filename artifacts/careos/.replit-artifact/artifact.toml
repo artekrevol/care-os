@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "CareOS"
+version = "1.0.0"
+id = "artifacts/careos"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21026
+
+[services.development]
+run = "pnpm --filter @workspace/careos run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/careos", "run", "build" ]
+publicDir = "artifacts/careos/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21026"
+BASE_PATH = "/"
