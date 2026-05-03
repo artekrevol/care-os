@@ -330,8 +330,8 @@ export async function seed(): Promise<void> {
     {
       id: "auth_002",
       clientId: "clt_002",
-      payer: "MEDICAID_HCBS",
-      authNumber: "MCD-CA-118273",
+      payer: "COUNTY_IHSS",
+      authNumber: "IHSS-LA-118273",
       issuedDate: isoDateNDaysFromNow(-30),
       expirationDate: isoDateNDaysFromNow(150),
       approvedHoursPerWeek: "30.00",
@@ -356,8 +356,8 @@ export async function seed(): Promise<void> {
     {
       id: "auth_004",
       clientId: "clt_004",
-      payer: "LTC_INSURANCE",
-      authNumber: "GENWORTH-44829",
+      payer: "COUNTY_IHSS",
+      authNumber: "IHSS-OC-44829",
       issuedDate: isoDateNDaysFromNow(-44),
       expirationDate: isoDateNDaysFromNow(46),
       approvedHoursPerWeek: "35.00",

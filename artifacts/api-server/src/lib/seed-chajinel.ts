@@ -159,7 +159,7 @@ const EXPANSION_CLIENTS: ExpClient[] = [
   { id: "clt_009", firstName: "Beatriz", lastName: "Cordova", dob: "1947-11-30", payer: "VA_CCN", authNumber: "VA-2026-09851", authIssuedDaysAgo: 22, authExpiresInDays: 343, approvedHoursPerWeek: "24.00", city: "Santa Ana", postalCode: "92701", lat: 33.746, lng: -117.867, languages: ["Spanish", "English"], notes: "Spouse benefit. Spanish-preferred." },
   { id: "clt_010", firstName: "Walter", lastName: "Greene", dob: "1942-05-12", payer: "VA_CCN", authNumber: "VA-2026-09903", authIssuedDaysAgo: 60, authExpiresInDays: 305, approvedHoursPerWeek: "30.00", city: "San Bernardino", postalCode: "92408", lat: 34.103, lng: -117.290, languages: ["English"], notes: "Vietnam veteran. CHF stable." },
   { id: "clt_011", firstName: "Ernesto", lastName: "Padilla", dob: "1949-08-04", payer: "VA_CCN", authNumber: "VA-2026-09917", authIssuedDaysAgo: 18, authExpiresInDays: 347, approvedHoursPerWeek: "20.00", city: "Pomona", postalCode: "91767", lat: 34.057, lng: -117.749, languages: ["Spanish", "English"], notes: "Spouse-of-veteran benefit." },
-  { id: "clt_012", firstName: "Doris", lastName: "Whitlock", dob: "1946-02-18", payer: "VA_CCN", authNumber: "VA-2026-09928", authIssuedDaysAgo: 35, authExpiresInDays: 330, approvedHoursPerWeek: "18.00", city: "Riverside", postalCode: "92501", lat: 33.953, lng: -117.395, languages: ["English"], notes: "Vietnam-era veteran widow." },
+  { id: "clt_012", firstName: "Doris", lastName: "Whitlock", dob: "1946-02-18", payer: "VA_CCN", authNumber: "VA-2026-09928", authIssuedDaysAgo: 35, authExpiresInDays: 330, approvedHoursPerWeek: "18.00", city: "Rialto", postalCode: "92376", lat: 34.106, lng: -117.370, languages: ["English"], notes: "Vietnam-era veteran widow." },
   { id: "clt_013", firstName: "Salvador", lastName: "Ibarra", dob: "1945-12-01", payer: "VA_CCN", authNumber: "VA-2026-09945", authIssuedDaysAgo: 75, authExpiresInDays: 290, approvedHoursPerWeek: "22.00", city: "Whittier", postalCode: "90602", lat: 33.978, lng: -118.030, languages: ["Spanish", "English"] },
   { id: "clt_014", firstName: "Dolores", lastName: "Quintero", dob: "1950-04-22", payer: "VA_CCN", authNumber: "VA-2026-09971", authIssuedDaysAgo: 50, authExpiresInDays: 315, approvedHoursPerWeek: "16.00", city: "Norwalk", postalCode: "90650", lat: 33.902, lng: -118.080, languages: ["Spanish"] },
   { id: "clt_015", firstName: "Frank", lastName: "Donovan", dob: "1941-10-06", payer: "VA_CCN", authNumber: "VA-2026-09989", authIssuedDaysAgo: 12, authExpiresInDays: 353, approvedHoursPerWeek: "30.00", city: "Newport Beach", postalCode: "92660", lat: 33.620, lng: -117.928, languages: ["English"], notes: "Korean War veteran. Recent fall." },
@@ -588,6 +588,7 @@ export async function seedChajinelExpansion(): Promise<void> {
       "AI renewal predictor (confidence 0.18 LOW). VA CCN has not responded to two faxed renewal packets. Auth expires in 5 days.",
     suggestedAction:
       "Escalate to VA Community Care Network case manager today; line up private-pay bridge agreement with the family.",
+    agentRunId: renewalRunId,
     status: "OPEN",
   });
 
