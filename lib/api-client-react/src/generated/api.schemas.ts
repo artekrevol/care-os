@@ -337,6 +337,8 @@ export const ScheduleConflictType = {
   AUTH_OVERRUN: "AUTH_OVERRUN",
   AUTH_EXPIRED: "AUTH_EXPIRED",
   OT_THRESHOLD: "OT_THRESHOLD",
+  OUTSIDE_AUTH_HOURS: "OUTSIDE_AUTH_HOURS",
+  DRIVE_TIME_IMPOSSIBLE: "DRIVE_TIME_IMPOSSIBLE",
 } as const;
 
 export type ScheduleConflictSeverity =
@@ -354,8 +356,73 @@ export interface ScheduleConflict {
 }
 
 export interface ScheduleCreateResult {
-  schedule: Schedule;
+  schedule?: Schedule | null;
   conflicts: ScheduleConflict[];
+  blocked: boolean;
+}
+
+export interface OtImpact {
+  currentRegularMinutes: number;
+  currentOvertimeMinutes: number;
+  currentDoubleTimeMinutes: number;
+  projectedRegularMinutes: number;
+  projectedOvertimeMinutes: number;
+  projectedDoubleTimeMinutes: number;
+  deltaOvertimeMinutes: number;
+  deltaDoubleTimeMinutes: number;
+  deltaCostUsd: number;
+  weeklyThresholdMinutes?: number | null;
+  dailyThresholdMinutes?: number | null;
+}
+
+export interface ScheduleDryRunBody {
+  scheduleId?: string;
+  clientId: string;
+  caregiverId: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface ScheduleDryRunResult {
+  conflicts: ScheduleConflict[];
+  blocked: boolean;
+  otImpact: OtImpact;
+}
+
+export interface CompatibilityFactors {
+  skillScore: number;
+  languageScore: number;
+  driveScore: number;
+  continuityScore: number;
+  availabilityScore: number;
+  otSafeScore: number;
+  skillMatches: string[];
+  languageMatches: string[];
+  driveMinutes?: number | null;
+  priorVisitsWithClient: number;
+  weeklyHeadroomMinutes: number;
+}
+
+export interface CaregiverSuggestion {
+  caregiverId: string;
+  caregiverName: string;
+  score: number;
+  rank: number;
+  factors: CompatibilityFactors;
+  reasoning?: string | null;
+  blockingConflicts: ScheduleConflict[];
+}
+
+export interface SuggestCaregiversBody {
+  scheduleId?: string;
+  clientId: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface CaregiverSuggestionList {
+  agentRunId?: string | null;
+  suggestions: CaregiverSuggestion[];
 }
 
 export interface ClockInBody {

@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { seed } from "./lib/seed";
 import { startWorkers } from "./lib/workers";
 import { logServiceStartupReport } from "@workspace/services";
+import { registerScheduleOptimizerWorker } from "./lib/scheduleOptimizerWorker";
 
 // Defensive: BullMQ/ioredis can surface async errors (e.g. WRONGPASS) as
 // unhandled rejections from internal connect handlers. Log and keep the
@@ -40,6 +41,7 @@ async function main() {
   } catch (err) {
     logger.error({ err }, "Background workers failed to start");
   }
+  registerScheduleOptimizerWorker();
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");

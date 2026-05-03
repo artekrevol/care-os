@@ -12,6 +12,7 @@ const KNOWN_QUEUES: queue.QueueName[] = [
   "anomaly.scan-visit",
   "anomaly.scan-all",
   "schedule.optimize",
+  "schedule.suggest-caregivers",
   "notification.send",
   "ocr.extract-document",
   "ai.intake-referral",

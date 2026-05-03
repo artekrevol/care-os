@@ -30,6 +30,7 @@ import type {
   Caregiver,
   CaregiverDetail,
   CaregiverDocument,
+  CaregiverSuggestionList,
   CaregiverUtilizationReport,
   Client,
   ClientDetail,
@@ -98,8 +99,11 @@ import type {
   RejectCarePlanBody,
   Schedule,
   ScheduleCreateResult,
+  ScheduleDryRunBody,
+  ScheduleDryRunResult,
   SetActiveLaborRuleBody,
   SubmitCarePlanBody,
+  SuggestCaregiversBody,
   TaskTemplate,
   UpdateCarePlanBody,
   UpdateCaregiverBody,
@@ -1724,6 +1728,178 @@ export const useCreateSchedule = <
   return useMutation(getCreateScheduleMutationOptions(options));
 };
 
+/**
+ * @summary Validate a proposed shift and project OT impact without persisting.
+ */
+export const getDryRunScheduleUrl = () => {
+  return `/api/schedules/dry-run`;
+};
+
+export const dryRunSchedule = async (
+  scheduleDryRunBody: ScheduleDryRunBody,
+  options?: RequestInit,
+): Promise<ScheduleDryRunResult> => {
+  return customFetch<ScheduleDryRunResult>(getDryRunScheduleUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(scheduleDryRunBody),
+  });
+};
+
+export const getDryRunScheduleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dryRunSchedule>>,
+    TError,
+    { data: BodyType<ScheduleDryRunBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof dryRunSchedule>>,
+  TError,
+  { data: BodyType<ScheduleDryRunBody> },
+  TContext
+> => {
+  const mutationKey = ["dryRunSchedule"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof dryRunSchedule>>,
+    { data: BodyType<ScheduleDryRunBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return dryRunSchedule(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DryRunScheduleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof dryRunSchedule>>
+>;
+export type DryRunScheduleMutationBody = BodyType<ScheduleDryRunBody>;
+export type DryRunScheduleMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Validate a proposed shift and project OT impact without persisting.
+ */
+export const useDryRunSchedule = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof dryRunSchedule>>,
+    TError,
+    { data: BodyType<ScheduleDryRunBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof dryRunSchedule>>,
+  TError,
+  { data: BodyType<ScheduleDryRunBody> },
+  TContext
+> => {
+  return useMutation(getDryRunScheduleMutationOptions(options));
+};
+
+/**
+ * @summary Schedule Optimizer Agent — top 5 caregivers ranked by compatibility.
+ */
+export const getSuggestCaregiversUrl = () => {
+  return `/api/schedules/suggest-caregivers`;
+};
+
+export const suggestCaregivers = async (
+  suggestCaregiversBody: SuggestCaregiversBody,
+  options?: RequestInit,
+): Promise<CaregiverSuggestionList> => {
+  return customFetch<CaregiverSuggestionList>(getSuggestCaregiversUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(suggestCaregiversBody),
+  });
+};
+
+export const getSuggestCaregiversMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof suggestCaregivers>>,
+    TError,
+    { data: BodyType<SuggestCaregiversBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof suggestCaregivers>>,
+  TError,
+  { data: BodyType<SuggestCaregiversBody> },
+  TContext
+> => {
+  const mutationKey = ["suggestCaregivers"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof suggestCaregivers>>,
+    { data: BodyType<SuggestCaregiversBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return suggestCaregivers(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SuggestCaregiversMutationResult = NonNullable<
+  Awaited<ReturnType<typeof suggestCaregivers>>
+>;
+export type SuggestCaregiversMutationBody = BodyType<SuggestCaregiversBody>;
+export type SuggestCaregiversMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Schedule Optimizer Agent — top 5 caregivers ranked by compatibility.
+ */
+export const useSuggestCaregivers = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof suggestCaregivers>>,
+    TError,
+    { data: BodyType<SuggestCaregiversBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof suggestCaregivers>>,
+  TError,
+  { data: BodyType<SuggestCaregiversBody> },
+  TContext
+> => {
+  return useMutation(getSuggestCaregiversMutationOptions(options));
+};
+
 export const getUpdateScheduleUrl = (id: string) => {
   return `/api/schedules/${id}`;
 };
@@ -1732,8 +1908,8 @@ export const updateSchedule = async (
   id: string,
   updateScheduleBody: UpdateScheduleBody,
   options?: RequestInit,
-): Promise<Schedule> => {
-  return customFetch<Schedule>(getUpdateScheduleUrl(id), {
+): Promise<ScheduleCreateResult> => {
+  return customFetch<ScheduleCreateResult>(getUpdateScheduleUrl(id), {
     ...options,
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...options?.headers },

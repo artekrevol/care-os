@@ -405,6 +405,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/ScheduleCreateResult"
 
+  /schedules/dry-run:
+    post:
+      operationId: dryRunSchedule
+      tags: [schedules]
+      summary: Validate a proposed shift and project OT impact without persisting.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleDryRunBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleDryRunResult"
+
+  /schedules/suggest-caregivers:
+    post:
+      operationId: suggestCaregivers
+      tags: [schedules]
+      summary: Schedule Optimizer Agent — top 5 caregivers ranked by compatibility.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuggestCaregiversBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaregiverSuggestionList"
+
   /schedules/{id}:
     patch:
       operationId: updateSchedule
@@ -427,7 +465,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Schedule"
+                $ref: "#/components/schemas/ScheduleCreateResult"
     delete:
       operationId: deleteSchedule
       tags: [schedules]
@@ -2119,6 +2157,8 @@ components:
               AUTH_OVERRUN,
               AUTH_EXPIRED,
               OT_THRESHOLD,
+              OUTSIDE_AUTH_HOURS,
+              DRIVE_TIME_IMPOSSIBLE,
             ]
         message: { type: string }
         severity:
@@ -2131,11 +2171,130 @@ components:
       properties:
         schedule:
           $ref: "#/components/schemas/Schedule"
+          nullable: true
         conflicts:
           type: array
           items:
             $ref: "#/components/schemas/ScheduleConflict"
-      required: [schedule, conflicts]
+        blocked: { type: boolean }
+      required: [conflicts, blocked]
+
+    OtImpact:
+      type: object
+      properties:
+        currentRegularMinutes: { type: integer }
+        currentOvertimeMinutes: { type: integer }
+        currentDoubleTimeMinutes: { type: integer }
+        projectedRegularMinutes: { type: integer }
+        projectedOvertimeMinutes: { type: integer }
+        projectedDoubleTimeMinutes: { type: integer }
+        deltaOvertimeMinutes: { type: integer }
+        deltaDoubleTimeMinutes: { type: integer }
+        deltaCostUsd: { type: number }
+        weeklyThresholdMinutes: { type: integer, nullable: true }
+        dailyThresholdMinutes: { type: integer, nullable: true }
+      required:
+        [
+          currentRegularMinutes,
+          currentOvertimeMinutes,
+          currentDoubleTimeMinutes,
+          projectedRegularMinutes,
+          projectedOvertimeMinutes,
+          projectedDoubleTimeMinutes,
+          deltaOvertimeMinutes,
+          deltaDoubleTimeMinutes,
+          deltaCostUsd,
+        ]
+
+    ScheduleDryRunBody:
+      type: object
+      properties:
+        scheduleId: { type: string }
+        clientId: { type: string }
+        caregiverId: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+      required: [clientId, caregiverId, startTime, endTime]
+
+    ScheduleDryRunResult:
+      type: object
+      properties:
+        conflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleConflict"
+        blocked: { type: boolean }
+        otImpact:
+          $ref: "#/components/schemas/OtImpact"
+      required: [conflicts, blocked, otImpact]
+
+    CompatibilityFactors:
+      type: object
+      properties:
+        skillScore: { type: number }
+        languageScore: { type: number }
+        driveScore: { type: number }
+        continuityScore: { type: number }
+        availabilityScore: { type: number }
+        otSafeScore: { type: number }
+        skillMatches:
+          type: array
+          items: { type: string }
+        languageMatches:
+          type: array
+          items: { type: string }
+        driveMinutes: { type: number, nullable: true }
+        priorVisitsWithClient: { type: integer }
+        weeklyHeadroomMinutes: { type: integer }
+      required:
+        [
+          skillScore,
+          languageScore,
+          driveScore,
+          continuityScore,
+          availabilityScore,
+          otSafeScore,
+          skillMatches,
+          languageMatches,
+          priorVisitsWithClient,
+          weeklyHeadroomMinutes,
+        ]
+
+    CaregiverSuggestion:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        score: { type: number }
+        rank: { type: integer }
+        factors:
+          $ref: "#/components/schemas/CompatibilityFactors"
+        reasoning: { type: string, nullable: true }
+        blockingConflicts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleConflict"
+      required:
+        [caregiverId, caregiverName, score, rank, factors, blockingConflicts]
+
+    SuggestCaregiversBody:
+      type: object
+      properties:
+        scheduleId: { type: string }
+        clientId: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+      required: [clientId, startTime, endTime]
+
+    CaregiverSuggestionList:
+      type: object
+      properties:
+        agentRunId: { type: string, nullable: true }
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaregiverSuggestion"
+      required: [suggestions]
 
     VisitVerificationStatus:
       type: string

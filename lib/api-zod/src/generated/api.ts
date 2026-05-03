@@ -638,6 +638,100 @@ export const CreateScheduleBody = zod.object({
   notes: zod.string().optional(),
 });
 
+/**
+ * @summary Validate a proposed shift and project OT impact without persisting.
+ */
+export const DryRunScheduleBody = zod.object({
+  scheduleId: zod.string().optional(),
+  clientId: zod.string(),
+  caregiverId: zod.string(),
+  startTime: zod.coerce.date(),
+  endTime: zod.coerce.date(),
+});
+
+export const DryRunScheduleResponse = zod.object({
+  conflicts: zod.array(
+    zod.object({
+      type: zod.enum([
+        "DOUBLE_BOOK",
+        "EXPIRED_CREDENTIAL",
+        "AUTH_OVERRUN",
+        "AUTH_EXPIRED",
+        "OT_THRESHOLD",
+        "OUTSIDE_AUTH_HOURS",
+        "DRIVE_TIME_IMPOSSIBLE",
+      ]),
+      message: zod.string(),
+      severity: zod.enum(["WARNING", "BLOCK"]),
+    }),
+  ),
+  blocked: zod.boolean(),
+  otImpact: zod.object({
+    currentRegularMinutes: zod.number(),
+    currentOvertimeMinutes: zod.number(),
+    currentDoubleTimeMinutes: zod.number(),
+    projectedRegularMinutes: zod.number(),
+    projectedOvertimeMinutes: zod.number(),
+    projectedDoubleTimeMinutes: zod.number(),
+    deltaOvertimeMinutes: zod.number(),
+    deltaDoubleTimeMinutes: zod.number(),
+    deltaCostUsd: zod.number(),
+    weeklyThresholdMinutes: zod.number().nullish(),
+    dailyThresholdMinutes: zod.number().nullish(),
+  }),
+});
+
+/**
+ * @summary Schedule Optimizer Agent — top 5 caregivers ranked by compatibility.
+ */
+export const SuggestCaregiversBody = zod.object({
+  scheduleId: zod.string().optional(),
+  clientId: zod.string(),
+  startTime: zod.coerce.date(),
+  endTime: zod.coerce.date(),
+});
+
+export const SuggestCaregiversResponse = zod.object({
+  agentRunId: zod.string().nullish(),
+  suggestions: zod.array(
+    zod.object({
+      caregiverId: zod.string(),
+      caregiverName: zod.string(),
+      score: zod.number(),
+      rank: zod.number(),
+      factors: zod.object({
+        skillScore: zod.number(),
+        languageScore: zod.number(),
+        driveScore: zod.number(),
+        continuityScore: zod.number(),
+        availabilityScore: zod.number(),
+        otSafeScore: zod.number(),
+        skillMatches: zod.array(zod.string()),
+        languageMatches: zod.array(zod.string()),
+        driveMinutes: zod.number().nullish(),
+        priorVisitsWithClient: zod.number(),
+        weeklyHeadroomMinutes: zod.number(),
+      }),
+      reasoning: zod.string().nullish(),
+      blockingConflicts: zod.array(
+        zod.object({
+          type: zod.enum([
+            "DOUBLE_BOOK",
+            "EXPIRED_CREDENTIAL",
+            "AUTH_OVERRUN",
+            "AUTH_EXPIRED",
+            "OT_THRESHOLD",
+            "OUTSIDE_AUTH_HOURS",
+            "DRIVE_TIME_IMPOSSIBLE",
+          ]),
+          message: zod.string(),
+          severity: zod.enum(["WARNING", "BLOCK"]),
+        }),
+      ),
+    }),
+  ),
+});
+
 export const UpdateScheduleParams = zod.object({
   id: zod.coerce.string(),
 });
@@ -653,25 +747,45 @@ export const UpdateScheduleBody = zod.object({
 });
 
 export const UpdateScheduleResponse = zod.object({
-  id: zod.string(),
-  clientId: zod.string(),
-  clientName: zod.string(),
-  caregiverId: zod.string(),
-  caregiverName: zod.string(),
-  startTime: zod.coerce.date(),
-  endTime: zod.coerce.date(),
-  scheduledMinutes: zod.number(),
-  serviceCode: zod.string(),
-  serviceDescription: zod.string(),
-  authorizationId: zod.string().nullish(),
-  status: zod.enum([
-    "SCHEDULED",
-    "IN_PROGRESS",
-    "COMPLETED",
-    "MISSED",
-    "CANCELLED",
-  ]),
-  notes: zod.string().nullish(),
+  schedule: zod
+    .object({
+      id: zod.string(),
+      clientId: zod.string(),
+      clientName: zod.string(),
+      caregiverId: zod.string(),
+      caregiverName: zod.string(),
+      startTime: zod.coerce.date(),
+      endTime: zod.coerce.date(),
+      scheduledMinutes: zod.number(),
+      serviceCode: zod.string(),
+      serviceDescription: zod.string(),
+      authorizationId: zod.string().nullish(),
+      status: zod.enum([
+        "SCHEDULED",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "MISSED",
+        "CANCELLED",
+      ]),
+      notes: zod.string().nullish(),
+    })
+    .nullish(),
+  conflicts: zod.array(
+    zod.object({
+      type: zod.enum([
+        "DOUBLE_BOOK",
+        "EXPIRED_CREDENTIAL",
+        "AUTH_OVERRUN",
+        "AUTH_EXPIRED",
+        "OT_THRESHOLD",
+        "OUTSIDE_AUTH_HOURS",
+        "DRIVE_TIME_IMPOSSIBLE",
+      ]),
+      message: zod.string(),
+      severity: zod.enum(["WARNING", "BLOCK"]),
+    }),
+  ),
+  blocked: zod.boolean(),
 });
 
 export const DeleteScheduleParams = zod.object({

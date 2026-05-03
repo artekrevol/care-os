@@ -8,6 +8,7 @@ export type CareOSJobMap = {
   "anomaly.scan-visit": { visitId: string };
   "anomaly.scan-all": { triggeredBy: string };
   "schedule.optimize": { weekStartIso: string };
+  "schedule.suggest-caregivers": { agentRunId: string };
   "notification.send": {
     userId: string;
     notificationTypeId: string;

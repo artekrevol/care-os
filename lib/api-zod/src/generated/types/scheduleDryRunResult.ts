@@ -5,11 +5,11 @@
  * CareOS API — home care operating system foundation.
  * OpenAPI spec version: 0.1.0
  */
-import type { Schedule } from "./schedule";
+import type { OtImpact } from "./otImpact";
 import type { ScheduleConflict } from "./scheduleConflict";
 
-export interface ScheduleCreateResult {
-  schedule?: Schedule | null;
+export interface ScheduleDryRunResult {
   conflicts: ScheduleConflict[];
   blocked: boolean;
+  otImpact: OtImpact;
 }
