@@ -5,19 +5,28 @@ import { ExpressAdapter } from "@bull-board/express";
 import { queue } from "@workspace/services";
 import { ownerGuard } from "../middlewares/ownerGuard";
 import { logger } from "./logger";
+import { buildAdminJobsRouter } from "./adminJobs";
 
 const KNOWN_QUEUES: queue.QueueName[] = [
   "care-plan.generate",
   "anomaly.scan-visit",
+  "anomaly.scan-all",
   "schedule.optimize",
   "notification.send",
   "ocr.extract-document",
   "ai.intake-referral",
   "auth.predict-renewal",
+  "auth.predict-renewals-all",
+  "compliance.daily-scan",
+  "pay-period.auto-close",
   "drive-time.refresh",
 ];
 
 export function mountBullBoard(app: Express): void {
+  // Mount admin sub-routes (token-usage, manual triggers) FIRST so specific
+  // paths win over the catch-all bull-board router below.
+  app.use("/admin/jobs", buildAdminJobsRouter());
+
   const adapter = new ExpressAdapter();
   adapter.setBasePath("/admin/jobs");
 

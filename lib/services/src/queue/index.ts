@@ -6,6 +6,7 @@ import { isModuleConfigured } from "../env";
 export type CareOSJobMap = {
   "care-plan.generate": { clientId: string; triggeredBy: string };
   "anomaly.scan-visit": { visitId: string };
+  "anomaly.scan-all": { triggeredBy: string };
   "schedule.optimize": { weekStartIso: string };
   "notification.send": {
     userId: string;
@@ -16,6 +17,9 @@ export type CareOSJobMap = {
   "ocr.extract-document": { documentId: string; objectKey: string };
   "ai.intake-referral": { referralDraftId: string };
   "auth.predict-renewal": { authorizationId: string };
+  "auth.predict-renewals-all": { triggeredBy: string };
+  "compliance.daily-scan": { triggeredBy: string };
+  "pay-period.auto-close": { triggeredBy: string };
   "drive-time.refresh": { originId: string; destId: string };
 };
 
@@ -44,6 +48,12 @@ export function getQueue<N extends QueueName>(name: N): Queue | null {
   let q = queues.get(name);
   if (!q) {
     q = new Queue(name, { connection: conn });
+    // BullMQ Queue is an EventEmitter; an unhandled 'error' event (e.g. when
+    // Redis returns WRONGPASS) crashes the process. Attach a default logger so
+    // misconfigured Redis is reported but does not bring the server down.
+    q.on("error", (err) =>
+      serviceLogger.warn({ err, queue: name }, "queue error (suppressed)"),
+    );
     queues.set(name, q);
   }
   return q;
@@ -93,6 +103,9 @@ export function registerWorker<N extends QueueName>(
   });
   worker.on("failed", (job, err) =>
     serviceLogger.error({ queue: name, jobId: job?.id, err }, "job failed"),
+  );
+  worker.on("error", (err) =>
+    serviceLogger.warn({ queue: name, err }, "worker error (suppressed)"),
   );
   // Ensure the queue exists so BullBoard can render it.
   getQueue(name);

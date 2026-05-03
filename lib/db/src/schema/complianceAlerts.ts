@@ -14,7 +14,10 @@ export const complianceAlertsTable = pgTable("compliance_alerts", {
   entityId: text("entity_id").notNull(),
   title: text("title").notNull(),
   message: text("message").notNull(),
+  suggestedAction: text("suggested_action"),
   status: text("status").notNull().default("OPEN"),
+  agentRunId: varchar("agent_run_id", { length: 64 }),
+  dedupeKey: varchar("dedupe_key", { length: 200 }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

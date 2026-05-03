@@ -495,6 +495,13 @@ export const ComplianceAlertType = {
   LATE_CLOCK_IN: "LATE_CLOCK_IN",
   GEO_MISMATCH: "GEO_MISMATCH",
   INCIDENT_REPORTED: "INCIDENT_REPORTED",
+  ANOMALY_LONG_HOURS: "ANOMALY_LONG_HOURS",
+  ANOMALY_IMPOSSIBLE_TRAVEL: "ANOMALY_IMPOSSIBLE_TRAVEL",
+  ANOMALY_DURATION_DEVIATION: "ANOMALY_DURATION_DEVIATION",
+  ANOMALY_PLAN_COMPLETION: "ANOMALY_PLAN_COMPLETION",
+  ANOMALY_REPEATED_GEO_MISS: "ANOMALY_REPEATED_GEO_MISS",
+  ANOMALY_MISSED_SHIFT_TREND: "ANOMALY_MISSED_SHIFT_TREND",
+  AUTH_RENEWAL_RISK: "AUTH_RENEWAL_RISK",
 } as const;
 
 export type ComplianceAlertSeverity =
@@ -515,6 +522,7 @@ export interface ComplianceAlert {
   entityId: string;
   title: string;
   message: string;
+  suggestedAction?: string | null;
   status: ComplianceAlertStatus;
   createdAt: string;
 }

@@ -2391,6 +2391,13 @@ components:
           LATE_CLOCK_IN,
           GEO_MISMATCH,
           INCIDENT_REPORTED,
+          ANOMALY_LONG_HOURS,
+          ANOMALY_IMPOSSIBLE_TRAVEL,
+          ANOMALY_DURATION_DEVIATION,
+          ANOMALY_PLAN_COMPLETION,
+          ANOMALY_REPEATED_GEO_MISS,
+          ANOMALY_MISSED_SHIFT_TREND,
+          AUTH_RENEWAL_RISK,
         ]
 
     ComplianceAlert:
@@ -2406,6 +2413,7 @@ components:
         entityId: { type: string }
         title: { type: string }
         message: { type: string }
+        suggestedAction: { type: string, nullable: true }
         status:
           $ref: "#/components/schemas/ComplianceAlertStatus"
         createdAt: { type: string, format: date-time }

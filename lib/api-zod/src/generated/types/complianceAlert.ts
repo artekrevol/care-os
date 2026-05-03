@@ -17,6 +17,7 @@ export interface ComplianceAlert {
   entityId: string;
   title: string;
   message: string;
+  suggestedAction?: string | null;
   status: ComplianceAlertStatus;
   createdAt: Date;
 }

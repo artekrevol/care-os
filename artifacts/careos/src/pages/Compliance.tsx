@@ -92,6 +92,12 @@ export default function Compliance() {
                     </div>
                     <h3 className="font-semibold text-lg mt-2">{alert.title}</h3>
                     <p className="text-muted-foreground">{alert.message}</p>
+                    {alert.suggestedAction && (
+                      <div className="mt-3 rounded-md border-l-2 border-primary/60 bg-primary/5 px-3 py-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-0.5">Suggested action</p>
+                        <p className="text-sm text-foreground/90">{alert.suggestedAction}</p>
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground mt-2">Entity: {alert.entityType} ({alert.entityId})</p>
                   </div>
                   {alert.status !== 'RESOLVED' && (

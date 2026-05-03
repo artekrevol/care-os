@@ -1,7 +1,18 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seed } from "./lib/seed";
+import { startWorkers } from "./lib/workers";
 import { logServiceStartupReport } from "@workspace/services";
+
+// Defensive: BullMQ/ioredis can surface async errors (e.g. WRONGPASS) as
+// unhandled rejections from internal connect handlers. Log and keep the
+// server alive so background-job misconfiguration doesn't take down the API.
+process.on("unhandledRejection", (reason) => {
+  logger.warn({ reason }, "unhandledRejection (suppressed)");
+});
+process.on("uncaughtException", (err) => {
+  logger.warn({ err }, "uncaughtException (suppressed)");
+});
 
 const rawPort = process.env["PORT"];
 
@@ -23,6 +34,11 @@ async function main() {
     await seed();
   } catch (err) {
     logger.error({ err }, "Seed failed");
+  }
+  try {
+    await startWorkers();
+  } catch (err) {
+    logger.error({ err }, "Background workers failed to start");
   }
   app.listen(port, (err) => {
     if (err) {

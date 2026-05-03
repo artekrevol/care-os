@@ -38,6 +38,52 @@ function dateAt(daysFromMonday: number, hour: number, minute = 0): Date {
   return monday;
 }
 
+async function refreshAnomalyDemoVisit(): Promise<void> {
+  // cg_001 logs ~19 hours inside the past 24h window so the hourly anomaly
+  // detector flags a LONG_HOURS critical alert on its first run after boot.
+  // Requires cg_001 + clt_001 to already exist; safe no-op if they don't.
+  const cg = await db
+    .select()
+    .from(caregiversTable)
+    .where(sql`${caregiversTable.id} = 'cg_001' AND ${caregiversTable.agencyId} = ${AGENCY_ID}`)
+    .limit(1);
+  if (cg.length === 0) return;
+  const clockOut = new Date(Date.now() - 3 * 3600 * 1000);
+  const clockIn = new Date(clockOut.getTime() - 19 * 3600 * 1000);
+  await db
+    .insert(visitsTable)
+    .values({
+      id: "vis_anomaly_long",
+      agencyId: AGENCY_ID,
+      scheduleId: null,
+      caregiverId: "cg_001",
+      clientId: "clt_001",
+      clockInTime: clockIn,
+      clockInLat: "37.7749",
+      clockInLng: "-122.4194",
+      clockInMethod: "GPS",
+      clockOutTime: clockOut,
+      clockOutLat: "37.7749",
+      clockOutLng: "-122.4194",
+      clockOutMethod: "GPS",
+      durationMinutes: 19 * 60,
+      tasksCompleted: ["Personal care", "Meal prep", "Overnight respite"],
+      caregiverNotes: "Covered overnight respite — family had emergency.",
+      supervisorNotes: null,
+      verificationStatus: "PENDING",
+      exceptionReason: null,
+      geoFenceMatch: true,
+    })
+    .onConflictDoUpdate({
+      target: visitsTable.id,
+      set: {
+        clockInTime: clockIn,
+        clockOutTime: clockOut,
+        durationMinutes: 19 * 60,
+      },
+    });
+}
+
 export async function seed(): Promise<void> {
   // Phase 2 reference rows are idempotent (ON CONFLICT DO NOTHING) and need
   // to run on every boot so newly added types/templates land without a wipe.
@@ -45,14 +91,16 @@ export async function seed(): Promise<void> {
   await seedTaskTemplates();
   await backfillCaregiverPhoneCredentials();
 
-  // Skip Phase 1 demo data if already seeded.
+  // Skip Phase 1 demo data if already seeded — but always re-anchor the
+  // anomaly demo visit so its timestamps stay within the past 24h window.
   const existing = await db
     .select()
     .from(clientsTable)
     .where(sql`${clientsTable.agencyId} = ${AGENCY_ID}`)
     .limit(1);
   if (existing.length > 0) {
-    logger.info("Seed skipped — data already present.");
+    await refreshAnomalyDemoVisit();
+    logger.info("Seed skipped — data already present (anomaly demo refreshed).");
     return;
   }
 
@@ -662,6 +710,11 @@ export async function seed(): Promise<void> {
     geoFenceMatch: true,
   });
   await db.insert(visitsTable).values(visitsToInsert);
+
+  // Anomaly demo visit: cg_001 logs 19 hours inside the past 24h window so
+  // the hourly anomaly detector flags a LONG_HOURS critical alert on its
+  // first run after seed/boot.
+  await refreshAnomalyDemoVisit();
 
   // Pay periods — one CLOSED last period, one OPEN current
   const lastPeriodEnd = new Date(lastPeriodStart);
