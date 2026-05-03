@@ -19,6 +19,9 @@ import { notifications, storage } from "@workspace/services";
 import { AGENCY_ID } from "../lib/agency";
 import { newId } from "../lib/ids";
 import { recordAudit } from "../lib/audit";
+import { webhookLogMiddleware } from "../lib/webhookLog";
+
+const logTwilioWebhook = webhookLogMiddleware("twilio");
 
 const router: IRouter = Router();
 const twimlForm = urlencoded({ extended: false });
@@ -238,6 +241,10 @@ function twilioSignatureGuard(
     url,
     params,
   });
+  // Surface the verdict to webhookLogMiddleware so the persisted row records
+  // whether Twilio's signature actually matched.
+  res.locals["signatureValid"] =
+    verdict === "valid" ? true : verdict === "invalid" ? false : null;
   if (verdict === "valid") {
     next();
     return;
@@ -324,6 +331,7 @@ async function loadCaregiver(cgid: string) {
 router.post(
   "/telephony/voice",
   twimlForm,
+  logTwilioWebhook,
   twilioSignatureGuard,
   async (_req, res): Promise<void> => {
     xml(
@@ -342,6 +350,7 @@ router.post(
 router.post(
   "/telephony/gather",
   twimlForm,
+  logTwilioWebhook,
   twilioSignatureGuard,
   async (req, res): Promise<void> => {
     const step = String(req.query?.step ?? "");
@@ -815,6 +824,7 @@ async function handleIncidentDone(
 router.post(
   "/telephony/recording-complete",
   twimlForm,
+  logTwilioWebhook,
   twilioSignatureGuard,
   async (req, res): Promise<void> => {
     req.log?.info?.(

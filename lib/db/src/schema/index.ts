@@ -18,3 +18,4 @@ export * from "./messaging";
 export * from "./notifications";
 export * from "./agentRuns";
 export * from "./intelligence";
+export * from "./webhookLogs";

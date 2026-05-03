@@ -4545,7 +4545,7 @@ components:
 
     ReferralDraftStatus:
       type: string
-      enum: [DRAFT, REVIEW, ACCEPTED, REJECTED]
+      enum: [DRAFT, PENDING_RETRY, REVIEW, ACCEPTED, REJECTED]
 
     ReferralDraft:
       type: object

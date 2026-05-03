@@ -17,21 +17,37 @@ function bufferToBase64(buf: ArrayBuffer | null): string {
   return btoa(s);
 }
 
-export async function ensurePushSubscription(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
-  if (Notification.permission === "denied") return false;
+export type PushStatus =
+  | "subscribed"
+  | "unsupported"
+  | "denied"
+  | "dismissed"
+  | "no-vapid-key"
+  | "error";
+
+/**
+ * Ensure a push subscription exists for the current device. Returns a
+ * structured status so the UI can surface the right graceful-degradation
+ * message — when the user denies permission we silently fall back to
+ * email notifications on the server side, but we want to tell them.
+ */
+export async function ensurePushSubscriptionStatus(): Promise<PushStatus> {
+  if (typeof window === "undefined") return "unsupported";
+  if (!("serviceWorker" in navigator) || !("PushManager" in window))
+    return "unsupported";
+  if (Notification.permission === "denied") return "denied";
   try {
     const reg = await navigator.serviceWorker.ready;
     let perm: NotificationPermission = Notification.permission;
     if (perm === "default") {
       perm = await Notification.requestPermission();
     }
-    if (perm !== "granted") return false;
+    if (perm === "denied") return "denied";
+    if (perm !== "granted") return "dismissed";
     const { publicKey } = await api<{ publicKey: string | null }>(
       "/m/push/vapid-public-key",
     );
-    if (!publicKey) return false;
+    if (!publicKey) return "no-vapid-key";
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       // Copy into a fresh ArrayBuffer to satisfy lib.dom's BufferSource typing
@@ -55,11 +71,21 @@ export async function ensurePushSubscription(): Promise<boolean> {
         userAgent: navigator.userAgent,
       }),
     });
-    return true;
+    return "subscribed";
   } catch (err) {
     console.warn("push subscription failed", err);
-    return false;
+    return "error";
   }
+}
+
+/**
+ * Backward-compatible wrapper. Returns true when the device is fully
+ * subscribed, false otherwise. Prefer `ensurePushSubscriptionStatus`
+ * in new code so the UI can render the right fallback message.
+ */
+export async function ensurePushSubscription(): Promise<boolean> {
+  const status = await ensurePushSubscriptionStatus();
+  return status === "subscribed";
 }
 
 export async function registerServiceWorker(): Promise<void> {

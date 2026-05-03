@@ -2,7 +2,13 @@ import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileUp, Sparkles, Upload, ChevronRight } from "lucide-react";
+import {
+  FileUp,
+  Sparkles,
+  Upload,
+  ChevronRight,
+  RefreshCw,
+} from "lucide-react";
 import {
   useListReferralDrafts,
   useUploadReferralDraft,
@@ -100,7 +106,9 @@ export default function Intake() {
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 Files run through OCR + Claude. Most extracts complete in under
-                a minute.
+                a minute. If the AI parser is temporarily down, your upload is
+                saved and queued — we will resume parsing automatically as soon
+                as it comes back.
               </p>
             </div>
             <input
@@ -174,7 +182,18 @@ export default function Intake() {
                           {(conf * 100).toFixed(0)}% conf
                         </Badge>
                       )}
-                      <Badge variant="outline">{d.status}</Badge>
+                      {d.status === "PENDING_RETRY" ? (
+                        <Badge
+                          variant="secondary"
+                          className="gap-1 bg-amber-100 text-amber-900 border-amber-300"
+                          title="The AI parser is temporarily unavailable. We'll retry automatically when it recovers."
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Waiting to retry
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">{d.status}</Badge>
+                      )}
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>

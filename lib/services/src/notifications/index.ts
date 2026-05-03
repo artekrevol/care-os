@@ -7,13 +7,78 @@ import {
   notificationTypesTable,
   notificationPreferencesTable,
   notificationLogTable,
+  notificationDeliveriesTable,
   pushSubscriptionsTable,
   caregiversTable,
   familyUsersTable,
+  complianceAlertsTable,
 } from "@workspace/db";
 import { serviceLogger } from "../logger";
 import { isModuleConfigured } from "../env";
 import { recordSuccess, recordError } from "../health/index";
+
+/**
+ * Notification types that require *some* channel to land. When every
+ * channel attempted for one of these types comes back FAILED, we open a
+ * MEDIUM-severity compliance alert so an operator notices and follows up
+ * out-of-band (call/text/email). Add IDs here as the seed defines new
+ * critical event types.
+ */
+export const CRITICAL_NOTIFICATION_TYPES = new Set<string>([
+  "shift.cancelled",
+  "shift.changed",
+  "incident.flagged",
+  "visit.no-show",
+  "auth.expiring-soon",
+  "compliance.alert",
+]);
+
+function genId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function truncateRecipient(s: string | null | undefined): string | null {
+  if (!s) return null;
+  return s.length > 200 ? s.slice(0, 200) : s;
+}
+
+async function recordDelivery(args: {
+  agencyId: string;
+  userId: string | null;
+  notificationTypeId: string | null;
+  channel: "EMAIL" | "SMS" | "PUSH" | "IN_APP";
+  provider: string;
+  recipient: string | null;
+  attempt?: number;
+  status: "SENT" | "FAILED" | "SKIPPED";
+  providerMessageId?: string | null;
+  error?: string | null;
+  subject?: string | null;
+  payload?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await db.insert(notificationDeliveriesTable).values({
+      id: genId("nd"),
+      agencyId: args.agencyId,
+      userId: args.userId,
+      notificationTypeId: args.notificationTypeId,
+      channel: args.channel,
+      provider: args.provider,
+      recipient: truncateRecipient(args.recipient),
+      attempt: args.attempt ?? 1,
+      status: args.status,
+      providerMessageId: args.providerMessageId ?? null,
+      error: args.error ? String(args.error).slice(0, 500) : null,
+      subject: args.subject ?? null,
+      payload: args.payload ?? {},
+    });
+  } catch (err) {
+    serviceLogger.error(
+      { err: (err as Error).message },
+      "notification_deliveries insert failed",
+    );
+  }
+}
 
 export type NotificationChannel = "EMAIL" | "SMS" | "PUSH" | "IN_APP";
 
@@ -223,11 +288,22 @@ async function resolveChannels(
 async function sendEmail(
   email: string | null,
   p: NotificationPayload,
-): Promise<ChannelDispatchResult> {
+): Promise<ChannelDispatchResult & { recipient: string | null }> {
   if (!email)
-    return { channel: "EMAIL", status: "SKIPPED", error: "no email on file" };
+    return {
+      channel: "EMAIL",
+      status: "SKIPPED",
+      error: "no email on file",
+      recipient: null,
+    };
   const r = getResend();
-  if (!r) return { channel: "EMAIL", status: "SKIPPED", error: "not configured" };
+  if (!r)
+    return {
+      channel: "EMAIL",
+      status: "SKIPPED",
+      error: "not configured",
+      recipient: email,
+    };
   try {
     const result = await r.emails.send({
       from: process.env["RESEND_FROM_EMAIL"] ?? "CareOS <noreply@careos.local>",
@@ -240,10 +316,16 @@ async function sendEmail(
       channel: "EMAIL",
       status: "SENT",
       providerMessageId: result.data?.id,
+      recipient: email,
     };
   } catch (err) {
     recordError("notifications.email", err);
-    return { channel: "EMAIL", status: "FAILED", error: (err as Error).message };
+    return {
+      channel: "EMAIL",
+      status: "FAILED",
+      error: (err as Error).message,
+      recipient: email,
+    };
   }
 }
 
@@ -255,9 +337,26 @@ export async function sendDirectEmail(args: {
   to: string;
   subject: string;
   text: string;
+  agencyId?: string;
+  notificationTypeId?: string | null;
 }): Promise<{ ok: boolean; message: string }> {
+  const agencyId =
+    args.agencyId ?? process.env["CAREOS_DEFAULT_AGENCY_ID"] ?? "agency_demo";
   const r = getResend();
-  if (!r) return { ok: false, message: "not configured" };
+  if (!r) {
+    await recordDelivery({
+      agencyId,
+      userId: null,
+      notificationTypeId: args.notificationTypeId ?? null,
+      channel: "EMAIL",
+      provider: "resend",
+      recipient: args.to,
+      status: "SKIPPED",
+      error: "not configured",
+      subject: args.subject,
+    });
+    return { ok: false, message: "not configured" };
+  }
   try {
     const result = await r.emails.send({
       from: process.env["RESEND_FROM_EMAIL"] ?? "CareOS <noreply@careos.local>",
@@ -266,21 +365,57 @@ export async function sendDirectEmail(args: {
       text: args.text,
     });
     recordSuccess("notifications.email");
+    await recordDelivery({
+      agencyId,
+      userId: null,
+      notificationTypeId: args.notificationTypeId ?? null,
+      channel: "EMAIL",
+      provider: "resend",
+      recipient: args.to,
+      status: "SENT",
+      providerMessageId: result.data?.id ?? null,
+      subject: args.subject,
+    });
     return { ok: true, message: result.data?.id ?? "ok" };
   } catch (err) {
     recordError("notifications.email", err);
-    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+    await recordDelivery({
+      agencyId,
+      userId: null,
+      notificationTypeId: args.notificationTypeId ?? null,
+      channel: "EMAIL",
+      provider: "resend",
+      recipient: args.to,
+      status: "FAILED",
+      error: err instanceof Error ? err.message : String(err),
+      subject: args.subject,
+    });
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
 async function sendSms(
   phone: string | null,
   p: NotificationPayload,
-): Promise<ChannelDispatchResult> {
+): Promise<ChannelDispatchResult & { recipient: string | null }> {
   if (!phone)
-    return { channel: "SMS", status: "SKIPPED", error: "no phone on file" };
+    return {
+      channel: "SMS",
+      status: "SKIPPED",
+      error: "no phone on file",
+      recipient: null,
+    };
   const t = getTwilio();
-  if (!t) return { channel: "SMS", status: "SKIPPED", error: "not configured" };
+  if (!t)
+    return {
+      channel: "SMS",
+      status: "SKIPPED",
+      error: "not configured",
+      recipient: phone,
+    };
   try {
     const msg = await t.messages.create({
       from: process.env["TWILIO_FROM_NUMBER"]!,
@@ -288,24 +423,40 @@ async function sendSms(
       body: `${p.subject}\n${p.body}${p.url ? `\n${p.url}` : ""}`,
     });
     recordSuccess("notifications.sms");
-    return { channel: "SMS", status: "SENT", providerMessageId: msg.sid };
+    return {
+      channel: "SMS",
+      status: "SENT",
+      providerMessageId: msg.sid,
+      recipient: phone,
+    };
   } catch (err) {
     recordError("notifications.sms", err);
-    return { channel: "SMS", status: "FAILED", error: (err as Error).message };
+    return {
+      channel: "SMS",
+      status: "FAILED",
+      error: (err as Error).message,
+      recipient: phone,
+    };
   }
 }
 
 async function sendPush(
   subs: webpush.PushSubscription[],
   p: NotificationPayload,
-): Promise<ChannelDispatchResult> {
+): Promise<ChannelDispatchResult & { recipient: string | null }> {
   if (!ensureWebPush())
-    return { channel: "PUSH", status: "SKIPPED", error: "not configured" };
+    return {
+      channel: "PUSH",
+      status: "SKIPPED",
+      error: "not configured",
+      recipient: null,
+    };
   if (subs.length === 0)
     return {
       channel: "PUSH",
       status: "SKIPPED",
       error: "no push subscriptions",
+      recipient: null,
     };
   const body = JSON.stringify({
     title: p.subject,
@@ -329,6 +480,8 @@ async function sendPush(
     error: anyOk
       ? undefined
       : (results[0] as PromiseRejectedResult).reason?.toString(),
+    recipient:
+      subs[0]?.endpoint?.slice(0, 80) ?? null,
   };
 }
 
@@ -408,20 +561,41 @@ export async function sendNotification(
   if (channels.length === 0) return [];
 
   const out: ChannelDispatchResult[] = [];
+  type WithRecipient = ChannelDispatchResult & { recipient?: string | null };
   for (const ch of channels) {
-    let r: ChannelDispatchResult;
-    if (ch === "EMAIL") r = await sendEmail(recipient.email, input.payload);
-    else if (ch === "SMS") r = await sendSms(recipient.phone, input.payload);
-    else if (ch === "PUSH") r = await sendPush(recipient.pushSubs, input.payload);
-    else r = { channel: "IN_APP", status: "SENT" };
-    out.push(r);
+    let r: WithRecipient;
+    let provider: string;
+    if (ch === "EMAIL") {
+      r = await sendEmail(recipient.email, input.payload);
+      provider = "resend";
+    } else if (ch === "SMS") {
+      r = await sendSms(recipient.phone, input.payload);
+      provider = "twilio";
+    } else if (ch === "PUSH") {
+      r = await sendPush(recipient.pushSubs, input.payload);
+      provider = "webpush";
+    } else {
+      r = { channel: "IN_APP", status: "SENT", recipient: null };
+      provider = "inapp";
+    }
+    out.push({
+      channel: r.channel,
+      status: r.status,
+      providerMessageId: r.providerMessageId,
+      error: r.error,
+    });
     try {
       await logDispatch({
         agencyId,
         userId: input.userId,
         userRole: recipient.userRole,
         typeId: input.type,
-        result: r,
+        result: {
+          channel: r.channel,
+          status: r.status,
+          providerMessageId: r.providerMessageId,
+          error: r.error,
+        },
         payload: input.payload,
       });
     } catch (err) {
@@ -430,8 +604,53 @@ export async function sendNotification(
         "notification_log insert failed",
       );
     }
+    await recordDelivery({
+      agencyId,
+      userId: input.userId,
+      notificationTypeId: input.type,
+      channel: r.channel,
+      provider,
+      recipient: r.recipient ?? null,
+      status: r.status,
+      providerMessageId: r.providerMessageId ?? null,
+      error: r.error ?? null,
+      subject: input.payload.subject,
+      payload: { url: input.payload.url, data: input.payload.data },
+    });
     if (r.status === "FAILED")
       serviceLogger.error({ ...r }, "notification dispatch failed");
+  }
+
+  // Critical-channel-failure compliance alert: when EVERY attempted channel
+  // failed and the type is in the critical set, raise a MEDIUM alert so an
+  // operator follows up out-of-band.
+  if (
+    CRITICAL_NOTIFICATION_TYPES.has(input.type) &&
+    out.length > 0 &&
+    out.every((r) => r.status === "FAILED")
+  ) {
+    try {
+      await db
+        .insert(complianceAlertsTable)
+        .values({
+          id: genId("calert"),
+          agencyId,
+          alertType: "NOTIFICATION_DELIVERY_FAILED",
+          severity: "MEDIUM",
+          entityType: "User",
+          entityId: input.userId,
+          title: `Could not reach ${recipient.userRole.toLowerCase()} for ${input.type}`,
+          message: `All channels (${out.map((r) => r.channel).join(", ")}) failed for "${input.payload.subject}". Follow up by phone.`,
+          suggestedAction: "Call the recipient directly and confirm receipt.",
+          dedupeKey: `notif-fail:${input.userId}:${input.type}`,
+        })
+        .onConflictDoNothing();
+    } catch (err) {
+      serviceLogger.error(
+        { err: (err as Error).message },
+        "critical-channel-failure alert insert failed",
+      );
+    }
   }
   return out;
 }

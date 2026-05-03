@@ -32,7 +32,12 @@ import {
   Sparkles,
   Clock,
   ArrowLeftRight,
+  Info,
 } from "lucide-react";
+import {
+  useDegradedServices,
+  isModuleDegraded,
+} from "@/lib/useDegradedServices";
 import {
   Dialog,
   DialogContent,
@@ -713,9 +718,26 @@ export default function Schedule() {
     return { caregiverId, day, k, shifts: shiftsByCgDay.get(k) ?? [] };
   };
 
+  const degradedServices = useDegradedServices();
+  const mapsDegraded = isModuleDegraded(degradedServices, "maps");
+
   return (
     <Layout>
       <div className="space-y-6">
+        {mapsDegraded && (
+          <div
+            className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+            role="status"
+          >
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <span className="font-medium">Distance-only routing.</span>{" "}
+              Drive-time estimates are temporarily unavailable, so caregiver
+              suggestions are ranked by straight-line distance instead of
+              real driving minutes. Service will resume automatically.
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">

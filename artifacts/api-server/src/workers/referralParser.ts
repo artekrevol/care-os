@@ -263,9 +263,28 @@ export async function processReferralParse(payload: {
     logger.info({ draftId, runId }, "referral parsed");
   } catch (err) {
     logger.error({ err, draftId }, "referral parse failed");
+    // Mark the draft as PENDING_RETRY only when the failure is a known
+    // *AI module* availability problem — either the Anthropic client is
+    // not configured at all, or the error came directly from an upstream
+    // AI/network primitive (Anthropic SDK errors, fetch/abort/timeout).
+    // Anything else (bad PDF, validation error, DB error) falls back to
+    // DRAFT so it does not get retried in a loop.
+    const errName = err instanceof Error ? err.name : "";
+    const message = err instanceof Error ? err.message.toLowerCase() : "";
+    const isAnthropicTransient =
+      errName === "APIConnectionError" ||
+      errName === "APIConnectionTimeoutError" ||
+      errName === "RateLimitError" ||
+      errName === "InternalServerError" ||
+      errName === "AbortError" ||
+      errName === "TimeoutError" ||
+      message.includes("anthropic") ||
+      message.includes("overloaded_error") ||
+      (message.includes("rate limit") && message.includes("anthropic"));
+    const transient = !ai.getAnthropicClient() || isAnthropicTransient;
     await db
       .update(referralDraftsTable)
-      .set({ status: "DRAFT" })
+      .set({ status: transient ? "PENDING_RETRY" : "DRAFT" })
       .where(eq(referralDraftsTable.id, draftId));
   }
 }

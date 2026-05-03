@@ -8,6 +8,7 @@ import {
   runVisitReminders,
 } from "./agents";
 import { runDlqCheck } from "./dlqWatch";
+import { startReferralResumeWorker } from "./referralResume";
 
 let started = false;
 let dlqInterval: NodeJS.Timeout | null = null;
@@ -60,6 +61,10 @@ export async function startWorkers(): Promise<void> {
     }, FIVE_MIN);
     if (typeof dlqInterval.unref === "function") dlqInterval.unref();
   }
+
+  // Resume any referral drafts the AI parser left in PENDING_RETRY when AI
+  // becomes healthy again. Independent of Redis like dlqWatch.
+  startReferralResumeWorker();
 
   const anomalyW = queue.registerWorker("anomaly.scan-all", async (job) => {
     const r = await runAnomalyDetector(job.data.triggeredBy);

@@ -1422,6 +1422,7 @@ export type ReferralDraftStatus =
 
 export const ReferralDraftStatus = {
   DRAFT: "DRAFT",
+  PENDING_RETRY: "PENDING_RETRY",
   REVIEW: "REVIEW",
   ACCEPTED: "ACCEPTED",
   REJECTED: "REJECTED",
