@@ -66,7 +66,13 @@ async function format(v: typeof visitsTable.$inferSelect) {
 }
 
 router.get("/visits", async (req, res): Promise<void> => {
-  const parsed = ListVisitsQueryParams.safeParse(req.query);
+  // Coerce ISO date strings to Date before zod validation; clients (incl.
+  // generated React Query hooks) pass query params as strings.
+  const rawQ = req.query as Record<string, unknown>;
+  const coerced: Record<string, unknown> = { ...rawQ };
+  if (typeof rawQ.from === "string" && rawQ.from) coerced.from = new Date(rawQ.from);
+  if (typeof rawQ.to === "string" && rawQ.to) coerced.to = new Date(rawQ.to);
+  const parsed = ListVisitsQueryParams.safeParse(coerced);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -75,9 +81,9 @@ router.get("/visits", async (req, res): Promise<void> => {
   if (parsed.data.status)
     conds.push(eq(visitsTable.verificationStatus, parsed.data.status));
   if (parsed.data.from)
-    conds.push(gte(visitsTable.clockInTime, new Date(parsed.data.from)));
+    conds.push(gte(visitsTable.clockInTime, parsed.data.from));
   if (parsed.data.to)
-    conds.push(lte(visitsTable.clockInTime, new Date(parsed.data.to)));
+    conds.push(lte(visitsTable.clockInTime, parsed.data.to));
   const rows = await db
     .select()
     .from(visitsTable)

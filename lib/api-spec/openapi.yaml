@@ -3271,6 +3271,7 @@ components:
           ANOMALY_REPEATED_GEO_MISS,
           ANOMALY_MISSED_SHIFT_TREND,
           AUTH_RENEWAL_RISK,
+          REFERRAL_PENDING,
         ]
 
     ComplianceAlert:

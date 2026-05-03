@@ -92,6 +92,18 @@ Mounted at `/admin/jobs` (registered in `artifacts/api-server/.replit-artifact/a
 
 `artifacts/careos/public/manifest.webmanifest` and `sw.js` are placeholders (empty install/activate/fetch/push handlers) wired into `index.html` via `<link rel="manifest">` and Apple/theme meta tags. Service worker registration logic for offline visits ships in a later phase.
 
+### Demo screenshots (fallback assets)
+
+`pnpm demo:screenshots` runs a headless Playwright harness
+(`scripts/src/demo-screenshots.ts`) against the local stack and writes
+seven canonical "magic moment" PNGs to `demo-assets/` (gitignored). It
+clocks in cg_001 via OTP, seeds caregiver-pwa session + family-portal
+localStorage auth, and freezes Date to Tuesday 14:30 PT of the current
+week so seed-relative schedules populate. It does NOT freeze
+`performance.now()` (which would stall framer-motion animations at
+opacity:0). Recommended workflow: `demo:reset` then `demo:screenshots`.
+See `demo-assets/README.md`.
+
 ### Environment variables (Phase 2)
 
 All of these are optional — missing values disable the corresponding service and log a warning at startup. Set them via the Secrets pane (never write them to code).

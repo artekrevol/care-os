@@ -128,6 +128,51 @@ router.get("/pay-periods/:id", async (req, res): Promise<void> => {
         ) / 100,
       ruleEngineVersion: e.ruleEngineVersion,
     }));
+  // Aggregate per-caregiver totals for the byCaregiver summary panel.
+  const byCgMap = new Map<
+    string,
+    {
+      caregiverId: string;
+      caregiverName: string;
+      regularMinutes: number;
+      overtimeMinutes: number;
+      doubleTimeMinutes: number;
+      regularPay: number;
+      overtimePay: number;
+      doubleTimePay: number;
+      totalPay: number;
+    }
+  >();
+  for (const e of formattedEntries) {
+    const cur = byCgMap.get(e.caregiverId) ?? {
+      caregiverId: e.caregiverId,
+      caregiverName: e.caregiverName,
+      regularMinutes: 0,
+      overtimeMinutes: 0,
+      doubleTimeMinutes: 0,
+      regularPay: 0,
+      overtimePay: 0,
+      doubleTimePay: 0,
+      totalPay: 0,
+    };
+    cur.regularMinutes += e.regularMinutes;
+    cur.overtimeMinutes += e.overtimeMinutes;
+    cur.doubleTimeMinutes += e.doubleTimeMinutes;
+    cur.regularPay += e.regularPay;
+    cur.overtimePay += e.overtimePay;
+    cur.doubleTimePay += e.doubleTimePay;
+    cur.totalPay += e.totalPay;
+    byCgMap.set(e.caregiverId, cur);
+  }
+  const byCaregiver = Array.from(byCgMap.values())
+    .map((s) => ({
+      ...s,
+      regularPay: Math.round(s.regularPay * 100) / 100,
+      overtimePay: Math.round(s.overtimePay * 100) / 100,
+      doubleTimePay: Math.round(s.doubleTimePay * 100) / 100,
+      totalPay: Math.round(s.totalPay * 100) / 100,
+    }))
+    .sort((a, b) => b.totalPay - a.totalPay);
   res.json(
     GetPayPeriodResponse.parse({
       id: p.id,
@@ -141,6 +186,7 @@ router.get("/pay-periods/:id", async (req, res): Promise<void> => {
       caregiverCount: t.caregiverCount,
       exportedAt: p.exportedAt,
       entries: formattedEntries,
+      byCaregiver,
     }),
   );
 });

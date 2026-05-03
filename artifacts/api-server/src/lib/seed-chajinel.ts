@@ -224,7 +224,7 @@ export async function seedChajinelExpansion(): Promise<void> {
     phone: `(${[323, 562, 626, 657, 714, 909, 949][i % 7]}) 555-${String(2000 + i).padStart(4, "0")}`,
     employmentType: "W2",
     hireDate: isoDate(-cg.hireDaysAgo),
-    status: "APPROVED",
+    status: "ACTIVE",
     languages: cg.languages,
     skills: cg.certs.length > 0 ? ["Personal care", "Meal prep"] : ["Companion care"],
     payRate: cg.payRate,
@@ -579,7 +579,7 @@ export async function seedChajinelExpansion(): Promise<void> {
   await db.insert(complianceAlertsTable).values({
     id: newId("alert"),
     agencyId: AGENCY_ID,
-    alertType: "RENEWAL_RISK",
+    alertType: "AUTH_RENEWAL_RISK",
     severity: "CRITICAL",
     entityType: "Authorization",
     entityId: "auth_chajinel_015",

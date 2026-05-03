@@ -87,16 +87,21 @@ function otImpactToConflict(
 }
 
 router.get("/schedules", async (req, res): Promise<void> => {
-  const parsed = ListSchedulesQueryParams.safeParse(req.query);
+  // Coerce ISO date strings to Date for clients that pass query params as strings.
+  const rawQ = req.query as Record<string, unknown>;
+  const coerced: Record<string, unknown> = { ...rawQ };
+  if (typeof rawQ.from === "string" && rawQ.from) coerced.from = new Date(rawQ.from);
+  if (typeof rawQ.to === "string" && rawQ.to) coerced.to = new Date(rawQ.to);
+  const parsed = ListSchedulesQueryParams.safeParse(coerced);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
   const conds = [eq(schedulesTable.agencyId, AGENCY_ID)];
   if (parsed.data.from)
-    conds.push(gte(schedulesTable.startTime, new Date(parsed.data.from)));
+    conds.push(gte(schedulesTable.startTime, parsed.data.from));
   if (parsed.data.to)
-    conds.push(lte(schedulesTable.startTime, new Date(parsed.data.to)));
+    conds.push(lte(schedulesTable.startTime, parsed.data.to));
   if (parsed.data.caregiverId)
     conds.push(eq(schedulesTable.caregiverId, parsed.data.caregiverId));
   if (parsed.data.clientId)

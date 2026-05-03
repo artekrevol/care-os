@@ -6,10 +6,12 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "demo:reset": "tsx ./src/demo-reset.ts",
+    "demo:screenshots": "tsx ./src/demo-screenshots.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "playwright": "^1.59.1",
     "tsx": "catalog:"
   }
 }

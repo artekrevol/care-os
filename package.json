@@ -7,7 +7,8 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "demo:reset": "pnpm --filter @workspace/scripts run demo:reset"
+    "demo:reset": "pnpm --filter @workspace/scripts run demo:reset",
+    "demo:screenshots": "pnpm --filter @workspace/scripts run demo:screenshots"
   },
   "private": true,
   "devDependencies": {
