@@ -175,6 +175,9 @@ importers:
       '@bull-board/express':
         specifier: ^6.7.7
         version: 6.21.3
+      '@bull-board/ui':
+        specifier: ^6.21.3
+        version: 6.21.3
       '@google-cloud/storage':
         specifier: ^7.19.0
         version: 7.19.0

@@ -2192,6 +2192,7 @@ components:
           MISSED_VISIT,
           LATE_CLOCK_IN,
           GEO_MISMATCH,
+          INCIDENT_REPORTED,
         ]
 
     ComplianceAlert:

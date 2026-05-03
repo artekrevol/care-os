@@ -58,6 +58,7 @@ export const visitIncidentsTable = pgTable("visit_incidents", {
   category: text("category").notNull(),
   description: text("description").notNull(),
   photoUrls: text("photo_urls").array().notNull().default([]),
+  audioUrl: text("audio_url"),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   resolvedBy: varchar("resolved_by", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true })

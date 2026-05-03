@@ -42,6 +42,7 @@ export async function seed(): Promise<void> {
   // to run on every boot so newly added types/templates land without a wipe.
   await seedNotificationTypes();
   await seedTaskTemplates();
+  await backfillCaregiverPhoneCredentials();
 
   // Skip Phase 1 demo data if already seeded.
   const existing = await db
@@ -418,8 +419,20 @@ export async function seed(): Promise<void> {
       addressCity: "Fremont",
       addressState: "CA",
     },
-  ].map((c) => ({ ...c, agencyId: AGENCY_ID }));
+  ].map((c, i) => ({
+    ...c,
+    agencyId: AGENCY_ID,
+    phoneCode: String(100001 + i),
+    phonePin: generateIvrPin(),
+  }));
   await db.insert(caregiversTable).values(caregivers);
+  // PIN is auth secret material; never log it. Phone codes are logged so a
+  // dev can look up which caregiver received which code, but PINs must be
+  // reset by a supervisor through the normal reset flow before first use.
+  logger.info(
+    { count: caregivers.length },
+    "Seeded caregivers with random IVR PINs (must be reset via supervisor flow before use)",
+  );
 
   // Caregiver documents
   const docs = [
@@ -915,4 +928,51 @@ async function seedTaskTemplates(): Promise<void> {
       .onConflictDoNothing({ target: taskTemplatesTable.id });
   }
   logger.info({ count: rows.length }, "Seeded task templates.");
+}
+
+async function backfillCaregiverPhoneCredentials(): Promise<void> {
+  const rows = await db
+    .select()
+    .from(caregiversTable)
+    .where(sql`${caregiversTable.agencyId} = ${AGENCY_ID}`);
+  const missing = rows.filter((r) => !r.phoneCode || !r.phonePin);
+  if (missing.length === 0) return;
+  // Stable, deterministic mapping: index of caregiver in id-sorted order.
+  const ordered = [...rows].sort((a, b) => a.id.localeCompare(b.id));
+  for (const cg of missing) {
+    const idx = ordered.findIndex((r) => r.id === cg.id);
+    const code = String(100001 + Math.max(0, idx));
+    const pin = cg.phonePin ?? generateIvrPin();
+    await db
+      .update(caregiversTable)
+      .set({
+        phoneCode: cg.phoneCode ?? code,
+        phonePin: pin,
+      })
+      .where(sql`${caregiversTable.id} = ${cg.id}`);
+    // Never log the PIN; it's auth secret material.
+    logger.info(
+      { caregiverId: cg.id, phoneCode: cg.phoneCode ?? code },
+      "Backfilled IVR phone code (PIN set; must be reset via supervisor flow before use)",
+    );
+  }
+  logger.info({ count: missing.length }, "Backfilled caregiver IVR credentials.");
+}
+
+// Generates a 4-digit numeric PIN avoiding the most trivially-guessable
+// values (sequential, repeated digits, common defaults). Suitable for IVR
+// dev seeding; production agencies should rotate via supervisor reset flow.
+function generateIvrPin(): string {
+  const blocked = new Set([
+    "0000", "1111", "2222", "3333", "4444",
+    "5555", "6666", "7777", "8888", "9999",
+    "1234", "4321", "0123", "1212", "1010",
+    "2580", "0852",
+  ]);
+  for (let attempts = 0; attempts < 100; attempts++) {
+    const n = Math.floor(Math.random() * 10000);
+    const pin = String(n).padStart(4, "0");
+    if (!blocked.has(pin)) return pin;
+  }
+  return "8350";
 }

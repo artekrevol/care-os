@@ -30,6 +30,8 @@ export const caregiversTable = pgTable("caregivers", {
   userId: varchar("user_id", { length: 64 }),
   pwaInstalled: boolean("pwa_installed").notNull().default(false),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  phoneCode: varchar("phone_code", { length: 6 }),
+  phonePin: varchar("phone_pin", { length: 8 }),
   compatibilityTags: text("compatibility_tags").array().notNull().default([]),
   certifications: text("certifications").array().notNull().default([]),
   preferredRadiusMiles: numeric("preferred_radius_miles", {

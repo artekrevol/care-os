@@ -10,7 +10,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, MapPin, CheckCircle, XCircle, Pointer } from "lucide-react";
+import { Clock, MapPin, CheckCircle, XCircle, Pointer, Phone, Smartphone, Hand, KeyRound } from "lucide-react";
 
 export default function Visits() {
   const [statusFilter, setStatusFilter] = useState<VisitVerificationStatus | "">("");
@@ -75,6 +75,7 @@ export default function Visits() {
                   <TableHead>Caregiver</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Time (In - Out)</TableHead>
+                  <TableHead>Method</TableHead>
                   <TableHead>Details</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -83,11 +84,11 @@ export default function Visits() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading visits...</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading visits...</TableCell>
                   </TableRow>
                 ) : visits?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No visits found.</TableCell>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No visits found.</TableCell>
                   </TableRow>
                 ) : (
                   visits?.map((visit) => (
@@ -99,6 +100,9 @@ export default function Visits() {
                           {visit.clockInTime ? format(new Date(visit.clockInTime), "MMM d, h:mm a") : "Missing"} - <br/>
                           {visit.clockOutTime ? format(new Date(visit.clockOutTime), "h:mm a") : "Active"}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <ClockMethodBadge method={visit.clockInMethod} />
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1 text-xs">
@@ -182,6 +186,22 @@ function VerifyDialog({ visitId, onConfirm, action }: { visitId: string, onConfi
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ClockMethodBadge({ method }: { method: ClockMethod }) {
+  const meta: Record<ClockMethod, { label: string; icon: typeof Phone; className: string }> = {
+    GPS: { label: "GPS", icon: Smartphone, className: "" },
+    TELEPHONY: { label: "IVR Phone", icon: Phone, className: "border-amber-500 text-amber-700 dark:text-amber-400" },
+    FOB: { label: "FOB", icon: KeyRound, className: "" },
+    MANUAL: { label: "Manual", icon: Hand, className: "" },
+  };
+  const m = meta[method] ?? meta.GPS;
+  const Icon = m.icon;
+  return (
+    <Badge variant="outline" className={`text-xs ${m.className}`}>
+      <Icon className="w-3 h-3 mr-1" /> {m.label}
+    </Badge>
   );
 }
 

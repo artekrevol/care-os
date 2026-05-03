@@ -49,6 +49,59 @@ function getTwilio(): ReturnType<typeof twilio> | null {
   return twilioClient;
 }
 
+/**
+ * Validate a Twilio webhook request signature. Returns:
+ *   - "valid"      → signature checks out, allow
+ *   - "invalid"    → signature header present but does not match, reject
+ *   - "unconfigured" → TWILIO_AUTH_TOKEN is not set; caller must decide
+ *                     whether to allow (dev) or reject (prod)
+ */
+export function validateTwilioSignature(args: {
+  signatureHeader: string | undefined;
+  url: string;
+  params: Record<string, string>;
+}): "valid" | "invalid" | "unconfigured" {
+  const token = process.env["TWILIO_AUTH_TOKEN"];
+  if (!token) return "unconfigured";
+  if (!args.signatureHeader) return "invalid";
+  const ok = twilio.validateRequest(
+    token,
+    args.signatureHeader,
+    args.url,
+    args.params,
+  );
+  return ok ? "valid" : "invalid";
+}
+
+/**
+ * Fetch the audio bytes for a Twilio Recording URL using the configured
+ * account credentials. Returns null when Twilio is unconfigured (dev) so the
+ * caller can fall back to URL-only persistence.
+ */
+export async function fetchTwilioRecordingBytes(
+  recordingUrl: string,
+): Promise<{ bytes: Buffer; contentType: string } | null> {
+  const sid = process.env["TWILIO_ACCOUNT_SID"];
+  const token = process.env["TWILIO_AUTH_TOKEN"];
+  if (!sid || !token) return null;
+  // Twilio recordings are served at the same URL with `.mp3` suffix for audio.
+  const url = recordingUrl.endsWith(".mp3")
+    ? recordingUrl
+    : `${recordingUrl}.mp3`;
+  const auth = Buffer.from(`${sid}:${token}`).toString("base64");
+  const resp = await fetch(url, { headers: { Authorization: `Basic ${auth}` } });
+  if (!resp.ok) {
+    throw new Error(
+      `twilio recording fetch failed: ${resp.status} ${resp.statusText}`,
+    );
+  }
+  const ab = await resp.arrayBuffer();
+  return {
+    bytes: Buffer.from(ab),
+    contentType: resp.headers.get("content-type") ?? "audio/mpeg",
+  };
+}
+
 let webPushReady = false;
 function ensureWebPush(): boolean {
   if (!isModuleConfigured("notifications.push")) return false;

@@ -13,6 +13,7 @@
     "@aws-sdk/client-textract": "^3.1041.0",
     "@bull-board/api": "^6.7.7",
     "@bull-board/express": "^6.7.7",
+    "@bull-board/ui": "^6.21.3",
     "@google-cloud/storage": "^7.19.0",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",

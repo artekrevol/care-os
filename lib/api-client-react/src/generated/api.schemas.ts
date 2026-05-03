@@ -494,6 +494,7 @@ export const ComplianceAlertType = {
   MISSED_VISIT: "MISSED_VISIT",
   LATE_CLOCK_IN: "LATE_CLOCK_IN",
   GEO_MISMATCH: "GEO_MISMATCH",
+  INCIDENT_REPORTED: "INCIDENT_REPORTED",
 } as const;
 
 export type ComplianceAlertSeverity =

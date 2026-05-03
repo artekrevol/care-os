@@ -11,6 +11,7 @@ import alertsRouter from "./alerts";
 import auditLogRouter from "./auditLog";
 import reportsRouter from "./reports";
 import notificationsRouter from "./notifications";
+import telephonyRouter from "./telephony";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(alertsRouter);
 router.use(auditLogRouter);
 router.use(reportsRouter);
 router.use(notificationsRouter);
+router.use(telephonyRouter);
 
 export default router;
