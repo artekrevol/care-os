@@ -241,7 +241,7 @@ router.get("/dashboard/activity", async (_req, res): Promise<void> => {
   res.json(GetRecentActivityResponse.parse(mapped));
 });
 
-router.get("/dashboard/overtime-projection", async (_req, res): Promise<void> => {
+router.get("/dashboard/ot-projection", async (_req, res): Promise<void> => {
   const weekStart = startOfWeekISO();
   const weekEnd = endOfWeekISO();
   const [activeRule] = await db
