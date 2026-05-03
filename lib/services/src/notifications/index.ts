@@ -624,13 +624,16 @@ export async function sendNotification(
       serviceLogger.error({ ...r }, "notification dispatch failed");
   }
 
-  // Critical-channel-failure compliance alert: when EVERY attempted channel
-  // failed and the type is in the critical set, raise a MEDIUM alert so an
-  // operator follows up out-of-band.
+  // Critical-delivery compliance alert: when NOT A SINGLE channel was
+  // successfully SENT for a critical notification type, raise a MEDIUM
+  // alert so an operator follows up out-of-band. This covers both the
+  // "every channel FAILED" case and the more common degraded case where
+  // some channels were SKIPPED (no push subscription, no phone, no
+  // email) and the rest FAILED — the recipient was still not reached.
   if (
     CRITICAL_NOTIFICATION_TYPES.has(input.type) &&
     out.length > 0 &&
-    out.every((r) => r.status === "FAILED")
+    out.every((r) => r.status !== "SENT")
   ) {
     try {
       await db
@@ -643,7 +646,7 @@ export async function sendNotification(
           entityType: "User",
           entityId: input.userId,
           title: `Could not reach ${recipient.userRole.toLowerCase()} for ${input.type}`,
-          message: `All channels (${out.map((r) => r.channel).join(", ")}) failed for "${input.payload.subject}". Follow up by phone.`,
+          message: `No channel reached the recipient for "${input.payload.subject}" (${out.map((r) => `${r.channel}:${r.status}`).join(", ")}). Follow up by phone.`,
           suggestedAction: "Call the recipient directly and confirm receipt.",
           dedupeKey: `notif-fail:${input.userId}:${input.type}`,
         })

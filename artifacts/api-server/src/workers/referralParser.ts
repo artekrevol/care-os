@@ -264,11 +264,11 @@ export async function processReferralParse(payload: {
   } catch (err) {
     logger.error({ err, draftId }, "referral parse failed");
     // Mark the draft as PENDING_RETRY only when the failure is a known
-    // *AI module* availability problem — either the Anthropic client is
-    // not configured at all, or the error came directly from an upstream
-    // AI/network primitive (Anthropic SDK errors, fetch/abort/timeout).
-    // Anything else (bad PDF, validation error, DB error) falls back to
-    // DRAFT so it does not get retried in a loop.
+    // *upstream AI/OCR module* availability problem — either a required
+    // client (Anthropic) is not configured, or the error came from an
+    // upstream Anthropic / AWS Textract primitive (SDK errors, throttles,
+    // network/abort/timeout). Anything else (bad PDF, validation error,
+    // DB error) falls back to DRAFT so it does not retry in a loop.
     const errName = err instanceof Error ? err.name : "";
     const message = err instanceof Error ? err.message.toLowerCase() : "";
     const isAnthropicTransient =
@@ -281,7 +281,28 @@ export async function processReferralParse(payload: {
       message.includes("anthropic") ||
       message.includes("overloaded_error") ||
       (message.includes("rate limit") && message.includes("anthropic"));
-    const transient = !ai.getAnthropicClient() || isAnthropicTransient;
+    // AWS Textract transient/availability errors. Captures both the
+    // explicit AWS SDK exception classes (ThrottlingException,
+    // ProvisionedThroughputExceededException, ServiceUnavailable, etc.)
+    // and generic message patterns we've seen when the OCR module is
+    // unreachable or the AWS region is degraded.
+    const isTextractTransient =
+      errName === "ThrottlingException" ||
+      errName === "ProvisionedThroughputExceededException" ||
+      errName === "ServiceUnavailableException" ||
+      errName === "InternalServerError" ||
+      errName === "RequestTimeout" ||
+      errName === "RequestTimeoutException" ||
+      errName === "NetworkingError" ||
+      message.includes("textract") ||
+      message.includes("aws") ||
+      message.includes("getaddrinfo") ||
+      message.includes("econnreset") ||
+      message.includes("econnrefused") ||
+      message.includes("etimedout") ||
+      message.includes("socket hang up");
+    const transient =
+      !ai.getAnthropicClient() || isAnthropicTransient || isTextractTransient;
     await db
       .update(referralDraftsTable)
       .set({ status: transient ? "PENDING_RETRY" : "DRAFT" })
