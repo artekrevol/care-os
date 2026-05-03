@@ -1,0 +1,499 @@
+# CareOS — Phase 2 Build: Activation Layer
+
+> **Replit Build Prompt — Phase 2: Mobile, Intelligence, and Family Experience**
+> Extends the existing CareOS foundation. Do NOT rebuild from scratch — this is a continuation of the codebase from Phase 1.
+> Billing/RCM remains out of scope (ClaimShield handles it via API integration in a future phase).
+
+---
+
+## 1. What Phase 1 Shipped (Don't Rebuild)
+
+Phase 1 delivered the operational backbone:
+- Multi-tenant agency + user management with RBAC
+- Clients with authorizations and care plans
+- Caregivers with credential documents
+- Scheduling (web admin)
+- Visits / EVV data model with verification queue
+- Pay periods with CSV export + close workflow
+- Labor rule engine (CA Domestic Worker, NY Wage Parity, TX FLSA, Federal FLSA fallback) with live OT projection
+- Compliance alerts and audit log
+- Admin dashboard
+
+Phase 2 extends this. Treat Phase 1 entities, schema, auth, and API as fixed contracts — extend them, don't refactor them unless explicitly instructed below.
+
+---
+
+## 2. Phase 2 Mission
+
+Phase 1 made the platform **runnable**. Phase 2 makes it **alive**. Three goals:
+
+1. **Activate the supply side.** Caregivers need a mobile-first experience to clock in, follow care plans, capture signatures, and communicate. Until this exists, agencies can't actually operate on CareOS — they fall back to manual visit verification.
+2. **Activate the demand side.** Families want transparency — who's coming, when, what they did. Family portal is a meaningful selling lever and a competitive differentiator vs. AlayaCare/WellSky.
+3. **Activate the intelligence layer.** AlayaCare has no real AI. CareOS does. Daniela mentioned 65-page VA referral PDFs she manually parses — Phase 2 turns that pain into a 30-second magic moment via AI-driven document ingestion. Plus schedule optimization, anomaly detection, and compliance prediction.
+
+The wedge from Phase 1 was labor compliance. Phase 2 adds **operational intelligence** as the second wedge.
+
+---
+
+## 3. Tech Stack Additions
+
+Add to the existing Phase 1 stack:
+
+- **Background jobs:** BullMQ + Upstash Redis (free tier)
+- **Real-time:** Supabase Realtime OR Pusher (developer's choice; pick whichever has cleaner Next.js integration)
+- **Push notifications:** Web Push API + service worker registration
+- **SMS / Voice / IVR:** Twilio (Programmable SMS + Programmable Voice for telephony fallback)
+- **Email:** Resend (transactional)
+- **AI / LLM:** Anthropic Claude API (use `claude-sonnet-4` or latest available) for all agent work. Use OpenAI Whisper for voice-to-text only.
+- **OCR:** AWS Textract OR Google Document AI for PDF text extraction (pick whichever is cheaper at low volume; Textract preferred for accuracy on healthcare docs)
+- **Maps / Drive Time:** Google Maps Distance Matrix API + Geocoding API
+- **Drag-and-drop:** @dnd-kit/core + @dnd-kit/sortable
+- **Signature capture:** signature_pad library
+- **PWA:** next-pwa OR manual service worker (developer's choice)
+- **Offline storage:** IndexedDB via Dexie.js for caregiver mobile offline mode
+
+All API keys go in Replit Secrets. Never commit credentials.
+
+---
+
+## 4. Three Pillars of Phase 2
+
+### Pillar A — Caregiver Mobile (PWA) — *Highest priority*
+### Pillar B — AI Intelligence Layer — *Highest demo value*
+### Pillar C — Family / Client Portal — *Closes the experience*
+
+Plus supporting infrastructure: real-time, background jobs, notifications, file storage, drag-and-drop scheduling, drive-time integration, reporting suite, telephony fallback.
+
+---
+
+## 5. Pillar A — Caregiver Mobile (PWA)
+
+A Progressive Web App designed mobile-first that caregivers install on their phone home screen. Path: `/m` or subdomain `caregiver.careos.app` (decide based on routing simplicity).
+
+### 5.1 Authentication
+- Caregivers receive an SMS invite link with a one-time setup code
+- First setup: phone number verification (Twilio OTP) + 4-digit PIN + optional biometric (WebAuthn)
+- Subsequent logins: PIN OR biometric
+- Session lasts 30 days, renewed on activity
+
+### 5.2 Daily Schedule View
+- Today's shifts with client name, address, scheduled time, service type
+- Tap a shift → shift detail screen
+- Tomorrow + next 7 days view (read-only — caregiver requests changes through admin)
+- Pull-to-refresh, offline cached
+
+### 5.3 Active Visit Screen
+This is the core flow. Sequence:
+
+**Pre-visit (15 min before scheduled start):**
+- Push notification: "Visit at [client name] starts in 15 min"
+- Tap notification → opens shift detail
+- Optional: get directions button (opens device maps with client address)
+
+**Clock-in:**
+- Big "Clock In" button
+- Tap requires geolocation permission
+- Capture lat/lng, timestamp, device ID
+- If outside geofence radius (configurable per client, default 500ft): allow with a reason note ("Client at neighbor's house," etc.) — don't block
+- Visit record transitions to IN_PROGRESS
+
+**During visit — Care Plan Checklist:**
+- All tasks from the active care plan rendered as a checklist
+- Tap to mark complete; optional photo evidence per task
+- Tap to mark "couldn't complete" with reason
+- Tasks that are PRN (as-needed) are flagged separately
+- Real-time progress shows on family portal
+
+**During visit — Notes:**
+- Text input
+- Voice-to-text button (Whisper API): caregiver speaks, gets transcribed
+- Voice notes are stored as audio + transcription
+- Caregivers can add multiple notes during a visit
+
+**During visit — Incidents:**
+- Quick-tap incident reporting: fall, medication issue, behavior change, environmental concern, refused care
+- Each incident triggers an alert to the supervisor
+
+**Clock-out:**
+- Big "Clock Out" button
+- Geolocation captured
+- Care plan completion summary shown
+- Client/family signature capture (signature_pad on canvas) — optional but recommended
+- Visit transitions to PENDING verification
+
+### 5.4 Offline Mode
+- Service worker caches today's + tomorrow's schedule and care plans
+- All clock-in/out events, notes, signatures queued in IndexedDB if offline
+- Auto-sync when network returns
+- UI clearly indicates offline status
+
+### 5.5 Push Notifications
+Subscribe via service worker on first launch. Send notifications for:
+- Shift starting in 15 minutes
+- Schedule change for today/tomorrow
+- New shift available (if open shift marketplace enabled)
+- Visit verified by supervisor (positive feedback)
+- Pay period closed (paystub available)
+
+### 5.6 Document Upload
+- Caregivers can upload photos of: signed care agreements, incident report forms, expense receipts
+- Auto-classified by AI document classifier (Pillar B)
+- Stored in document vault under client or caregiver record
+
+### 5.7 Communication
+- Secure in-app messaging with agency staff (scoped to specific shift / client)
+- Messages persist as audit-logged records
+- No direct caregiver-to-family messaging in Phase 2 (boundary protection — all family comms route through agency)
+
+### 5.8 Profile & Documents
+- Caregiver views their own credentials with expiration dates
+- Upload renewed credentials directly (auto-classified, replaces old)
+- View pay history (basic — total hours/period, OT hours, gross pay; no detailed paystub yet — that ships with payroll integration)
+
+---
+
+## 6. Pillar B — AI Intelligence Layer
+
+Six AI agents, each with a clear job, all running as background jobs (BullMQ) with retries and human-in-the-loop fallback.
+
+### 6.1 Referral Parser Agent ⭐ (highest demo value)
+**Trigger:** PDF uploaded to `/clients/intake/upload` OR email forwarded to `referrals@<agency>.careos.app` (Resend inbound)
+
+**Pipeline:**
+1. PDF → OCR (Textract) → raw text + page structure
+2. Raw text + structured prompt → Claude → JSON output matching CareOS intake schema
+3. Confidence score per field
+4. Create draft Client + Authorization records with `status = PENDING_REVIEW`
+5. Human reviews in admin UI; one-click approve creates final records
+
+**Extracted fields:**
+- Client demographics (name, DOB, address, phone, emergency contacts)
+- Insurance / payer info
+- Authorization number, issue date, expiration date, approved hours per week
+- Scope of care (services authorized)
+- Diagnosis codes if present
+- Notes / special instructions
+
+Daniela's VA referrals run 65 pages. The agent handles long docs by chunking + extraction + reassembly. Target: <60 seconds end-to-end for a 65-page PDF.
+
+### 6.2 Document Classifier Agent
+**Trigger:** any document uploaded to caregiver or client vault
+
+**Pipeline:**
+1. PDF/image → OCR → text + visual features
+2. Claude classifier prompt → document type from enum (BACKGROUND_CHECK, TB_TEST, CPR, LICENSE, I9, W4, CARE_AGREEMENT, INCIDENT_REPORT, AUTHORIZATION, MEDICAL_RECORD, OTHER)
+3. Extract expiration date if applicable
+4. Auto-tag in vault; flag low-confidence for human review
+
+Eliminates manual filing for the staff member who currently does this.
+
+### 6.3 Schedule Optimizer Agent
+**Trigger:** unassigned shift exists OR user clicks "Suggest Caregivers"
+
+**Inputs per candidate caregiver:**
+- Skill match score (vs. care plan tasks)
+- Language match
+- Drive time from previous shift / home (Google Maps Distance Matrix)
+- Availability for the time slot
+- OT projection if assigned (from labor rule engine)
+- Historical client satisfaction with this caregiver
+- Continuity score (has this caregiver worked with this client before?)
+
+**Output:** ranked top 5 caregivers with natural-language reasoning for top 3
+("Maria is the best fit — she's worked with Eleanor twice before, lives 8 minutes away, speaks Spanish which Eleanor prefers, and has 12 hours of headroom this week before hitting OT.")
+
+### 6.4 Anomaly Detector Agent
+**Trigger:** runs hourly as background job over recent visits + time entries
+
+**Detects:**
+- Caregiver clocked >18 hours in 24 hours
+- Caregiver clocked at impossible-distance locations (clock-out and next clock-in geographically incompatible with elapsed time)
+- Visit duration deviated >50% from scheduled
+- Care plan completion rate dropped for a caregiver
+- Repeated geofence misses for the same caregiver-client pair
+- Missed shifts trending up for a caregiver
+
+Each anomaly creates a ComplianceAlert with a natural-language explanation and suggested action.
+
+### 6.5 Authorization Renewal Predictor
+**Trigger:** runs daily
+
+For every authorization expiring in the next 30 days:
+- Check renewal request status (manual flag set by intake coordinator)
+- Predict renewal likelihood based on historical patterns for this payer + client + agency
+- Score: HIGH / MEDIUM / LOW likelihood
+- LOW likelihood → escalation alert with recommended action ("Call care manager Maria Lopez at TriWest — average renewal turnaround is 9 days; you have 12 left.")
+
+### 6.6 Care Plan Drafter
+**Trigger:** new authorization created with scope of care
+
+Generates a draft care plan with task list pulled from a library matched to scope of care. Supervisor reviews, edits, approves. Massive time savings for intake coordinators.
+
+### 6.7 AI Infrastructure Requirements
+- All agents run as BullMQ jobs with retry policy and dead-letter queue
+- Every agent invocation logged: input, model, prompt version, output, latency, cost
+- Per-agency monthly token usage dashboard
+- Configurable confidence thresholds per agent (below threshold = human review)
+- All agents are versioned; agent v1 outputs stay attached to v1 logic for audit
+
+---
+
+## 7. Pillar C — Family / Client Portal
+
+Path: `/family` or subdomain. Mobile-responsive web (no native app needed).
+
+### 7.1 Authentication
+- Family member added by intake coordinator with email + relationship
+- Receives invite link, sets password
+- 2FA optional
+
+### 7.2 Today View
+- Today's caregiver name, photo, scheduled time
+- Real-time status: SCHEDULED / EN_ROUTE / ON_SITE / COMPLETE
+- ETA when caregiver is en route (computed from drive-time API)
+- Live map with caregiver location while clocked in (privacy: only shown when active visit + family has consent)
+
+### 7.3 Visit History
+- All visits with caregiver name, date, duration, completed tasks, caregiver notes
+- Filtered to family-appropriate fields (raw clinical notes flagged "supervisor only" are hidden)
+- Photo evidence visible if attached to tasks
+
+### 7.4 Care Plan View
+- Read-only current care plan
+- Family acknowledgment workflow when care plan is updated
+
+### 7.5 Secure Messaging
+- Threaded messaging to agency staff
+- No direct caregiver messaging
+- Message-from-family triggers in-app notification + email to assigned coordinator
+
+### 7.6 Documents
+- Care agreement (signed copy)
+- Authorization documents (redacted view)
+- Invoices (placeholder; populated when ClaimShield integration ships)
+
+### 7.7 Settings & Privacy
+- Toggle real-time location sharing on/off
+- Notification preferences
+- Manage family members on the account (primary contact has admin)
+
+---
+
+## 8. Supporting Infrastructure
+
+### 8.1 Real-time
+- Implement via Supabase Realtime or Pusher
+- Channels:
+  - `agency:{agencyId}:visits` — live visit status updates (admin dashboard, family portal)
+  - `caregiver:{caregiverId}:schedule` — schedule changes pushed to caregiver PWA
+  - `agency:{agencyId}:alerts` — new compliance alerts
+  - `client:{clientId}:visits` — family portal live view
+- Authentication: signed channel tokens scoped to user's agency + role
+
+### 8.2 Background Jobs (BullMQ)
+Job queues to define:
+- `referral-parsing` — Pillar B 6.1
+- `document-classification` — Pillar B 6.2
+- `schedule-optimization` — Pillar B 6.3 (on-demand)
+- `anomaly-detection` — Pillar B 6.4 (hourly cron)
+- `auth-renewal-prediction` — Pillar B 6.5 (daily cron)
+- `compliance-scan` — daily cron, regenerates expiration alerts
+- `pay-period-auto-close` — daily cron, closes pay periods past end date
+- `notification-dispatch` — fan-out queue for email/SMS/push
+- `evv-aggregator-prep` — visits → aggregator-formatted payloads (data ready, not submitted yet)
+
+Job dashboard for admin (BullBoard) at `/admin/jobs` (OWNER role only).
+
+### 8.3 Notifications
+Unified notification service that fans out to:
+- Email (Resend)
+- SMS (Twilio)
+- Push (Web Push)
+- In-app
+
+User preference matrix per notification type. Sensible defaults:
+- Caregivers: push for shift changes, SMS for urgent only
+- Admins: email for daily digest, push for HIGH alerts
+- Family: email + in-app
+
+### 8.4 File Storage
+- Replit Object Storage in dev
+- S3 in production
+- All PHI files encrypted at rest with per-agency KMS keys (or fallback to single bucket key with per-file metadata if KMS is too heavy initially)
+- Pre-signed URLs for uploads/downloads with 15-minute expiry
+- Audit log on every PHI file access
+
+### 8.5 Telephony Fallback (Twilio IVR)
+For caregivers without smartphones:
+- Toll-free number, caregivers call in
+- IVR: "Enter your 6-digit caregiver ID" → "Press 1 to clock in, 2 to clock out, 3 to report incident"
+- Phone number whitelisted per caregiver record (caller ID validated)
+- Same Visit table populated; clock_method = TELEPHONY
+
+---
+
+## 9. Cross-Cutting Upgrades
+
+### 9.1 Drag-and-Drop Scheduling Grid
+Replace Phase 1 schedule list view with a true calendar grid.
+
+- Caregivers on Y-axis (or invert based on agency size — toggle), days on X-axis
+- Drag shifts between caregivers, between days
+- Resize shifts to adjust duration
+- **Live OT projection bar** at bottom of each caregiver's row: green/yellow/red as the caregiver approaches OT thresholds (rule engine drives this)
+- Color coding: green = within auth + caregiver available + OT-safe; yellow = warning; red = blocked
+- Drop a shift on a caregiver with expired credentials → blocked with toast explanation
+- Drop a shift outside authorization hours → blocked with auth detail
+
+Use @dnd-kit for the implementation.
+
+### 9.2 Caregiver Compatibility Scoring
+Score = weighted sum of:
+- Skill match (40%)
+- Language match (15%)
+- Drive time score (20%)
+- Continuity bonus (10%)
+- Availability fit (10%)
+- OT-safe bonus (5%)
+
+Score visible whenever assigning a caregiver. Used by Schedule Optimizer (6.3).
+
+### 9.3 Drive-Time Integration
+- Google Maps Distance Matrix API
+- Cache caregiver-home → client-address distances per agency
+- Recompute when caregiver moves or client moves
+- Block shift assignments where drive time between back-to-back shifts is impossible
+
+### 9.4 Care Plan Builder Enhancements
+- Versioning: every edit creates a new version with effective date
+- Supervisor approval workflow: drafted → submitted → approved
+- Family acknowledgment on new versions
+- Task templates library (seed 30+ common home care tasks)
+- "Generate from authorization" button (calls Care Plan Drafter agent)
+
+### 9.5 Reporting Suite
+Six core reports, each with CSV + PDF export:
+1. **Caregiver Utilization** — hours by caregiver, OT %, missed visits
+2. **Client Hours vs. Authorized** — drawdown rate per client, projected exhaustion
+3. **Document Compliance** — expired/expiring credentials by caregiver, overdue training
+4. **OT Exposure Forecast** — projected OT this period and next, by caregiver
+5. **Visit Verification** — verification rate, exception types, average time to verify
+6. **Authorization Pipeline** — expiring auths with renewal status
+
+PDF reports use the existing PDF generation pattern (matches ClaimShield approach).
+
+---
+
+## 10. Critical Test Cases for Phase 2
+
+These must pass before Phase 2 is shipped:
+
+1. **Referral parser:** drop a 65-page mock VA PDF, fields populate correctly with >85% accuracy on demographics, auth number, expiration date, hours per week. Confidence scores correctly identify the <85% fields.
+2. **Caregiver clock-in offline:** disable network on caregiver PWA, clock in, complete care plan, clock out. Re-enable network. All events sync correctly to server with original timestamps.
+3. **Family real-time visit view:** caregiver clocks in via PWA. Family portal updates within 3 seconds showing ON_SITE status and live location.
+4. **Drag-drop OT projection:** drag a shift onto a caregiver who would cross 9-hour daily threshold. UI shows red warning with "+2 hours OT, $48 cost impact" before drop is committed.
+5. **Schedule optimizer:** unassigned shift → "Suggest Caregivers" returns top 5 with reasoning. Top suggestion is provably the best fit by scoring criteria.
+6. **Document classifier:** upload 10 mixed-type documents (TB tests, CPR cards, I-9s, etc.), classifier correctly tags 9+ with correct expiration dates.
+7. **Anomaly detector:** seed an 18-hour clock-in/out sequence, anomaly alert generated within 1 hour of cron run.
+8. **Authorization predictor:** auth expiring in 12 days with no renewal request flagged → daily run produces escalation alert.
+9. **Telephony fallback:** call test number, complete clock-in via IVR, Visit record created with TELEPHONY method.
+10. **Multi-tenant isolation under load:** simulate 10 concurrent agencies with overlapping client/caregiver IDs. No cross-tenant data leakage.
+
+---
+
+## 11. Build Phasing — Phase 2
+
+**Sprint 1 (Weeks 1–2): Infrastructure + AI foundation**
+- BullMQ + Redis setup, BullBoard
+- Real-time channels wired (Supabase Realtime or Pusher)
+- Twilio + Resend + Push notification service
+- Anthropic API + Textract integration
+- Referral Parser Agent end-to-end (Pillar B 6.1)
+- Document Classifier Agent (Pillar B 6.2)
+
+**Sprint 2 (Weeks 3–4): Caregiver PWA core**
+- PWA shell, service worker, IndexedDB
+- Caregiver auth (PIN + biometric)
+- Daily schedule view + active visit screen
+- Clock-in/out with geolocation
+- Care plan checklist + voice notes
+- Signature capture
+- Offline mode + sync
+
+**Sprint 3 (Weeks 5–6): Caregiver PWA polish + family portal core**
+- Push notifications working end-to-end
+- Document upload from caregiver mobile
+- In-app messaging
+- Family portal: auth, today view, visit history, care plan view
+- Real-time visit status to family
+
+**Sprint 4 (Weeks 7–8): Scheduling intelligence + reports**
+- Drag-and-drop schedule grid
+- Caregiver compatibility scoring
+- Schedule Optimizer Agent
+- Drive-time integration
+- Anomaly Detector + Authorization Predictor (cron-driven)
+- Reporting suite (6 core reports)
+
+**Sprint 5 (Weeks 9–10): Care plans, telephony, hardening**
+- Care plan builder (versioning, approval, family ack)
+- Care Plan Drafter Agent
+- Twilio IVR telephony fallback
+- Notification preferences UI
+- Job dashboard for OWNER role
+- Load testing + multi-tenant isolation hardening
+
+---
+
+## 12. What's Still Out of Scope
+
+Do not implement these in Phase 2. Respond "that's Phase 3 / ClaimShield integration" if asked:
+- Claim submission, CMS-1500, EDI 837 (ClaimShield)
+- Payer rule ingestion, denial AI, ERA reconciliation (ClaimShield)
+- State EVV aggregator submission to Sandata / HHAeXchange / Tellus (data is ready; submission ships in Phase 3)
+- Claims financing, instant pay for caregivers
+- Embedded insurance products
+- Caregiver labor marketplace / open shift cross-agency
+- Reverto outreach module
+- New-agency factory onboarding (greenfield wizard)
+- Cross-state / multi-state agency management
+
+---
+
+## 13. Definition of Done for Phase 2
+
+- [ ] Caregiver PWA installable on iOS and Android home screens; full visit lifecycle works including offline
+- [ ] Family portal live with real-time visit status
+- [ ] Referral Parser ingests 65-page VA PDF in <60 seconds with high-accuracy structured output
+- [ ] Document Classifier auto-tags 90%+ of uploaded documents correctly
+- [ ] Schedule Optimizer produces ranked suggestions with natural-language reasoning
+- [ ] Drag-and-drop scheduling shows live OT projection from rule engine
+- [ ] Anomaly Detector and Authorization Predictor both running on cron with alert generation verified
+- [ ] All 6 reports exporting to CSV and PDF
+- [ ] Telephony IVR fallback functional for caregivers without smartphones
+- [ ] Push notifications, SMS, and email all dispatching correctly per user preferences
+- [ ] Multi-tenant isolation maintained — verified under concurrent load
+- [ ] All Phase 1 functionality still works without regression
+
+When all 12 criteria pass, Phase 2 is shipped.
+
+---
+
+## 14. Demo Sequence
+
+When Phase 2 is complete, the demo flow that showcases the wedge is:
+
+1. Drop a 65-page VA referral PDF → watch client + auth populate in <60s (AI wedge)
+2. AI suggests best caregiver with reasoning → drag onto schedule grid (Intelligence + UX)
+3. Live OT projection shows green/yellow/red as caregiver approaches CA 9-hour threshold (Labor wedge from Phase 1)
+4. Switch to caregiver phone → caregiver clocks in via PWA, GPS validated, completes care plan tasks
+5. Family portal updates in real-time showing ON_SITE status with map
+6. Caregiver clocks out, signature captured
+7. Visit appears in supervisor verification queue, auto-approved (no exceptions)
+8. Pay period dashboard shows the OT impact in real time
+
+Total demo time: under 7 minutes. Entire end-to-end loop visible.
+
+---
+
+**Build this. Ship Sprint 1 in two weeks. Phase 2 complete in 10 weeks.**
