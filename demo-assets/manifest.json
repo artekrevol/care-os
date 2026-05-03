@@ -1,0 +1,36 @@
+{
+  "capturedAt": "2026-05-03T07:08:20.421Z",
+  "baseUrl": "http://localhost:80",
+  "shots": [
+    {
+      "name": "01-careos-dashboard",
+      "ok": true
+    },
+    {
+      "name": "02-careos-schedule",
+      "ok": true
+    },
+    {
+      "name": "03-careos-intake-review",
+      "ok": true,
+      "note": "draft ref_97a2797d-f3c"
+    },
+    {
+      "name": "04-caregiver-visit",
+      "ok": true,
+      "note": "visit vis_638f6993-c26"
+    },
+    {
+      "name": "05-family-today",
+      "ok": true
+    },
+    {
+      "name": "06-careos-payroll",
+      "ok": true
+    },
+    {
+      "name": "07-careos-compliance",
+      "ok": true
+    }
+  ]
+}

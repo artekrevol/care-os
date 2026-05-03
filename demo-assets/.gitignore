@@ -1,2 +1,2 @@
-*.png
-manifest.json
+# Transient artifacts only — committed PNGs are the canonical fallback set.
+*.tmp

@@ -78,6 +78,15 @@ async function shotDashboard(ctx: BrowserContext) {
   await page.setViewportSize(DESKTOP);
   await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("main", { timeout: 15_000 });
+  // Wait for OT projection + active labor rule to render (no skeleton).
+  await page.waitForFunction(
+    `(() => {
+      const t = document.body.innerText || "";
+      return /Active Clients/i.test(t) && /Active Caregivers/i.test(t) && /Projected OT/i.test(t);
+    })()`,
+    null,
+    { timeout: 15_000 },
+  );
   await settle(page);
   await snap(page, "01-careos-dashboard");
   await page.close();
@@ -91,6 +100,25 @@ async function shotSchedule(ctx: BrowserContext) {
   await page.setViewportSize(DESKTOP);
   await page.goto(`${BASE}/schedule`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("main", { timeout: 15_000 });
+  // Hard assertion: schedule grid must show the expected day-of-week headers
+  // and at least one shift card before we capture.
+  await page.waitForFunction(
+    `(() => {
+      const text = document.body.innerText || "";
+      const hasGrid = /Mon,\\s*\\d|Tue,\\s*\\d|Wed,\\s*\\d/.test(text);
+      const hasShift = /SCHEDULED|IN_PROGRESS|COMPLETED/.test(text);
+      return hasGrid && hasShift;
+    })()`,
+    null,
+    { timeout: 15_000 },
+  );
+  // Hover over the first scheduled shift card so the OT-impact tooltip /
+  // hover affordance is visible — the "drag-drop schedule grid mid-hover"
+  // moment called for in the task brief.
+  const firstShift = page.locator('[class*="cursor-grab"], [data-shift-id], [class*="shift-card"]').first();
+  if (await firstShift.count()) {
+    await firstShift.hover().catch(() => {});
+  }
   await settle(page);
   await snap(page, "02-careos-schedule");
   await page.close();
@@ -118,6 +146,8 @@ async function shotIntake(ctx: BrowserContext) {
     draftId = created.id;
   }
   // Wait for the async parser to populate parsedFields beyond just _filename.
+  // Hard-fail (no .catch) so we never capture a pre-extraction skeleton —
+  // confidence scores must be visible per the task brief.
   await waitFor(
     "referral parse",
     async () => {
@@ -128,12 +158,19 @@ async function shotIntake(ctx: BrowserContext) {
       return keys.length > 0;
     },
     30_000,
-  ).catch((e) => console.warn(`  (intake parse not ready: ${(e as Error).message})`));
+  );
 
   const page = await ctx.newPage();
   await page.setViewportSize(DESKTOP);
   await page.goto(`${BASE}/intake/${draftId}`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("main", { timeout: 15_000 });
+  // Confirm at least one confidence score is rendered (e.g. "97%", "91%")
+  // before capture; otherwise the screenshot would miss the magic-moment.
+  await page.waitForFunction(
+    `/(^|[^\\d])\\d{2,3}%/.test(document.body.innerText || "")`,
+    null,
+    { timeout: 15_000 },
+  );
   await settle(page);
   await snap(page, "03-careos-intake-review", `draft ${draftId}`);
   await page.close();
@@ -181,6 +218,16 @@ async function shotCaregiverVisit(
   }, session);
   await page.goto(`${BASE}/m/visit/${session.visitId}`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("main, [data-testid], h1, h2", { timeout: 15_000 });
+  // Assert the active-visit checklist is rendered (client name + at least one
+  // care-plan task + clock-out CTA) before capture.
+  await page.waitForFunction(
+    `(() => {
+      const t = document.body.innerText || "";
+      return /Eleanor Park/i.test(t) && /On site|En route|Clocked in/i.test(t) && /Clock out/i.test(t);
+    })()`,
+    null,
+    { timeout: 15_000 },
+  );
   await settle(page);
   await snap(page, "04-caregiver-visit", `visit ${session.visitId}`);
   await page.close();
@@ -200,13 +247,19 @@ async function shotFamilyToday(ctx: BrowserContext) {
   });
   await page.goto(`${BASE}/family/today`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("main", { timeout: 15_000 });
-  await page
-    .waitForFunction(
-      `Array.from(document.querySelectorAll("h1")).some((h) => /Today/i.test(h.textContent || ""))`,
-      null,
-      { timeout: 15_000 },
-    )
-    .catch(() => {});
+  // Hard-assert: heading rendered AND a real status card is visible (not the
+  // loading skeleton or empty-state placeholder). Fail the run if neither
+  // populated state appears.
+  await page.waitForFunction(
+    `(() => {
+      const t = document.body.innerText || "";
+      const hasHeader = /Today's Care/i.test(t);
+      const hasStatusCard = /Visit Complete|Caregiver On Site|Caregiver En Route|Scheduled/i.test(t);
+      return hasHeader && hasStatusCard;
+    })()`,
+    null,
+    { timeout: 15_000 },
+  );
   await settle(page);
   await snap(page, "05-family-today");
   await page.close();
@@ -220,6 +273,11 @@ async function shotPayroll(ctx: BrowserContext) {
   await page.setViewportSize(DESKTOP);
   await page.goto(`${BASE}/payroll/pp_open`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("main", { timeout: 15_000 });
+  await page.waitForFunction(
+    `/Pay Period Details/i.test(document.body.innerText || "") && /Caregiver Summary/i.test(document.body.innerText || "")`,
+    null,
+    { timeout: 15_000 },
+  );
   await settle(page);
   await snap(page, "06-careos-payroll");
   await page.close();
@@ -233,6 +291,13 @@ async function shotCompliance(ctx: BrowserContext) {
   await page.setViewportSize(DESKTOP);
   await page.goto(`${BASE}/compliance`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("main", { timeout: 15_000 });
+  // Require at least 2 OPEN alert cards before capturing so we never grab an
+  // empty list state.
+  await page.waitForFunction(
+    `(document.body.innerText || "").match(/OPEN/g)?.length >= 2`,
+    null,
+    { timeout: 15_000 },
+  );
   await settle(page);
   await snap(page, "07-careos-compliance");
   await page.close();
@@ -265,6 +330,11 @@ async function main() {
     const ctx = await browser.newContext({
       viewport: DESKTOP,
       deviceScaleFactor: 2,
+      // Pin the in-browser timezone so date-fns / Intl formatters render the
+      // same labels (e.g. "Tuesday, April 28th") regardless of host TZ. The
+      // seed and FROZEN clock are computed in PT.
+      timezoneId: "America/Los_Angeles",
+      locale: "en-US",
     });
     // Pin "now" to Tuesday 14:30 PT of the *current* week so views keyed off
     // Date.now() (family-portal Today, careos Schedule "this week") resolve to
