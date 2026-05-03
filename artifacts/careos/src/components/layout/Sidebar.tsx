@@ -8,7 +8,8 @@ import {
   Wallet, 
   ShieldAlert, 
   Scale, 
-  FileText 
+  FileText,
+  FileBarChart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/payroll", label: "Payroll", icon: Wallet },
   { href: "/compliance", label: "Compliance", icon: ShieldAlert },
   { href: "/labor-rules", label: "Labor Rules", icon: Scale },
+  { href: "/reports", label: "Reports", icon: FileBarChart },
   { href: "/audit-log", label: "Audit Log", icon: FileText },
 ];
 

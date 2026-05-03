@@ -16,6 +16,7 @@ import Payroll from "@/pages/Payroll";
 import PayPeriodDetail from "@/pages/PayPeriodDetail";
 import Compliance from "@/pages/Compliance";
 import LaborRules from "@/pages/LaborRules";
+import Reports from "@/pages/Reports";
 import AuditLog from "@/pages/AuditLog";
 import NotFound from "@/pages/not-found";
 
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/payroll/:id" component={PayPeriodDetail} />
       <Route path="/compliance" component={Compliance} />
       <Route path="/labor-rules" component={LaborRules} />
+      <Route path="/reports" component={Reports} />
       <Route path="/audit-log" component={AuditLog} />
       <Route component={NotFound} />
     </Switch>

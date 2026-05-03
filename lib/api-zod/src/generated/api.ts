@@ -1509,6 +1509,249 @@ export const ListAnomalyEventsResponse = zod.array(
   ListAnomalyEventsResponseItem,
 );
 
+export const GetCaregiverUtilizationReportQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  caregiverId: zod.coerce.string().optional(),
+});
+
+export const GetCaregiverUtilizationReportResponse = zod.object({
+  rangeStart: zod.coerce.date(),
+  rangeEnd: zod.coerce.date(),
+  rows: zod.array(
+    zod.object({
+      caregiverId: zod.string(),
+      caregiverName: zod.string(),
+      scheduledHours: zod.number(),
+      deliveredHours: zod.number(),
+      utilizationPct: zod.number(),
+      overtimeHours: zod.number(),
+      overtimePct: zod.number(),
+      missedVisits: zod.number(),
+      visitsCompleted: zod.number(),
+    }),
+  ),
+  totals: zod.object({
+    scheduledHours: zod.number(),
+    deliveredHours: zod.number(),
+    overtimeHours: zod.number(),
+    missedVisits: zod.number(),
+  }),
+});
+
+export const ExportCaregiverUtilizationCsvQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  caregiverId: zod.coerce.string().optional(),
+});
+
+export const ExportCaregiverUtilizationPdfQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  caregiverId: zod.coerce.string().optional(),
+});
+
+export const GetClientHoursReportQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  clientId: zod.coerce.string().optional(),
+  payer: zod.coerce.string().optional(),
+});
+
+export const GetClientHoursReportResponse = zod.object({
+  rangeStart: zod.coerce.date(),
+  rangeEnd: zod.coerce.date(),
+  rows: zod.array(
+    zod.object({
+      clientId: zod.string(),
+      clientName: zod.string(),
+      payer: zod.string(),
+      authNumber: zod.string(),
+      approvedHoursTotal: zod.number(),
+      hoursDelivered: zod.number(),
+      hoursRemaining: zod.number(),
+      drawdownPct: zod.number(),
+      weeklyBurnHours: zod.number(),
+      expirationDate: zod.coerce.date(),
+      projectedExhaustionDate: zod.coerce.date().nullish(),
+    }),
+  ),
+});
+
+export const ExportClientHoursCsvQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  clientId: zod.coerce.string().optional(),
+  payer: zod.coerce.string().optional(),
+});
+
+export const ExportClientHoursPdfQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  clientId: zod.coerce.string().optional(),
+  payer: zod.coerce.string().optional(),
+});
+
+export const GetDocumentComplianceReportQueryParams = zod.object({
+  caregiverId: zod.coerce.string().optional(),
+});
+
+export const GetDocumentComplianceReportResponse = zod.object({
+  rangeStart: zod.coerce.date(),
+  rangeEnd: zod.coerce.date(),
+  rows: zod.array(
+    zod.object({
+      caregiverId: zod.string(),
+      caregiverName: zod.string(),
+      documentType: zod.string(),
+      expirationDate: zod.coerce.date().nullish(),
+      daysUntilExpiration: zod.number().nullish(),
+      status: zod.enum(["EXPIRED", "EXPIRING", "OVERDUE_TRAINING", "MISSING"]),
+    }),
+  ),
+  totals: zod.object({
+    expired: zod.number(),
+    expiring: zod.number(),
+    overdueTraining: zod.number(),
+  }),
+});
+
+export const ExportDocumentComplianceCsvQueryParams = zod.object({
+  caregiverId: zod.coerce.string().optional(),
+});
+
+export const ExportDocumentCompliancePdfQueryParams = zod.object({
+  caregiverId: zod.coerce.string().optional(),
+});
+
+export const GetOvertimeForecastReportQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  caregiverId: zod.coerce.string().optional(),
+});
+
+export const GetOvertimeForecastReportResponse = zod.object({
+  rangeStart: zod.coerce.date(),
+  rangeEnd: zod.coerce.date(),
+  ruleName: zod.string(),
+  rows: zod.array(
+    zod.object({
+      caregiverId: zod.string(),
+      caregiverName: zod.string(),
+      thisPeriodOvertimeHours: zod.number(),
+      thisPeriodOvertimeCost: zod.number(),
+      nextPeriodOvertimeHours: zod.number(),
+      nextPeriodOvertimeCost: zod.number(),
+    }),
+  ),
+  totals: zod.object({
+    thisPeriodOvertimeHours: zod.number(),
+    thisPeriodOvertimeCost: zod.number(),
+    nextPeriodOvertimeHours: zod.number(),
+    nextPeriodOvertimeCost: zod.number(),
+  }),
+});
+
+export const ExportOvertimeForecastCsvQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const ExportOvertimeForecastPdfQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+});
+
+export const GetVisitVerificationReportQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  caregiverId: zod.coerce.string().optional(),
+  clientId: zod.coerce.string().optional(),
+});
+
+export const GetVisitVerificationReportResponse = zod.object({
+  rangeStart: zod.coerce.date(),
+  rangeEnd: zod.coerce.date(),
+  totalVisits: zod.number(),
+  verifiedCount: zod.number(),
+  exceptionCount: zod.number(),
+  pendingCount: zod.number(),
+  rejectedCount: zod.number(),
+  verificationRatePct: zod.number(),
+  averageMinutesToVerify: zod.number().nullish(),
+  exceptionTypes: zod.array(
+    zod.object({
+      reason: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  rows: zod.array(
+    zod.object({
+      visitId: zod.string(),
+      caregiverId: zod.string(),
+      caregiverName: zod.string(),
+      clientId: zod.string(),
+      clientName: zod.string(),
+      workDate: zod.coerce.date(),
+      status: zod.string(),
+      exceptionReason: zod.string().nullish(),
+      minutesToVerify: zod.number().nullish(),
+    }),
+  ),
+});
+
+export const ExportVisitVerificationCsvQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  caregiverId: zod.coerce.string().optional(),
+  clientId: zod.coerce.string().optional(),
+});
+
+export const ExportVisitVerificationPdfQueryParams = zod.object({
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  caregiverId: zod.coerce.string().optional(),
+  clientId: zod.coerce.string().optional(),
+});
+
+export const GetAuthorizationPipelineReportQueryParams = zod.object({
+  clientId: zod.coerce.string().optional(),
+  payer: zod.coerce.string().optional(),
+});
+
+export const GetAuthorizationPipelineReportResponse = zod.object({
+  rangeStart: zod.coerce.date(),
+  rangeEnd: zod.coerce.date(),
+  rows: zod.array(
+    zod.object({
+      authorizationId: zod.string(),
+      clientId: zod.string(),
+      clientName: zod.string(),
+      payer: zod.string(),
+      authNumber: zod.string(),
+      expirationDate: zod.coerce.date(),
+      daysUntilExpiration: zod.number(),
+      hoursRemaining: zod.number(),
+      renewalStatus: zod.enum(["RENEWED", "PENDING", "AT_RISK"]),
+    }),
+  ),
+  totals: zod.object({
+    renewed: zod.number(),
+    pending: zod.number(),
+    atRisk: zod.number(),
+  }),
+});
+
+export const ExportAuthorizationPipelineCsvQueryParams = zod.object({
+  clientId: zod.coerce.string().optional(),
+  payer: zod.coerce.string().optional(),
+});
+
+export const ExportAuthorizationPipelinePdfQueryParams = zod.object({
+  clientId: zod.coerce.string().optional(),
+  payer: zod.coerce.string().optional(),
+});
+
 export const ListReferralDraftsResponseItem = zod.object({
   id: zod.string(),
   source: zod.string(),

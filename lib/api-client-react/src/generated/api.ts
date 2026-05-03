@@ -22,12 +22,15 @@ import type {
   AnomalyEvent,
   AuditLogEntry,
   Authorization,
+  AuthorizationPipelineReport,
   CarePlan,
   Caregiver,
   CaregiverDetail,
   CaregiverDocument,
+  CaregiverUtilizationReport,
   Client,
   ClientDetail,
+  ClientHoursReport,
   ClockInBody,
   ClockOutBody,
   ComplianceAlert,
@@ -41,7 +44,26 @@ import type {
   CreateVisitNoteBody,
   CreateVisitSignatureBody,
   DashboardSummary,
+  DocumentComplianceReport,
+  ExportAuthorizationPipelineCsvParams,
+  ExportAuthorizationPipelinePdfParams,
+  ExportCaregiverUtilizationCsvParams,
+  ExportCaregiverUtilizationPdfParams,
+  ExportClientHoursCsvParams,
+  ExportClientHoursPdfParams,
+  ExportDocumentComplianceCsvParams,
+  ExportDocumentCompliancePdfParams,
+  ExportOvertimeForecastCsvParams,
+  ExportOvertimeForecastPdfParams,
+  ExportVisitVerificationCsvParams,
+  ExportVisitVerificationPdfParams,
   FamilyUser,
+  GetAuthorizationPipelineReportParams,
+  GetCaregiverUtilizationReportParams,
+  GetClientHoursReportParams,
+  GetDocumentComplianceReportParams,
+  GetOvertimeForecastReportParams,
+  GetVisitVerificationReportParams,
   HealthStatus,
   InviteFamilyUserBody,
   LaborRuleSet,
@@ -60,6 +82,7 @@ import type {
   MessageThread,
   NotificationPreference,
   NotificationType,
+  OvertimeForecastReport,
   OvertimeProjection,
   PayPeriod,
   PayPeriodDetail,
@@ -80,6 +103,7 @@ import type {
   VisitIncident,
   VisitNote,
   VisitSignature,
+  VisitVerificationReport,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -4816,6 +4840,1791 @@ export function useListAnomalyEvents<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListAnomalyEventsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetCaregiverUtilizationReportUrl = (
+  params?: GetCaregiverUtilizationReportParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/caregiver-utilization?${stringifiedParams}`
+    : `/api/reports/caregiver-utilization`;
+};
+
+export const getCaregiverUtilizationReport = async (
+  params?: GetCaregiverUtilizationReportParams,
+  options?: RequestInit,
+): Promise<CaregiverUtilizationReport> => {
+  return customFetch<CaregiverUtilizationReport>(
+    getGetCaregiverUtilizationReportUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetCaregiverUtilizationReportQueryKey = (
+  params?: GetCaregiverUtilizationReportParams,
+) => {
+  return [
+    `/api/reports/caregiver-utilization`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetCaregiverUtilizationReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCaregiverUtilizationReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCaregiverUtilizationReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCaregiverUtilizationReport>>
+  > = ({ signal }) =>
+    getCaregiverUtilizationReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCaregiverUtilizationReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCaregiverUtilizationReport>>
+>;
+export type GetCaregiverUtilizationReportQueryError = ErrorType<unknown>;
+
+export function useGetCaregiverUtilizationReport<
+  TData = Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCaregiverUtilizationReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCaregiverUtilizationReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCaregiverUtilizationReportQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportCaregiverUtilizationCsvUrl = (
+  params?: ExportCaregiverUtilizationCsvParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/caregiver-utilization.csv?${stringifiedParams}`
+    : `/api/reports/caregiver-utilization.csv`;
+};
+
+export const exportCaregiverUtilizationCsv = async (
+  params?: ExportCaregiverUtilizationCsvParams,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportCaregiverUtilizationCsvUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportCaregiverUtilizationCsvQueryKey = (
+  params?: ExportCaregiverUtilizationCsvParams,
+) => {
+  return [
+    `/api/reports/caregiver-utilization.csv`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportCaregiverUtilizationCsvQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportCaregiverUtilizationCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportCaregiverUtilizationCsvQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>
+  > = ({ signal }) =>
+    exportCaregiverUtilizationCsv(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportCaregiverUtilizationCsvQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>
+>;
+export type ExportCaregiverUtilizationCsvQueryError = ErrorType<unknown>;
+
+export function useExportCaregiverUtilizationCsv<
+  TData = Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportCaregiverUtilizationCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportCaregiverUtilizationCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportCaregiverUtilizationCsvQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportCaregiverUtilizationPdfUrl = (
+  params?: ExportCaregiverUtilizationPdfParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/caregiver-utilization.pdf?${stringifiedParams}`
+    : `/api/reports/caregiver-utilization.pdf`;
+};
+
+export const exportCaregiverUtilizationPdf = async (
+  params?: ExportCaregiverUtilizationPdfParams,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getExportCaregiverUtilizationPdfUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportCaregiverUtilizationPdfQueryKey = (
+  params?: ExportCaregiverUtilizationPdfParams,
+) => {
+  return [
+    `/api/reports/caregiver-utilization.pdf`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportCaregiverUtilizationPdfQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportCaregiverUtilizationPdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportCaregiverUtilizationPdfQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>
+  > = ({ signal }) =>
+    exportCaregiverUtilizationPdf(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportCaregiverUtilizationPdfQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>
+>;
+export type ExportCaregiverUtilizationPdfQueryError = ErrorType<unknown>;
+
+export function useExportCaregiverUtilizationPdf<
+  TData = Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportCaregiverUtilizationPdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportCaregiverUtilizationPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportCaregiverUtilizationPdfQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetClientHoursReportUrl = (
+  params?: GetClientHoursReportParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/client-hours?${stringifiedParams}`
+    : `/api/reports/client-hours`;
+};
+
+export const getClientHoursReport = async (
+  params?: GetClientHoursReportParams,
+  options?: RequestInit,
+): Promise<ClientHoursReport> => {
+  return customFetch<ClientHoursReport>(getGetClientHoursReportUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetClientHoursReportQueryKey = (
+  params?: GetClientHoursReportParams,
+) => {
+  return [`/api/reports/client-hours`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetClientHoursReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getClientHoursReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetClientHoursReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClientHoursReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetClientHoursReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getClientHoursReport>>
+  > = ({ signal }) =>
+    getClientHoursReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getClientHoursReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetClientHoursReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getClientHoursReport>>
+>;
+export type GetClientHoursReportQueryError = ErrorType<unknown>;
+
+export function useGetClientHoursReport<
+  TData = Awaited<ReturnType<typeof getClientHoursReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetClientHoursReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClientHoursReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetClientHoursReportQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportClientHoursCsvUrl = (
+  params?: ExportClientHoursCsvParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/client-hours.csv?${stringifiedParams}`
+    : `/api/reports/client-hours.csv`;
+};
+
+export const exportClientHoursCsv = async (
+  params?: ExportClientHoursCsvParams,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportClientHoursCsvUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportClientHoursCsvQueryKey = (
+  params?: ExportClientHoursCsvParams,
+) => {
+  return [
+    `/api/reports/client-hours.csv`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportClientHoursCsvQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportClientHoursCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportClientHoursCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportClientHoursCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportClientHoursCsvQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportClientHoursCsv>>
+  > = ({ signal }) =>
+    exportClientHoursCsv(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportClientHoursCsv>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportClientHoursCsvQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportClientHoursCsv>>
+>;
+export type ExportClientHoursCsvQueryError = ErrorType<unknown>;
+
+export function useExportClientHoursCsv<
+  TData = Awaited<ReturnType<typeof exportClientHoursCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportClientHoursCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportClientHoursCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportClientHoursCsvQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportClientHoursPdfUrl = (
+  params?: ExportClientHoursPdfParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/client-hours.pdf?${stringifiedParams}`
+    : `/api/reports/client-hours.pdf`;
+};
+
+export const exportClientHoursPdf = async (
+  params?: ExportClientHoursPdfParams,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getExportClientHoursPdfUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportClientHoursPdfQueryKey = (
+  params?: ExportClientHoursPdfParams,
+) => {
+  return [
+    `/api/reports/client-hours.pdf`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportClientHoursPdfQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportClientHoursPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportClientHoursPdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportClientHoursPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportClientHoursPdfQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportClientHoursPdf>>
+  > = ({ signal }) =>
+    exportClientHoursPdf(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportClientHoursPdf>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportClientHoursPdfQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportClientHoursPdf>>
+>;
+export type ExportClientHoursPdfQueryError = ErrorType<unknown>;
+
+export function useExportClientHoursPdf<
+  TData = Awaited<ReturnType<typeof exportClientHoursPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportClientHoursPdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportClientHoursPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportClientHoursPdfQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetDocumentComplianceReportUrl = (
+  params?: GetDocumentComplianceReportParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/document-compliance?${stringifiedParams}`
+    : `/api/reports/document-compliance`;
+};
+
+export const getDocumentComplianceReport = async (
+  params?: GetDocumentComplianceReportParams,
+  options?: RequestInit,
+): Promise<DocumentComplianceReport> => {
+  return customFetch<DocumentComplianceReport>(
+    getGetDocumentComplianceReportUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetDocumentComplianceReportQueryKey = (
+  params?: GetDocumentComplianceReportParams,
+) => {
+  return [
+    `/api/reports/document-compliance`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetDocumentComplianceReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDocumentComplianceReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetDocumentComplianceReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDocumentComplianceReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDocumentComplianceReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDocumentComplianceReport>>
+  > = ({ signal }) =>
+    getDocumentComplianceReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDocumentComplianceReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDocumentComplianceReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDocumentComplianceReport>>
+>;
+export type GetDocumentComplianceReportQueryError = ErrorType<unknown>;
+
+export function useGetDocumentComplianceReport<
+  TData = Awaited<ReturnType<typeof getDocumentComplianceReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetDocumentComplianceReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDocumentComplianceReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDocumentComplianceReportQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportDocumentComplianceCsvUrl = (
+  params?: ExportDocumentComplianceCsvParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/document-compliance.csv?${stringifiedParams}`
+    : `/api/reports/document-compliance.csv`;
+};
+
+export const exportDocumentComplianceCsv = async (
+  params?: ExportDocumentComplianceCsvParams,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportDocumentComplianceCsvUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportDocumentComplianceCsvQueryKey = (
+  params?: ExportDocumentComplianceCsvParams,
+) => {
+  return [
+    `/api/reports/document-compliance.csv`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportDocumentComplianceCsvQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportDocumentComplianceCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportDocumentComplianceCsvQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportDocumentComplianceCsv>>
+  > = ({ signal }) =>
+    exportDocumentComplianceCsv(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportDocumentComplianceCsvQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportDocumentComplianceCsv>>
+>;
+export type ExportDocumentComplianceCsvQueryError = ErrorType<unknown>;
+
+export function useExportDocumentComplianceCsv<
+  TData = Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportDocumentComplianceCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportDocumentComplianceCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportDocumentComplianceCsvQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportDocumentCompliancePdfUrl = (
+  params?: ExportDocumentCompliancePdfParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/document-compliance.pdf?${stringifiedParams}`
+    : `/api/reports/document-compliance.pdf`;
+};
+
+export const exportDocumentCompliancePdf = async (
+  params?: ExportDocumentCompliancePdfParams,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getExportDocumentCompliancePdfUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportDocumentCompliancePdfQueryKey = (
+  params?: ExportDocumentCompliancePdfParams,
+) => {
+  return [
+    `/api/reports/document-compliance.pdf`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportDocumentCompliancePdfQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportDocumentCompliancePdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportDocumentCompliancePdfQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportDocumentCompliancePdf>>
+  > = ({ signal }) =>
+    exportDocumentCompliancePdf(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportDocumentCompliancePdfQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportDocumentCompliancePdf>>
+>;
+export type ExportDocumentCompliancePdfQueryError = ErrorType<unknown>;
+
+export function useExportDocumentCompliancePdf<
+  TData = Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportDocumentCompliancePdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportDocumentCompliancePdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportDocumentCompliancePdfQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetOvertimeForecastReportUrl = (
+  params?: GetOvertimeForecastReportParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/overtime-forecast?${stringifiedParams}`
+    : `/api/reports/overtime-forecast`;
+};
+
+export const getOvertimeForecastReport = async (
+  params?: GetOvertimeForecastReportParams,
+  options?: RequestInit,
+): Promise<OvertimeForecastReport> => {
+  return customFetch<OvertimeForecastReport>(
+    getGetOvertimeForecastReportUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetOvertimeForecastReportQueryKey = (
+  params?: GetOvertimeForecastReportParams,
+) => {
+  return [
+    `/api/reports/overtime-forecast`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetOvertimeForecastReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getOvertimeForecastReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetOvertimeForecastReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOvertimeForecastReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetOvertimeForecastReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getOvertimeForecastReport>>
+  > = ({ signal }) =>
+    getOvertimeForecastReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getOvertimeForecastReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetOvertimeForecastReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getOvertimeForecastReport>>
+>;
+export type GetOvertimeForecastReportQueryError = ErrorType<unknown>;
+
+export function useGetOvertimeForecastReport<
+  TData = Awaited<ReturnType<typeof getOvertimeForecastReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetOvertimeForecastReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getOvertimeForecastReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetOvertimeForecastReportQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportOvertimeForecastCsvUrl = (
+  params?: ExportOvertimeForecastCsvParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/overtime-forecast.csv?${stringifiedParams}`
+    : `/api/reports/overtime-forecast.csv`;
+};
+
+export const exportOvertimeForecastCsv = async (
+  params?: ExportOvertimeForecastCsvParams,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportOvertimeForecastCsvUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportOvertimeForecastCsvQueryKey = (
+  params?: ExportOvertimeForecastCsvParams,
+) => {
+  return [
+    `/api/reports/overtime-forecast.csv`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportOvertimeForecastCsvQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportOvertimeForecastCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportOvertimeForecastCsvQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportOvertimeForecastCsv>>
+  > = ({ signal }) =>
+    exportOvertimeForecastCsv(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportOvertimeForecastCsvQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportOvertimeForecastCsv>>
+>;
+export type ExportOvertimeForecastCsvQueryError = ErrorType<unknown>;
+
+export function useExportOvertimeForecastCsv<
+  TData = Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportOvertimeForecastCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportOvertimeForecastCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportOvertimeForecastCsvQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportOvertimeForecastPdfUrl = (
+  params?: ExportOvertimeForecastPdfParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/overtime-forecast.pdf?${stringifiedParams}`
+    : `/api/reports/overtime-forecast.pdf`;
+};
+
+export const exportOvertimeForecastPdf = async (
+  params?: ExportOvertimeForecastPdfParams,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getExportOvertimeForecastPdfUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportOvertimeForecastPdfQueryKey = (
+  params?: ExportOvertimeForecastPdfParams,
+) => {
+  return [
+    `/api/reports/overtime-forecast.pdf`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportOvertimeForecastPdfQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportOvertimeForecastPdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportOvertimeForecastPdfQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportOvertimeForecastPdf>>
+  > = ({ signal }) =>
+    exportOvertimeForecastPdf(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportOvertimeForecastPdfQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportOvertimeForecastPdf>>
+>;
+export type ExportOvertimeForecastPdfQueryError = ErrorType<unknown>;
+
+export function useExportOvertimeForecastPdf<
+  TData = Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportOvertimeForecastPdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportOvertimeForecastPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportOvertimeForecastPdfQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetVisitVerificationReportUrl = (
+  params?: GetVisitVerificationReportParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/visit-verification?${stringifiedParams}`
+    : `/api/reports/visit-verification`;
+};
+
+export const getVisitVerificationReport = async (
+  params?: GetVisitVerificationReportParams,
+  options?: RequestInit,
+): Promise<VisitVerificationReport> => {
+  return customFetch<VisitVerificationReport>(
+    getGetVisitVerificationReportUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetVisitVerificationReportQueryKey = (
+  params?: GetVisitVerificationReportParams,
+) => {
+  return [
+    `/api/reports/visit-verification`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetVisitVerificationReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getVisitVerificationReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetVisitVerificationReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getVisitVerificationReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetVisitVerificationReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getVisitVerificationReport>>
+  > = ({ signal }) =>
+    getVisitVerificationReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getVisitVerificationReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetVisitVerificationReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getVisitVerificationReport>>
+>;
+export type GetVisitVerificationReportQueryError = ErrorType<unknown>;
+
+export function useGetVisitVerificationReport<
+  TData = Awaited<ReturnType<typeof getVisitVerificationReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetVisitVerificationReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getVisitVerificationReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetVisitVerificationReportQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportVisitVerificationCsvUrl = (
+  params?: ExportVisitVerificationCsvParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/visit-verification.csv?${stringifiedParams}`
+    : `/api/reports/visit-verification.csv`;
+};
+
+export const exportVisitVerificationCsv = async (
+  params?: ExportVisitVerificationCsvParams,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportVisitVerificationCsvUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportVisitVerificationCsvQueryKey = (
+  params?: ExportVisitVerificationCsvParams,
+) => {
+  return [
+    `/api/reports/visit-verification.csv`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportVisitVerificationCsvQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportVisitVerificationCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportVisitVerificationCsvQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportVisitVerificationCsv>>
+  > = ({ signal }) =>
+    exportVisitVerificationCsv(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportVisitVerificationCsvQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportVisitVerificationCsv>>
+>;
+export type ExportVisitVerificationCsvQueryError = ErrorType<unknown>;
+
+export function useExportVisitVerificationCsv<
+  TData = Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportVisitVerificationCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportVisitVerificationCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportVisitVerificationCsvQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportVisitVerificationPdfUrl = (
+  params?: ExportVisitVerificationPdfParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/visit-verification.pdf?${stringifiedParams}`
+    : `/api/reports/visit-verification.pdf`;
+};
+
+export const exportVisitVerificationPdf = async (
+  params?: ExportVisitVerificationPdfParams,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getExportVisitVerificationPdfUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportVisitVerificationPdfQueryKey = (
+  params?: ExportVisitVerificationPdfParams,
+) => {
+  return [
+    `/api/reports/visit-verification.pdf`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportVisitVerificationPdfQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportVisitVerificationPdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportVisitVerificationPdfQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportVisitVerificationPdf>>
+  > = ({ signal }) =>
+    exportVisitVerificationPdf(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportVisitVerificationPdfQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportVisitVerificationPdf>>
+>;
+export type ExportVisitVerificationPdfQueryError = ErrorType<unknown>;
+
+export function useExportVisitVerificationPdf<
+  TData = Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportVisitVerificationPdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportVisitVerificationPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportVisitVerificationPdfQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetAuthorizationPipelineReportUrl = (
+  params?: GetAuthorizationPipelineReportParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/authorization-pipeline?${stringifiedParams}`
+    : `/api/reports/authorization-pipeline`;
+};
+
+export const getAuthorizationPipelineReport = async (
+  params?: GetAuthorizationPipelineReportParams,
+  options?: RequestInit,
+): Promise<AuthorizationPipelineReport> => {
+  return customFetch<AuthorizationPipelineReport>(
+    getGetAuthorizationPipelineReportUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAuthorizationPipelineReportQueryKey = (
+  params?: GetAuthorizationPipelineReportParams,
+) => {
+  return [
+    `/api/reports/authorization-pipeline`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetAuthorizationPipelineReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAuthorizationPipelineReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAuthorizationPipelineReportQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAuthorizationPipelineReport>>
+  > = ({ signal }) =>
+    getAuthorizationPipelineReport(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAuthorizationPipelineReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAuthorizationPipelineReport>>
+>;
+export type GetAuthorizationPipelineReportQueryError = ErrorType<unknown>;
+
+export function useGetAuthorizationPipelineReport<
+  TData = Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAuthorizationPipelineReportParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAuthorizationPipelineReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAuthorizationPipelineReportQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportAuthorizationPipelineCsvUrl = (
+  params?: ExportAuthorizationPipelineCsvParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/authorization-pipeline.csv?${stringifiedParams}`
+    : `/api/reports/authorization-pipeline.csv`;
+};
+
+export const exportAuthorizationPipelineCsv = async (
+  params?: ExportAuthorizationPipelineCsvParams,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExportAuthorizationPipelineCsvUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportAuthorizationPipelineCsvQueryKey = (
+  params?: ExportAuthorizationPipelineCsvParams,
+) => {
+  return [
+    `/api/reports/authorization-pipeline.csv`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportAuthorizationPipelineCsvQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportAuthorizationPipelineCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportAuthorizationPipelineCsvQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>
+  > = ({ signal }) =>
+    exportAuthorizationPipelineCsv(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportAuthorizationPipelineCsvQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>
+>;
+export type ExportAuthorizationPipelineCsvQueryError = ErrorType<unknown>;
+
+export function useExportAuthorizationPipelineCsv<
+  TData = Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportAuthorizationPipelineCsvParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportAuthorizationPipelineCsv>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportAuthorizationPipelineCsvQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getExportAuthorizationPipelinePdfUrl = (
+  params?: ExportAuthorizationPipelinePdfParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/reports/authorization-pipeline.pdf?${stringifiedParams}`
+    : `/api/reports/authorization-pipeline.pdf`;
+};
+
+export const exportAuthorizationPipelinePdf = async (
+  params?: ExportAuthorizationPipelinePdfParams,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getExportAuthorizationPipelinePdfUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getExportAuthorizationPipelinePdfQueryKey = (
+  params?: ExportAuthorizationPipelinePdfParams,
+) => {
+  return [
+    `/api/reports/authorization-pipeline.pdf`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getExportAuthorizationPipelinePdfQueryOptions = <
+  TData = Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportAuthorizationPipelinePdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getExportAuthorizationPipelinePdfQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>
+  > = ({ signal }) =>
+    exportAuthorizationPipelinePdf(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ExportAuthorizationPipelinePdfQueryResult = NonNullable<
+  Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>
+>;
+export type ExportAuthorizationPipelinePdfQueryError = ErrorType<unknown>;
+
+export function useExportAuthorizationPipelinePdf<
+  TData = Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ExportAuthorizationPipelinePdfParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof exportAuthorizationPipelinePdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getExportAuthorizationPipelinePdfQueryOptions(
+    params,
+    options,
+  );
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

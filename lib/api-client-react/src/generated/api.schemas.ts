@@ -899,6 +899,173 @@ export interface AnomalyEvent {
   createdAt: string;
 }
 
+export interface CaregiverUtilizationRow {
+  caregiverId: string;
+  caregiverName: string;
+  scheduledHours: number;
+  deliveredHours: number;
+  utilizationPct: number;
+  overtimeHours: number;
+  overtimePct: number;
+  missedVisits: number;
+  visitsCompleted: number;
+}
+
+export type CaregiverUtilizationReportTotals = {
+  scheduledHours: number;
+  deliveredHours: number;
+  overtimeHours: number;
+  missedVisits: number;
+};
+
+export interface CaregiverUtilizationReport {
+  rangeStart: string;
+  rangeEnd: string;
+  rows: CaregiverUtilizationRow[];
+  totals: CaregiverUtilizationReportTotals;
+}
+
+export interface ClientHoursRow {
+  clientId: string;
+  clientName: string;
+  payer: string;
+  authNumber: string;
+  approvedHoursTotal: number;
+  hoursDelivered: number;
+  hoursRemaining: number;
+  drawdownPct: number;
+  weeklyBurnHours: number;
+  expirationDate: string;
+  projectedExhaustionDate?: string | null;
+}
+
+export interface ClientHoursReport {
+  rangeStart: string;
+  rangeEnd: string;
+  rows: ClientHoursRow[];
+}
+
+export type DocumentComplianceRowStatus =
+  (typeof DocumentComplianceRowStatus)[keyof typeof DocumentComplianceRowStatus];
+
+export const DocumentComplianceRowStatus = {
+  EXPIRED: "EXPIRED",
+  EXPIRING: "EXPIRING",
+  OVERDUE_TRAINING: "OVERDUE_TRAINING",
+  MISSING: "MISSING",
+} as const;
+
+export interface DocumentComplianceRow {
+  caregiverId: string;
+  caregiverName: string;
+  documentType: string;
+  expirationDate?: string | null;
+  daysUntilExpiration?: number | null;
+  status: DocumentComplianceRowStatus;
+}
+
+export type DocumentComplianceReportTotals = {
+  expired: number;
+  expiring: number;
+  overdueTraining: number;
+};
+
+export interface DocumentComplianceReport {
+  rangeStart: string;
+  rangeEnd: string;
+  rows: DocumentComplianceRow[];
+  totals: DocumentComplianceReportTotals;
+}
+
+export interface OvertimeForecastRow {
+  caregiverId: string;
+  caregiverName: string;
+  thisPeriodOvertimeHours: number;
+  thisPeriodOvertimeCost: number;
+  nextPeriodOvertimeHours: number;
+  nextPeriodOvertimeCost: number;
+}
+
+export type OvertimeForecastReportTotals = {
+  thisPeriodOvertimeHours: number;
+  thisPeriodOvertimeCost: number;
+  nextPeriodOvertimeHours: number;
+  nextPeriodOvertimeCost: number;
+};
+
+export interface OvertimeForecastReport {
+  rangeStart: string;
+  rangeEnd: string;
+  ruleName: string;
+  rows: OvertimeForecastRow[];
+  totals: OvertimeForecastReportTotals;
+}
+
+export interface VisitVerificationExceptionBucket {
+  reason: string;
+  count: number;
+}
+
+export interface VisitVerificationRow {
+  visitId: string;
+  caregiverId: string;
+  caregiverName: string;
+  clientId: string;
+  clientName: string;
+  workDate: string;
+  status: string;
+  exceptionReason?: string | null;
+  minutesToVerify?: number | null;
+}
+
+export interface VisitVerificationReport {
+  rangeStart: string;
+  rangeEnd: string;
+  totalVisits: number;
+  verifiedCount: number;
+  exceptionCount: number;
+  pendingCount: number;
+  rejectedCount: number;
+  verificationRatePct: number;
+  averageMinutesToVerify?: number | null;
+  exceptionTypes: VisitVerificationExceptionBucket[];
+  rows: VisitVerificationRow[];
+}
+
+export type AuthorizationPipelineRowRenewalStatus =
+  (typeof AuthorizationPipelineRowRenewalStatus)[keyof typeof AuthorizationPipelineRowRenewalStatus];
+
+export const AuthorizationPipelineRowRenewalStatus = {
+  RENEWED: "RENEWED",
+  PENDING: "PENDING",
+  AT_RISK: "AT_RISK",
+} as const;
+
+export interface AuthorizationPipelineRow {
+  authorizationId: string;
+  clientId: string;
+  clientName: string;
+  payer: string;
+  authNumber: string;
+  expirationDate: string;
+  daysUntilExpiration: number;
+  hoursRemaining: number;
+  renewalStatus: AuthorizationPipelineRowRenewalStatus;
+}
+
+export type AuthorizationPipelineReportTotals = {
+  renewed: number;
+  pending: number;
+  atRisk: number;
+};
+
+export interface AuthorizationPipelineReport {
+  rangeStart: string;
+  rangeEnd: string;
+  rows: AuthorizationPipelineRow[];
+  totals: AuthorizationPipelineReportTotals;
+}
+
 export type ReferralDraftStatus =
   (typeof ReferralDraftStatus)[keyof typeof ReferralDraftStatus];
 
@@ -978,4 +1145,107 @@ export type ListAgentRunsParams = {
 export type ListAnomalyEventsParams = {
   entityType?: string;
   resolved?: boolean;
+};
+
+export type GetCaregiverUtilizationReportParams = {
+  from?: string;
+  to?: string;
+  caregiverId?: string;
+};
+
+export type ExportCaregiverUtilizationCsvParams = {
+  from?: string;
+  to?: string;
+  caregiverId?: string;
+};
+
+export type ExportCaregiverUtilizationPdfParams = {
+  from?: string;
+  to?: string;
+  caregiverId?: string;
+};
+
+export type GetClientHoursReportParams = {
+  from?: string;
+  to?: string;
+  clientId?: string;
+  payer?: string;
+};
+
+export type ExportClientHoursCsvParams = {
+  from?: string;
+  to?: string;
+  clientId?: string;
+  payer?: string;
+};
+
+export type ExportClientHoursPdfParams = {
+  from?: string;
+  to?: string;
+  clientId?: string;
+  payer?: string;
+};
+
+export type GetDocumentComplianceReportParams = {
+  caregiverId?: string;
+};
+
+export type ExportDocumentComplianceCsvParams = {
+  caregiverId?: string;
+};
+
+export type ExportDocumentCompliancePdfParams = {
+  caregiverId?: string;
+};
+
+export type GetOvertimeForecastReportParams = {
+  from?: string;
+  to?: string;
+  caregiverId?: string;
+};
+
+export type ExportOvertimeForecastCsvParams = {
+  from?: string;
+  to?: string;
+};
+
+export type ExportOvertimeForecastPdfParams = {
+  from?: string;
+  to?: string;
+};
+
+export type GetVisitVerificationReportParams = {
+  from?: string;
+  to?: string;
+  caregiverId?: string;
+  clientId?: string;
+};
+
+export type ExportVisitVerificationCsvParams = {
+  from?: string;
+  to?: string;
+  caregiverId?: string;
+  clientId?: string;
+};
+
+export type ExportVisitVerificationPdfParams = {
+  from?: string;
+  to?: string;
+  caregiverId?: string;
+  clientId?: string;
+};
+
+export type GetAuthorizationPipelineReportParams = {
+  clientId?: string;
+  payer?: string;
+};
+
+export type ExportAuthorizationPipelineCsvParams = {
+  clientId?: string;
+  payer?: string;
+};
+
+export type ExportAuthorizationPipelinePdfParams = {
+  clientId?: string;
+  payer?: string;
 };

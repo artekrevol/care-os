@@ -28,6 +28,7 @@ tags:
   - name: agent-runs
   - name: intelligence
   - name: referrals
+  - name: reports
 paths:
   /healthz:
     get:
@@ -1144,6 +1145,375 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AnomalyEvent"
+
+  /reports/caregiver-utilization:
+    get:
+      operationId: getCaregiverUtilizationReport
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaregiverUtilizationReport"
+
+  /reports/caregiver-utilization.csv:
+    get:
+      operationId: exportCaregiverUtilizationCsv
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /reports/caregiver-utilization.pdf:
+    get:
+      operationId: exportCaregiverUtilizationPdf
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /reports/client-hours:
+    get:
+      operationId: getClientHoursReport
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: clientId
+          schema: { type: string }
+        - in: query
+          name: payer
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientHoursReport"
+
+  /reports/client-hours.csv:
+    get:
+      operationId: exportClientHoursCsv
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: clientId
+          schema: { type: string }
+        - in: query
+          name: payer
+          schema: { type: string }
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /reports/client-hours.pdf:
+    get:
+      operationId: exportClientHoursPdf
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: clientId
+          schema: { type: string }
+        - in: query
+          name: payer
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /reports/document-compliance:
+    get:
+      operationId: getDocumentComplianceReport
+      tags: [reports]
+      parameters:
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentComplianceReport"
+
+  /reports/document-compliance.csv:
+    get:
+      operationId: exportDocumentComplianceCsv
+      tags: [reports]
+      parameters:
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /reports/document-compliance.pdf:
+    get:
+      operationId: exportDocumentCompliancePdf
+      tags: [reports]
+      parameters:
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /reports/overtime-forecast:
+    get:
+      operationId: getOvertimeForecastReport
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OvertimeForecastReport"
+
+  /reports/overtime-forecast.csv:
+    get:
+      operationId: exportOvertimeForecastCsv
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /reports/overtime-forecast.pdf:
+    get:
+      operationId: exportOvertimeForecastPdf
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /reports/visit-verification:
+    get:
+      operationId: getVisitVerificationReport
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+        - in: query
+          name: clientId
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitVerificationReport"
+
+  /reports/visit-verification.csv:
+    get:
+      operationId: exportVisitVerificationCsv
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+        - in: query
+          name: clientId
+          schema: { type: string }
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /reports/visit-verification.pdf:
+    get:
+      operationId: exportVisitVerificationPdf
+      tags: [reports]
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+        - in: query
+          name: caregiverId
+          schema: { type: string }
+        - in: query
+          name: clientId
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+
+  /reports/authorization-pipeline:
+    get:
+      operationId: getAuthorizationPipelineReport
+      tags: [reports]
+      parameters:
+        - in: query
+          name: clientId
+          schema: { type: string }
+        - in: query
+          name: payer
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizationPipelineReport"
+
+  /reports/authorization-pipeline.csv:
+    get:
+      operationId: exportAuthorizationPipelineCsv
+      tags: [reports]
+      parameters:
+        - in: query
+          name: clientId
+          schema: { type: string }
+        - in: query
+          name: payer
+          schema: { type: string }
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+
+  /reports/authorization-pipeline.pdf:
+    get:
+      operationId: exportAuthorizationPipelinePdf
+      tags: [reports]
+      parameters:
+        - in: query
+          name: clientId
+          schema: { type: string }
+        - in: query
+          name: payer
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
 
   /referral-drafts:
     get:
@@ -2345,6 +2715,275 @@ components:
         createdAt: { type: string, format: date-time }
       required:
         [id, entityType, entityId, category, severity, summary, createdAt]
+
+    CaregiverUtilizationRow:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        scheduledHours: { type: number }
+        deliveredHours: { type: number }
+        utilizationPct: { type: number }
+        overtimeHours: { type: number }
+        overtimePct: { type: number }
+        missedVisits: { type: integer }
+        visitsCompleted: { type: integer }
+      required:
+        [
+          caregiverId,
+          caregiverName,
+          scheduledHours,
+          deliveredHours,
+          utilizationPct,
+          overtimeHours,
+          overtimePct,
+          missedVisits,
+          visitsCompleted,
+        ]
+
+    CaregiverUtilizationReport:
+      type: object
+      properties:
+        rangeStart: { type: string, format: date }
+        rangeEnd: { type: string, format: date }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaregiverUtilizationRow"
+        totals:
+          type: object
+          properties:
+            scheduledHours: { type: number }
+            deliveredHours: { type: number }
+            overtimeHours: { type: number }
+            missedVisits: { type: integer }
+          required:
+            [scheduledHours, deliveredHours, overtimeHours, missedVisits]
+      required: [rangeStart, rangeEnd, rows, totals]
+
+    ClientHoursRow:
+      type: object
+      properties:
+        clientId: { type: string }
+        clientName: { type: string }
+        payer: { type: string }
+        authNumber: { type: string }
+        approvedHoursTotal: { type: number }
+        hoursDelivered: { type: number }
+        hoursRemaining: { type: number }
+        drawdownPct: { type: number }
+        weeklyBurnHours: { type: number }
+        expirationDate: { type: string, format: date }
+        projectedExhaustionDate: { type: string, format: date, nullable: true }
+      required:
+        [
+          clientId,
+          clientName,
+          payer,
+          authNumber,
+          approvedHoursTotal,
+          hoursDelivered,
+          hoursRemaining,
+          drawdownPct,
+          weeklyBurnHours,
+          expirationDate,
+        ]
+
+    ClientHoursReport:
+      type: object
+      properties:
+        rangeStart: { type: string, format: date }
+        rangeEnd: { type: string, format: date }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientHoursRow"
+      required: [rangeStart, rangeEnd, rows]
+
+    DocumentComplianceRow:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        documentType: { type: string }
+        expirationDate: { type: string, format: date, nullable: true }
+        daysUntilExpiration: { type: integer, nullable: true }
+        status:
+          type: string
+          enum: [EXPIRED, EXPIRING, OVERDUE_TRAINING, MISSING]
+      required: [caregiverId, caregiverName, documentType, status]
+
+    DocumentComplianceReport:
+      type: object
+      properties:
+        rangeStart: { type: string, format: date }
+        rangeEnd: { type: string, format: date }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentComplianceRow"
+        totals:
+          type: object
+          properties:
+            expired: { type: integer }
+            expiring: { type: integer }
+            overdueTraining: { type: integer }
+          required: [expired, expiring, overdueTraining]
+      required: [rangeStart, rangeEnd, rows, totals]
+
+    OvertimeForecastRow:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        thisPeriodOvertimeHours: { type: number }
+        thisPeriodOvertimeCost: { type: number }
+        nextPeriodOvertimeHours: { type: number }
+        nextPeriodOvertimeCost: { type: number }
+      required:
+        [
+          caregiverId,
+          caregiverName,
+          thisPeriodOvertimeHours,
+          thisPeriodOvertimeCost,
+          nextPeriodOvertimeHours,
+          nextPeriodOvertimeCost,
+        ]
+
+    OvertimeForecastReport:
+      type: object
+      properties:
+        rangeStart: { type: string, format: date }
+        rangeEnd: { type: string, format: date }
+        ruleName: { type: string }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/OvertimeForecastRow"
+        totals:
+          type: object
+          properties:
+            thisPeriodOvertimeHours: { type: number }
+            thisPeriodOvertimeCost: { type: number }
+            nextPeriodOvertimeHours: { type: number }
+            nextPeriodOvertimeCost: { type: number }
+          required:
+            [
+              thisPeriodOvertimeHours,
+              thisPeriodOvertimeCost,
+              nextPeriodOvertimeHours,
+              nextPeriodOvertimeCost,
+            ]
+      required: [rangeStart, rangeEnd, ruleName, rows, totals]
+
+    VisitVerificationExceptionBucket:
+      type: object
+      properties:
+        reason: { type: string }
+        count: { type: integer }
+      required: [reason, count]
+
+    VisitVerificationRow:
+      type: object
+      properties:
+        visitId: { type: string }
+        caregiverId: { type: string }
+        caregiverName: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        workDate: { type: string, format: date }
+        status: { type: string }
+        exceptionReason: { type: string, nullable: true }
+        minutesToVerify: { type: integer, nullable: true }
+      required:
+        [
+          visitId,
+          caregiverId,
+          caregiverName,
+          clientId,
+          clientName,
+          workDate,
+          status,
+        ]
+
+    VisitVerificationReport:
+      type: object
+      properties:
+        rangeStart: { type: string, format: date }
+        rangeEnd: { type: string, format: date }
+        totalVisits: { type: integer }
+        verifiedCount: { type: integer }
+        exceptionCount: { type: integer }
+        pendingCount: { type: integer }
+        rejectedCount: { type: integer }
+        verificationRatePct: { type: number }
+        averageMinutesToVerify: { type: integer, nullable: true }
+        exceptionTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisitVerificationExceptionBucket"
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisitVerificationRow"
+      required:
+        [
+          rangeStart,
+          rangeEnd,
+          totalVisits,
+          verifiedCount,
+          exceptionCount,
+          pendingCount,
+          rejectedCount,
+          verificationRatePct,
+          exceptionTypes,
+          rows,
+        ]
+
+    AuthorizationPipelineRow:
+      type: object
+      properties:
+        authorizationId: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        payer: { type: string }
+        authNumber: { type: string }
+        expirationDate: { type: string, format: date }
+        daysUntilExpiration: { type: integer }
+        hoursRemaining: { type: number }
+        renewalStatus:
+          type: string
+          enum: [RENEWED, PENDING, AT_RISK]
+      required:
+        [
+          authorizationId,
+          clientId,
+          clientName,
+          payer,
+          authNumber,
+          expirationDate,
+          daysUntilExpiration,
+          hoursRemaining,
+          renewalStatus,
+        ]
+
+    AuthorizationPipelineReport:
+      type: object
+      properties:
+        rangeStart: { type: string, format: date }
+        rangeEnd: { type: string, format: date }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuthorizationPipelineRow"
+        totals:
+          type: object
+          properties:
+            renewed: { type: integer }
+            pending: { type: integer }
+            atRisk: { type: integer }
+          required: [renewed, pending, atRisk]
+      required: [rangeStart, rangeEnd, rows, totals]
 
     ReferralDraftStatus:
       type: string

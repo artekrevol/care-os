@@ -12,6 +12,8 @@
     "./storage": "./src/storage/index.ts",
     "./notifications": "./src/notifications/index.ts",
     "./maps": "./src/maps/index.ts",
+    "./labor": "./src/labor/index.ts",
+    "./reports": "./src/reports/index.ts",
     "./env": "./src/env.ts"
   },
   "dependencies": {

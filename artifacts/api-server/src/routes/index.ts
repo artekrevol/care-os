@@ -9,6 +9,7 @@ import payPeriodsRouter from "./payPeriods";
 import laborRulesRouter from "./laborRules";
 import alertsRouter from "./alerts";
 import auditLogRouter from "./auditLog";
+import reportsRouter from "./reports";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(payPeriodsRouter);
 router.use(laborRulesRouter);
 router.use(alertsRouter);
 router.use(auditLogRouter);
+router.use(reportsRouter);
 
 export default router;

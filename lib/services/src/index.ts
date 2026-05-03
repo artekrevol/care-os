@@ -5,4 +5,6 @@ export * as realtime from "./realtime/index";
 export * as storage from "./storage/index";
 export * as notifications from "./notifications/index";
 export * as maps from "./maps/index";
+export * as labor from "./labor/index";
+export * as reports from "./reports/index";
 export { logServiceStartupReport } from "./env";
