@@ -159,3 +159,37 @@ failed-job count exceeds `DLQ_ALERT_THRESHOLD` (default 10), it emails each
 address in `OWNER_EMAILS` (comma-separated) using `notifications.sendDirectEmail`,
 debounced 1h per queue in-memory. Uses `setInterval` (not BullMQ repeat) so
 the alert still fires when Redis itself is the failing dependency.
+
+## Task #38 — Critical-path automated tests
+
+Vitest is wired at the root (`pnpm test`) with a single `vitest.config.ts`
+that picks up tests from `lib/services/src/**/*.test.ts` and
+`artifacts/api-server/src/**/*.test.ts`. Three suites currently ship:
+
+- `lib/services/src/labor/__tests__/laborRules.test.ts` — eight pure-unit
+  cases for the labor rule engine: CA daily OT, CA double-time, CA 7-day
+  consecutive, FLSA weekly (45h), FLSA mixed (50h with a 14h day), NY 44h
+  residential threshold, TX FLSA-only, plus a CA pay-math regression guard.
+- `artifacts/api-server/src/__tests__/ivr.integration.test.ts` — five IVR
+  security cases hitting the live api-server: spoofed caller-ID + valid
+  PIN signs in, 3 wrong PINs in one call hangs up, 5 wrong PINs lock the
+  caregiver, 8 wrong PINs lock the From number, and a unit-level check
+  that `validateTwilioSignature` returns `"invalid"` for a malformed sig
+  (the live 403 path can't be exercised because dev mode runs without
+  `TWILIO_AUTH_TOKEN`). The 5-PIN test targets cg_006 because the route's
+  caregiver-locked pre-check only fires for real seeded caregivers; cg_006
+  will be locked in api-server memory until the lockout window expires.
+- `artifacts/api-server/src/__tests__/multiTenant.test.ts` — single-tenant
+  invariant guard. The codebase uses `AGENCY_ID = "agency_demo"` as a
+  hard-coded constant; full cross-tenant isolation tests are blocked
+  until per-request agency derivation lands.
+
+Drift from the original Task #38 spec:
+- Cross-tenant isolation tests with three seeded agencies + a Drizzle
+  unscoped-query throw are deferred — the codebase is single-agency.
+- Authorization drawdown race test is deferred — `hoursUsed` is read for
+  validation but never atomically incremented in any route, so there is
+  no race to test until transactional drawdown lands.
+- Caregiver PWA offline visit lifecycle Playwright test is deferred —
+  Playwright is not installed and the PWA's offline queue would need a
+  test harness on top of the dev server.
