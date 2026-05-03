@@ -1,0 +1,280 @@
+# CareOS — Phase 2.5: The Hardening + Unlocks Sprint
+
+> **Replit Build Prompt — Continuation of Phase 2**
+> Goal: maximum value extraction from current credit window. All work is additive — do NOT refactor Phase 1 or Phase 2 contracts.
+> Billing/RCM remains out of scope (ClaimShield handles via API in a future phase).
+
+---
+
+## 1. Mission
+
+Phase 2 shipped the activation layer. Phase 2.5 is **hardening, polish, and unlock work** that makes the platform production-credible and Sunday-demo-flawless. Three goals:
+
+1. **Make the demo bulletproof.** Specific seed data, scripted demo states, screenshots of magic moments captured as fallback assets.
+2. **Close every silent failure mode.** Every external service (Anthropic, Textract, Twilio, Resend, Pusher, Maps, Push) needs proper error UX, retry visibility, and dead-letter inspection.
+3. **Ship the deferred items that have real impact.** From the agent's draft list: real Twilio SMS for caregiver login codes, automated tests for the AI pipelines, scheduled report email delivery, charts in reports, dashboard improvements, duplicate Zod export cleanup.
+
+This is NOT Phase 3. Do not start ClaimShield integration. Do not start EVV aggregator submission. Those require strategic decisions still being made.
+
+---
+
+## 2. Pillar A — Demo-Ready Seed Data & States
+
+### 2.1 Chajinel-flavored seed agency
+Replace the existing demo agency with a realistic Chajinel-modeled California home care agency:
+
+- **Agency name:** "Chajinel Home Care" (placeholder — fictional but realistic)
+- **License state:** California, NPI placeholder, license number placeholder
+- **Active labor rule:** California Domestic Worker Bill of Rights (already configured)
+- **Default payer:** VA Community Care (TriWest)
+- **Caregiver count:** 32 active W-2 caregivers (mix of Hispanic, Filipino, Vietnamese names — match California domestic care workforce demographics realistically)
+- **Caregiver attributes:** language coverage (Spanish 18, Tagalog 6, Vietnamese 4, English-only 4), skill mix (10 with CNA, 12 with CHHA, 10 unlicensed), employment dates ranging 2 months to 6 years
+- **Active client count:** 24 clients
+  - 18 VA Community Care clients (veterans aged 70+, mix of conditions: PTSD, mobility, diabetes, post-stroke, dementia)
+  - 4 county/IHSS clients (paper-check workflow simulation)
+  - 2 private pay clients ($28–35/hr rates)
+- **Client locations:** spread across LA County, San Bernardino, Orange County (realistic California coordinates for drive-time math)
+- **Authorizations:** mix of fresh (60+ days remaining), expiring soon (under 30 days, 3 of them), and one expired-but-still-being-worked (compliance alert)
+- **Care plans:** all clients have approved care plans with realistic task lists (bathing, meal prep, mobility, medication reminders, light housekeeping, companionship)
+- **Schedule:** populated for current week with 70%+ shifts assigned, several open shifts visible, 2 caregivers projected to cross OT thresholds
+- **Visit history:** 4 weeks of historical visits, 96% verified, realistic exception rate
+- **Two pay periods:** one OPEN (current), one previous-OPEN ready to close + export
+
+### 2.2 Pre-loaded demo "magic moments"
+Seed specific records that demonstrate platform value when clicked:
+
+- **Eleanor Park-style record:** veteran client, VA auth expiring in 8 days, HIGH alert visible on dashboard, suggested action: "Call care manager [name] at TriWest — historical renewal turnaround 9 days, you have 8 left"
+- **Aisha Johnson-style record:** caregiver projected to cross 40hr/week threshold by Friday — visible in OT projection panel with dollar impact
+- **Marco Rivera-style record:** caregiver with expired background check, shifts blocked from being assigned to him, alert with renewal CTA
+- **One geofence-mismatch visit awaiting verification** with caregiver note "client at neighbor's house"
+- **One referral PDF in `/intake/uploads/demo-va-referral.pdf`** ready to drop into the parser to show <60s extraction
+- **One incident report:** caregiver-reported fall during a visit, supervisor alert generated, escalation chain visible
+- **One auth renewal predictor result:** authorization with LOW renewal likelihood, escalation alert with payer-specific suggested action
+
+### 2.3 Demo reset script
+Single command (`npm run demo:reset`) that wipes and re-seeds all of the above. Critical for repeated demos — you want to re-run the 7-minute loop without contamination from the previous walkthrough.
+
+### 2.4 Demo screenshot capture
+Use Playwright to auto-capture these specific UI states, save as PNGs in `/demo-assets/`:
+- Dashboard with Chajinel data and active alerts visible
+- Drag-drop schedule grid with OT projection in red state during a hover
+- Referral parser mid-extraction showing confidence scores
+- Caregiver PWA active visit screen mid-checklist
+- Family portal showing live caregiver location
+- Pay period close screen showing OT calculation breakdown
+- Compliance dashboard with all alert types visible
+
+These become fallback demo assets if the live demo breaks on Sunday.
+
+---
+
+## 3. Pillar B — Silent Failure Hardening
+
+Every external service can fail. Currently most fail silently (degraded gracefully). For demo and production credibility, every failure mode needs visible, recoverable UX.
+
+### 3.1 Service status panel
+New admin page at `/admin/system-health`:
+- Live status of every external service: Anthropic, Textract, Twilio, Resend, Pusher, Maps, Web Push, Redis, S3/Object Storage
+- Last successful invocation timestamp per service
+- Error rate over last 24 hours
+- "Test connection" button per service
+- Visible to OWNER role only
+
+### 3.2 Failed AI run inspection
+Every AI agent invocation already logs to `agent_runs`. Build the UI:
+- New page at `/admin/jobs/agent-runs`
+- Filterable list of all AI runs with status (SUCCESS / FAILED / LOW_CONFIDENCE / TIMEOUT)
+- Click a failed run → see input, prompt version, model response, error
+- "Retry" button on failed runs
+- Cost-per-agent breakdown over selectable time ranges
+
+### 3.3 Dead-letter queue UI
+BullMQ failed jobs should be visible to admin:
+- Currently BullBoard at `/admin/jobs` shows queues, but failed jobs need clear retry/discard workflow
+- Add bulk retry, bulk discard
+- Alert email to OWNER when DLQ depth exceeds threshold (default: 10)
+
+### 3.4 Webhook failure alerting
+Twilio webhooks, Resend bounce webhooks, push notification deliverability failures — all need to surface to admin:
+- New `webhook_events` table logging every inbound webhook with response status
+- New `notification_deliveries` table tracking SMS/email/push outcomes per recipient
+- Compliance alert generated if a critical notification (e.g., shift change to caregiver) fails delivery on all configured channels
+
+### 3.5 Graceful degradation messaging
+When a service is down, the user should see WHY a feature isn't working, not silence:
+- Referral parser uploaded with Textract down → "AI parsing temporarily unavailable. Document saved, will auto-process when service recovers."
+- Push notification disabled → "Browser push not enabled. We'll send via email instead."
+- Maps API quota exhausted → "Drive time estimates temporarily unavailable. Distance shown only."
+
+---
+
+## 4. Pillar C — Deferred Items Worth Shipping
+
+From the draft items the agent generated. These are the ones with real impact:
+
+### 4.1 Real Twilio SMS for caregiver login (high priority)
+Currently caregiver invite codes may be using a stub. Wire the real Twilio Programmable SMS:
+- Caregiver invitation generates 6-digit OTP, sent via SMS
+- Login PIN reset flow uses real SMS
+- Rate-limited: max 3 OTP requests per phone per hour
+- Verify SMS deliverability in admin system-health panel
+
+### 4.2 Scheduled report email delivery
+- Weekly digest email per agency: caregiver utilization, OT exposure, expiring documents, expiring authorizations
+- Configurable per-recipient (admin sets which staff receive which reports)
+- Sent every Monday 7am agency-local time
+- Email body shows top-line numbers; PDF attached
+- Unsubscribe link per recipient
+
+### 4.3 Charts in reports
+Add visualizations to the 6 existing reports:
+- Caregiver Utilization → bar chart of hours by caregiver, sortable
+- Client Hours vs. Authorized → progress bars with red/yellow/green status
+- Document Compliance → expiration timeline (next 90 days)
+- OT Exposure Forecast → line chart showing weekly OT cost trend
+- Visit Verification → stacked bar of verification status by week
+- Authorization Pipeline → countdown gantt of expiring authorizations
+
+Use Recharts for consistency. Both web view and PDF export must include charts.
+
+### 4.4 Searchable filter dropdowns
+Replace free-text caregiver/client filter inputs across the app with searchable dropdowns (combobox pattern). Use existing shadcn/ui Combobox or @headlessui/react.
+
+### 4.5 Family-side care plan acknowledgment notifications
+When a care plan version is approved, family receives email + in-app notification with a one-click acknowledgment link. Acknowledgment recorded with timestamp + IP.
+
+### 4.6 Care plan checklist on caregiver clock-in screen
+Already in the Phase 2 spec — verify it's actually wired. If not, ship it now. (Replit had flagged this as a draft — confirm completion.)
+
+### 4.7 IVR incident playback for supervisors
+- IVR-recorded incident audio attached to visit_incidents already
+- New UI: supervisor can play back audio inline from compliance alert detail
+- Playback events themselves audit-logged (PHI access)
+
+### 4.8 Code quality cleanup
+- Resolve duplicate Zod export warnings flagged by the agent
+- Tighten TypeScript strict mode if not already enabled
+- Add ESLint rule for required `agencyId` scoping in Prisma queries
+
+---
+
+## 5. Pillar D — Test Coverage for Critical Paths
+
+These tests must exist before any production agency runs on the platform.
+
+### 5.1 Labor rule engine — hard-coded edge cases
+Automated tests covering:
+- CA Domestic Worker: 9.5hr → 9 reg + 0.5 OT
+- CA Domestic Worker: 13hr → 9 reg + 3 OT + 1 DT
+- CA Domestic Worker: 7-day consecutive → 7th day all OT until 8hrs, then DT
+- Federal FLSA: 45hr week, 8hr days → 40 reg + 5 OT
+- Federal FLSA: 50hr week, one 14hr day → 40 reg + 10 OT (no daily OT under FLSA)
+- NY Wage Parity: 40hr week with home care exemption application
+- TX FLSA-only: identical to federal
+- Authorization drawdown race condition: two concurrent shift assignments to same auth — only one succeeds, the other gets a conflict error
+
+### 5.2 Multi-tenant isolation tests
+- Simulate 3 agencies, each with overlapping client/caregiver IDs
+- Every endpoint tested for cross-tenant data leakage
+- Prisma middleware verified to throw on unscoped queries
+
+### 5.3 AI pipeline tests
+- Referral parser: 5 mock VA PDFs (varying length, quality, format), verify field extraction accuracy >85% on demographics, auth number, expiration date
+- Document classifier: 10-document fixture, verify 9+ correctly classified
+- Schedule optimizer: deterministic test fixture, verify ranking output matches expected order
+- Anomaly detector: seed 5 anomaly patterns, verify all detected within one cron run
+- Care plan drafter: given an authorization fixture, verify drafted plan contains expected core tasks
+
+### 5.4 Caregiver PWA offline sync test
+- Headless browser, disable network, complete full visit lifecycle
+- Re-enable network, verify all events sync with original timestamps
+- Verify temp visit IDs correctly rewritten
+
+### 5.5 IVR security tests
+- Spoofed caller ID with valid PIN: works (caller ID isn't auth)
+- Spoofed caller ID with wrong PIN, 3 attempts: hang up
+- 5 wrong PINs across 15 minutes: caregiver locked
+- 8 wrong PINs from one number: number locked
+- Twilio signature validation: malformed signature rejected with 403
+
+---
+
+## 6. Pillar E — Performance & Concurrency
+
+Quick wins before any real load arrives:
+
+### 6.1 Database indexes audit
+- Every foreign key has an index
+- Every query in hot paths (dashboard, schedule grid, visit list) has a covering index
+- Add composite indexes for `(agencyId, status)` patterns on Visits, Schedules, Alerts
+
+### 6.2 N+1 query elimination
+- Run Prisma logging during demo flow walkthrough
+- Identify N+1 patterns
+- Add proper `include` / `select` to eliminate
+
+### 6.3 Real-time channel scaling check
+- Verify Pusher channel limits not exceeded under simulated 50-caregiver agency
+- Channel cleanup on caregiver logout
+
+### 6.4 Background job concurrency tuning
+- Set sensible BullMQ concurrency limits per queue (referral parsing: 2, anomaly detection: 1, notifications: 10, etc.)
+- Verify queue starvation doesn't occur when one queue gets a backlog
+
+---
+
+## 7. What's Still Out of Scope
+
+Do NOT touch any of these in Phase 2.5:
+- ClaimShield integration / billing API contract (Phase 3)
+- EVV aggregator submission to Sandata / HHAeXchange / Tellus (Phase 3)
+- Claims financing / instant pay (Phase 4)
+- New-agency factory / greenfield onboarding wizard (Phase 4)
+- Reverto outreach module (separate product)
+- Multi-state agency management (Phase 4)
+- Native mobile apps (PWA is sufficient)
+
+---
+
+## 8. Build Sequence (Use the Credit Window)
+
+Burn down in this order — each section is independently shippable, so if credits run out partway, what's done is still valuable:
+
+**Highest priority (do first):**
+1. Pillar A: Chajinel seed data + demo reset script (Sunday demo depends on this)
+2. Pillar A: Pre-loaded demo "magic moment" records
+3. Pillar A: Playwright screenshot capture of demo states
+4. Pillar C 4.1: Real Twilio SMS for caregiver login
+5. Pillar C 4.6: Verify care plan checklist on caregiver clock-in (close the gap if it's open)
+
+**High value (do next):**
+6. Pillar B 3.1: Service status panel
+7. Pillar B 3.2: Failed AI run inspection UI
+8. Pillar D 5.1: Labor rule engine tests (protect the wedge)
+9. Pillar C 4.3: Charts in reports
+10. Pillar C 4.2: Scheduled report email delivery
+
+**Strong-to-have (if credits last):**
+11. Pillar B 3.3, 3.4, 3.5: DLQ UI, webhook failure alerting, graceful degradation messaging
+12. Pillar D 5.2-5.5: Remaining test coverage
+13. Pillar C 4.4, 4.5, 4.7, 4.8: Searchable dropdowns, family ack notifications, IVR playback, code cleanup
+14. Pillar E: Performance tuning
+
+---
+
+## 9. Definition of Done for Phase 2.5
+
+- [ ] Demo reset script reliably reproduces a clean Chajinel-flavored agency in <60 seconds
+- [ ] All 7 demo screenshot states captured and stored in `/demo-assets/`
+- [ ] Real Twilio SMS verified working with a real phone number
+- [ ] Service status panel visible to OWNER, all services reporting status correctly
+- [ ] Failed AI run UI lets you inspect and retry any agent failure
+- [ ] Labor rule engine tests pass on all 8 edge cases
+- [ ] Charts visible on all 6 reports both in web and PDF
+- [ ] Weekly digest emails dispatched (test recipient receives a real email)
+- [ ] Multi-tenant isolation tests pass on 3-agency simulation
+- [ ] No regressions in Phase 1 or Phase 2 functionality
+
+---
+
+**Burn the credits. Build down the priority list. Ship as far as the budget takes you.**
