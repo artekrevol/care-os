@@ -762,6 +762,8 @@ export async function seed(): Promise<void> {
       title: "VA authorization for Eleanor Park expires in 8 days",
       message:
         "VA-2026-09431 expires soon. Renewal request must be submitted to the VA Community Care office before the expiration date.",
+      suggestedAction:
+        "Fax VA CCN renewal packet to (877) 881-7618 with current care plan, last 30 days of visit logs, and updated physician order. Confirm receipt within 48 hours.",
       status: "OPEN",
     },
     {
@@ -1021,6 +1023,54 @@ export async function seed(): Promise<void> {
       authoredBy: "user_admin",
       approvedBy: "user_admin",
       approvedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000),
+    },
+    {
+      id: "cp_005",
+      agencyId: AGENCY_ID,
+      clientId: "clt_005",
+      version: 1,
+      status: "APPROVED",
+      title: "Yuki Tanaka — Resumption Plan (Service Paused)",
+      goals: [
+        { id: "g1", title: "Safe resumption of in-home care after hospital discharge" },
+        { id: "g2", title: "Maintain mobility and prevent deconditioning during pause" },
+      ] as never,
+      tasks: [
+        { id: "t1", title: "Personal care assist (resume on discharge)", category: "ADL", frequency: "Daily", defaultMinutes: 30 },
+        { id: "t2", title: "Light meal prep", category: "MEAL", frequency: "Daily", defaultMinutes: 30 },
+        { id: "t3", title: "Companionship & wellness check", category: "COMPANIONSHIP", frequency: "Daily", defaultMinutes: 30 },
+        { id: "t4", title: "Medication reminders", category: "MEDICATION", frequency: "Twice daily", defaultMinutes: 10 },
+      ] as never,
+      riskFactors: ["Recent hospitalization", "Service paused — verify discharge orders before resume"] as never,
+      preferences: { caregiverInstruction: "Japanese-preferred when possible. Family will confirm resume date." } as never,
+      effectiveStart: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
+      authoredBy: "user_admin",
+      approvedBy: "user_admin",
+      approvedAt: new Date(Date.now() - 195 * 24 * 60 * 60 * 1000),
+    },
+    {
+      id: "cp_006",
+      agencyId: AGENCY_ID,
+      clientId: "clt_006",
+      version: 1,
+      status: "APPROVED",
+      title: "Beatrice Holloway — Initial Companion Care Plan",
+      goals: [
+        { id: "g1", title: "Establish daily routine and rapport with caregiver" },
+        { id: "g2", title: "Support independence at home with light assistance" },
+      ] as never,
+      tasks: [
+        { id: "t1", title: "Companion visit & wellness check", category: "COMPANIONSHIP", frequency: "Mon/Wed/Fri", defaultMinutes: 60 },
+        { id: "t2", title: "Light meal prep", category: "MEAL", frequency: "Each visit", defaultMinutes: 30 },
+        { id: "t3", title: "Errands & transportation", category: "IADL", frequency: "Weekly", defaultMinutes: 60 },
+        { id: "t4", title: "Light housekeeping", category: "HOUSEKEEPING", frequency: "Weekly", defaultMinutes: 45 },
+      ] as never,
+      riskFactors: ["New client — assessment pending"] as never,
+      preferences: { caregiverInstruction: "Prospect intake. Confirm assessment before first visit." } as never,
+      effectiveStart: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      authoredBy: "user_admin",
+      approvedBy: "user_admin",
+      approvedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     },
   ]);
 
