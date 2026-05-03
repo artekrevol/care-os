@@ -62,7 +62,7 @@ router.get(
           .where(
             and(
               eq(carePlansTable.agencyId, AGENCY_ID),
-              eq(carePlansTable.status, "ACTIVE"),
+              eq(carePlansTable.status, "APPROVED"),
             ),
           )
       : [];

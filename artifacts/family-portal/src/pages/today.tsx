@@ -25,9 +25,23 @@ export default function Today() {
 
   const isLoading = loadingSchedules || loadingVisits;
 
-  // Status derivation
-  const schedule = schedules?.[0];
-  const visit = visits?.find(v => v.clientId === clientId);
+  // Status derivation: prefer the schedule whose visit is currently
+  // in-progress (clocked in, not yet out), then the next upcoming schedule
+  // by start time. Falls back to the first returned schedule.
+  const clientVisits = visits?.filter(v => v.clientId === clientId) ?? [];
+  const activeVisit = clientVisits.find(v => v.clockInTime && !v.clockOutTime);
+  const sortedSchedules = (schedules ?? [])
+    .slice()
+    .sort((a, b) => parseISO(a.startTime).getTime() - parseISO(b.startTime).getTime());
+  const activeSchedule = activeVisit
+    ? sortedSchedules.find(s => s.id === activeVisit.scheduleId)
+    : undefined;
+  const nowMs = Date.now();
+  const upcomingSchedule = sortedSchedules.find(s => parseISO(s.endTime).getTime() >= nowMs);
+  const schedule = activeSchedule ?? upcomingSchedule ?? sortedSchedules[0];
+  const visit = activeVisit
+    ?? (schedule ? clientVisits.find(v => v.scheduleId === schedule.id) : undefined)
+    ?? clientVisits[0];
   
   let status = "NO_VISIT_SCHEDULED";
   let statusLabel = "No visit scheduled";

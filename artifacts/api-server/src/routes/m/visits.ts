@@ -54,7 +54,7 @@ async function loadVisitDetail(visitId: string) {
         and(
           eq(carePlansTable.agencyId, AGENCY_ID),
           eq(carePlansTable.clientId, v.clientId),
-          eq(carePlansTable.status, "ACTIVE"),
+          eq(carePlansTable.status, "APPROVED"),
         ),
       )
       .orderBy(desc(carePlansTable.version))
@@ -229,7 +229,7 @@ router.post(
         and(
           eq(carePlansTable.agencyId, AGENCY_ID),
           eq(carePlansTable.clientId, sch.clientId),
-          eq(carePlansTable.status, "ACTIVE"),
+          eq(carePlansTable.status, "APPROVED"),
         ),
       )
       .orderBy(desc(carePlansTable.version))

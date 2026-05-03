@@ -179,7 +179,7 @@ async function shotIntake(ctx: BrowserContext) {
 // ---------------------------------------------------------------------------
 // 4) Caregiver PWA active visit (clock in cg_001 → sch_001)
 // ---------------------------------------------------------------------------
-async function clockInCg001(): Promise<{ visitId: string; sessionToken: string; expiresAt: string }> {
+async function clockInCg001(occurredAtIso: string): Promise<{ visitId: string; sessionToken: string; expiresAt: string }> {
   const phone = "(415) 555-1101";
   const otp = await api<{ devCode?: string }>("/api/m/auth/request-otp", {
     method: "POST",
@@ -190,13 +190,27 @@ async function clockInCg001(): Promise<{ visitId: string; sessionToken: string; 
     "/api/m/auth/verify-otp",
     { method: "POST", json: { phone, code: otp.devCode } },
   );
-  // Clock in to sch_001 if not already on a visit
+  // Pass occurredAt aligned to FROZEN so the clocked-in visit row falls
+  // inside the family-portal Today window (queried under FROZEN's date).
   const clock = await api<{ id: string }>("/api/m/visits/clock-in", {
     method: "POST",
     headers: { authorization: `Bearer ${verify.sessionToken}` },
-    json: { scheduleId: "sch_001" },
+    json: { scheduleId: "sch_001", occurredAt: occurredAtIso },
   });
   return { visitId: clock.id, sessionToken: verify.sessionToken, expiresAt: verify.expiresAt };
+}
+
+function computeFrozenMs(): number {
+  // Mid-shift inside sch_001 (Mon 07:00–16:00 UTC) so visit is in-progress.
+  // Using UTC explicitly (seed's dateAt also uses UTC) avoids host-TZ drift.
+  const now = new Date();
+  const dow = now.getUTCDay();
+  const daysFromMonday = (dow + 6) % 7;
+  const monday = new Date(Date.UTC(
+    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysFromMonday,
+    11, 0, 0, 0, // 11:00 UTC = squarely inside 07:00–16:00 UTC sch_001 window
+  ));
+  return monday.getTime();
 }
 
 async function shotCaregiverVisit(
@@ -250,18 +264,23 @@ async function shotFamilyToday(ctx: BrowserContext) {
   // Hard-assert: heading rendered AND a real status card is visible (not the
   // loading skeleton or empty-state placeholder). Fail the run if neither
   // populated state appears.
+  // Hard-assert ON_SITE state with caregiver and arrival time visible.
+  // We pre-clocked-in cg_001 against sch_001 and FROZEN is mid-shift, so
+  // family-portal Today must resolve to "Caregiver On Site". Fail fast if
+  // it lands on Scheduled/Complete/empty — the previous shot was wrong.
   await page.waitForFunction(
     `(() => {
       const t = document.body.innerText || "";
-      const hasHeader = /Today's Care/i.test(t);
-      const hasStatusCard = /Visit Complete|Caregiver On Site|Caregiver En Route|Scheduled/i.test(t);
-      return hasHeader && hasStatusCard;
+      if (!/Today's Care/i.test(t)) return false;
+      if (!/Caregiver On Site/i.test(t)) return false;
+      if (!/Arrived At/i.test(t)) return false;
+      return true;
     })()`,
     null,
-    { timeout: 15_000 },
+    { timeout: 20_000 },
   );
   await settle(page);
-  await snap(page, "05-family-today");
+  await snap(page, "05-family-today", "ON SITE");
   await page.close();
 }
 
@@ -269,17 +288,39 @@ async function shotFamilyToday(ctx: BrowserContext) {
 // 6) Careos payroll period detail
 // ---------------------------------------------------------------------------
 async function shotPayroll(ctx: BrowserContext) {
+  // Close pp_prev (Apr 13-26) so it has computed entries with regular/OT
+  // hour breakdowns. The harness is idempotent — if it's already closed
+  // the API returns 400 and we proceed to capture.
+  let target = "pp_prev";
+  try {
+    await api(`/api/pay-periods/${target}/close`, { method: "POST", json: {} });
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (!/already CLOSED|already FINALIZED/i.test(msg)) {
+      console.warn(`  (close ${target} failed: ${msg.slice(0, 200)}; falling back to pp_open)`);
+      target = "pp_open";
+    }
+  }
   const page = await ctx.newPage();
   await page.setViewportSize(DESKTOP);
-  await page.goto(`${BASE}/payroll/pp_open`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE}/payroll/${target}`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("main", { timeout: 15_000 });
+  // Hard-assert the OT calculation breakdown is rendered: Caregiver Summary
+  // table populated and at least one non-zero overtime hour value present.
   await page.waitForFunction(
-    `/Pay Period Details/i.test(document.body.innerText || "") && /Caregiver Summary/i.test(document.body.innerText || "")`,
+    `(() => {
+      const t = document.body.innerText || "";
+      if (!/Pay Period Details/i.test(t)) return false;
+      if (!/Caregiver Summary/i.test(t)) return false;
+      // Either an OT hours value > 0 anywhere, or "Overtime" label paired
+      // with a non-zero numeric in the totals row.
+      return /\\bOT\\b|Overtime/i.test(t) && /[1-9][0-9]*\\.[0-9]+\\s*h|[1-9][0-9]*\\s*h/.test(t);
+    })()`,
     null,
-    { timeout: 15_000 },
+    { timeout: 20_000 },
   );
   await settle(page);
-  await snap(page, "06-careos-payroll");
+  await snap(page, "06-careos-payroll", `period ${target}`);
   await page.close();
 }
 
@@ -315,10 +356,16 @@ async function main() {
     throw new Error(`API not reachable at ${BASE}/api/healthz — start workflows first.`);
   }
 
+  // FROZEN_MS computed in UTC so the clocked-in visit row's clockInTime
+  // falls inside the family-portal Today window (which is also queried under
+  // FROZEN). See computeFrozenMs() for the rationale.
+  const FROZEN_MS = computeFrozenMs();
+  console.log(`  ↳ frozen "now" = ${new Date(FROZEN_MS).toISOString()}`);
+
   // Pre-arrange the caregiver-active-visit (this also enables family-portal ON_SITE state).
   let caregiverSession: { visitId: string; sessionToken: string; expiresAt: string } | null = null;
   try {
-    caregiverSession = await clockInCg001();
+    caregiverSession = await clockInCg001(new Date(FROZEN_MS).toISOString());
     console.log(`  ↳ caregiver clocked in: visit ${caregiverSession.visitId}`);
   } catch (e) {
     console.warn(`  (caregiver clock-in failed: ${(e as Error).message})`);
@@ -330,41 +377,15 @@ async function main() {
     const ctx = await browser.newContext({
       viewport: DESKTOP,
       deviceScaleFactor: 2,
-      // Pin the in-browser timezone so date-fns / Intl formatters render the
-      // same labels (e.g. "Tuesday, April 28th") regardless of host TZ. The
-      // seed and FROZEN clock are computed in PT.
       timezoneId: "America/Los_Angeles",
       locale: "en-US",
     });
-    // Pin "now" to Tuesday 14:30 PT of the *current* week so views keyed off
-    // Date.now() (family-portal Today, careos Schedule "this week") resolve to
-    // populated data rather than empty weekend/out-of-range dates.
-    //
-    // The seed (`seed.ts` / `seed-chajinel.ts`) generates schedules and visits
-    // via `dateAt(daysFromMonday, ...)` relative to `new Date()` at seed time,
-    // so it always covers the current ISO week. Hard-coding a fixed calendar
-    // date would drift after a future `demo:reset`. Computing Tuesday of the
-    // real "today" keeps the harness aligned with the seed window.
-    //
     // We deliberately override only Date (not performance.now) so framer-motion
     // and other RAF-driven animations still progress past their initial state.
     // Using ctx.clock.install would freeze performance.now and stall those
     // animations, leaving motion.div elements at opacity: 0.
-    const FROZEN = (() => {
-      const now = new Date();
-      const dow = now.getDay(); // 0=Sun..6=Sat
-      const daysFromMonday = (dow + 6) % 7; // Mon=0
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - daysFromMonday);
-      // Tuesday 14:30 in local TZ.
-      const tue = new Date(monday);
-      tue.setDate(monday.getDate() + 1);
-      tue.setHours(14, 30, 0, 0);
-      return tue.valueOf();
-    })();
-    console.log(`  ↳ frozen "now" = ${new Date(FROZEN).toISOString()}`);
     await ctx.addInitScript(`(() => {
-      const FROZEN = ${FROZEN};
+      const FROZEN = ${FROZEN_MS};
       const _Date = Date;
       function PatchedDate(...args) {
         if (!(this instanceof PatchedDate)) {
