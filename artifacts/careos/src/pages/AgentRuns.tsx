@@ -596,14 +596,21 @@ export default function AgentRuns() {
                       )}
                     </div>
                   )}
-                  <Button
-                    onClick={() => onRetry(selected.id)}
-                    disabled={retryMut.isPending}
-                    data-testid={`button-retry-run-${selected.id}`}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    {retryMut.isPending ? "Retrying…" : "Retry agent"}
-                  </Button>
+                  {selected.status === "FAILED" ||
+                  selected.status === "TIMEOUT" ? (
+                    <Button
+                      onClick={() => onRetry(selected.id)}
+                      disabled={retryMut.isPending}
+                      data-testid={`button-retry-run-${selected.id}`}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      {retryMut.isPending ? "Retrying…" : "Retry agent"}
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      Retry is available only for failed or timed-out runs.
+                    </p>
+                  )}
                 </div>
               </>
             )}

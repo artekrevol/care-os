@@ -328,12 +328,16 @@ router.post(
     // appear in BOTH maps because hyphenated names exist as runtime aliases
     // for cron-batch convenience. Calling the in-process runner there would
     // execute the wrong code path against the wrong row identity.
+    // Only agents whose runs are produced by a real BullMQ worker AND whose
+    // stored inputPayload matches CareOSJobMap belong here. care-plan-drafter
+    // is intentionally excluded: it's invoked synchronously from carePlans.ts,
+    // and the queue contract { clientId, triggeredBy } does not match the
+    // recorded payload — re-enqueueing would produce an undeliverable job.
     const queueByAgent: Record<string, queue.QueueName | undefined> = {
       "referral-parser": "ai.intake-referral",
       "document-classifier": "ocr.extract-document",
       "anomaly-scan": "anomaly.scan-visit",
       "schedule-optimizer": "schedule.suggest-caregivers",
-      "care-plan-drafter": "care-plan.generate",
       "auth-renewal-predictor": "auth.predict-renewal",
     };
     const qName = queueByAgent[agentName];
