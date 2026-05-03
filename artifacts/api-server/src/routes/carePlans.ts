@@ -82,7 +82,10 @@ async function formatPlan(p: typeof carePlansTable.$inferSelect) {
     status: p.status,
     title: p.title,
     goals: p.goals as unknown[],
-    tasks: p.tasks as unknown[],
+    // Normalize on read so legacy/seed rows that pre-date the strict
+    // CarePlanTask schema (missing ordering/requiresPhoto, free-text
+    // frequency) still pass response zod parse.
+    tasks: normalizeTasks(p.tasks),
     riskFactors: p.riskFactors as unknown[],
     preferences: p.preferences as Record<string, unknown>,
     effectiveStart: p.effectiveStart,
@@ -105,6 +108,19 @@ function nextVersion(existing: { version: number }[]): number {
   return existing.reduce((max, p) => Math.max(max, p.version), 0) + 1;
 }
 
+const VALID_FREQUENCIES = new Set(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]);
+
+function coerceFrequency(raw: unknown): string {
+  if (typeof raw !== "string") return "PER_VISIT";
+  const upper = raw.trim().toUpperCase();
+  if (VALID_FREQUENCIES.has(upper)) return upper;
+  // Best-effort mapping of free-text seed/legacy values onto the enum.
+  if (/DAILY|EACH DAY|EVERY DAY|TWICE DAILY|3X|2X/.test(upper)) return "DAILY";
+  if (/WEEKLY|MON|TUE|WED|THU|FRI|SAT|SUN|WEEK/.test(upper)) return "WEEKLY";
+  if (/PRN|AS NEEDED/.test(upper)) return "PRN";
+  return "PER_VISIT";
+}
+
 function normalizeTasks(tasks: unknown): unknown[] {
   if (!Array.isArray(tasks)) return [];
   return tasks.map((t, idx) => {
@@ -115,7 +131,7 @@ function normalizeTasks(tasks: unknown): unknown[] {
       category: task.category ?? "OTHER",
       title: task.title ?? "Untitled task",
       instructions: task.instructions ?? null,
-      frequency: task.frequency ?? "PER_VISIT",
+      frequency: coerceFrequency(task.frequency),
       ordering:
         typeof task.ordering === "number" ? task.ordering : idx,
       requiresPhoto: Boolean(task.requiresPhoto),

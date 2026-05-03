@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-05-03T07:08:20.421Z",
+  "capturedAt": "2026-05-03T07:16:39.092Z",
   "baseUrl": "http://localhost:80",
   "shots": [
     {
@@ -13,12 +13,12 @@
     {
       "name": "03-careos-intake-review",
       "ok": true,
-      "note": "draft ref_97a2797d-f3c"
+      "note": "draft ref_98cba2ee-325"
     },
     {
       "name": "04-caregiver-visit",
       "ok": true,
-      "note": "visit vis_638f6993-c26"
+      "note": "visit vis_2949098d-b48"
     },
     {
       "name": "05-family-today",

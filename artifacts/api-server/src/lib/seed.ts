@@ -928,7 +928,7 @@ export async function seed(): Promise<void> {
       agencyId: AGENCY_ID,
       clientId: "clt_001",
       version: 2,
-      status: "ACTIVE",
+      status: "APPROVED",
       title: "Eleanor Park — Daily Living Support",
       goals: [
         { id: "g1", title: "Maintain morning routine independence", measurable: "Self-directs 4 of 5 mornings" },
@@ -957,7 +957,7 @@ export async function seed(): Promise<void> {
       agencyId: AGENCY_ID,
       clientId: "clt_002",
       version: 1,
-      status: "ACTIVE",
+      status: "APPROVED",
       title: "Robert Velasquez — Mobility & Hearing Support",
       goals: [
         { id: "g1", title: "Safe wheelchair transfers with gait belt" },
@@ -980,7 +980,7 @@ export async function seed(): Promise<void> {
       agencyId: AGENCY_ID,
       clientId: "clt_003",
       version: 1,
-      status: "ACTIVE",
+      status: "APPROVED",
       title: "Margaret Okafor — Companion Care Plan",
       goals: [
         { id: "g1", title: "Maintain cognitive engagement" },
@@ -1003,7 +1003,7 @@ export async function seed(): Promise<void> {
       agencyId: AGENCY_ID,
       clientId: "clt_004",
       version: 1,
-      status: "ACTIVE",
+      status: "APPROVED",
       title: "James Whitfield — Post-Hip Recovery & Mobility",
       goals: [
         { id: "g1", title: "Complete hip-replacement PT regimen safely" },
@@ -1029,7 +1029,7 @@ export async function seed(): Promise<void> {
       agencyId: AGENCY_ID,
       clientId: "clt_005",
       version: 1,
-      status: "ACTIVE",
+      status: "APPROVED",
       title: "Yuki Tanaka — Resumption Plan (Service Paused)",
       goals: [
         { id: "g1", title: "Safe resumption of in-home care after hospital discharge" },
@@ -1053,7 +1053,7 @@ export async function seed(): Promise<void> {
       agencyId: AGENCY_ID,
       clientId: "clt_006",
       version: 1,
-      status: "ACTIVE",
+      status: "APPROVED",
       title: "Beatrice Holloway — Initial Companion Care Plan",
       goals: [
         { id: "g1", title: "Establish daily routine and rapport with caregiver" },

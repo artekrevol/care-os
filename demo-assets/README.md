@@ -36,5 +36,7 @@ find. If no VA referral draft exists yet, it uploads the fixture at
 for the parser to populate `parsedFields` before navigating to the review
 page.
 
-PNGs are intentionally not committed. Re-capture them before each live demo
-so they reflect the current seed.
+The seven PNGs and `manifest.json` in this folder are committed as the
+canonical fallback set so the demo always has working images, even
+without a local stack. Regenerate them by running `pnpm demo:reset &&
+pnpm demo:screenshots` whenever the live demo data changes meaningfully.
