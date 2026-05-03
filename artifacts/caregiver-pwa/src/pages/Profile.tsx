@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -10,7 +10,13 @@ import {
   CheckCircle2,
   CircleDollarSign,
   ShieldCheck,
+  BellOff,
+  Bell,
 } from "lucide-react";
+import {
+  ensurePushSubscriptionStatus,
+  type PushStatus,
+} from "@/lib/push";
 import { api, type Me } from "@/lib/api";
 import OfflineBanner from "@/components/OfflineBanner";
 import BottomNav from "@/components/BottomNav";
@@ -127,6 +133,8 @@ export default function Profile({ me, onLogout }: Props) {
           )}
         </section>
 
+        <PushStatusSection />
+
         <CredentialsSection
           credentials={profile.data?.credentials ?? []}
           loading={profile.isLoading}
@@ -137,6 +145,102 @@ export default function Profile({ me, onLogout }: Props) {
       </main>
       <BottomNav />
     </div>
+  );
+}
+
+/**
+ * Persistent, always-visible push notification status. When push is
+ * denied, unsupported, or otherwise unsubscribed, we tell the caregiver
+ * exactly what is happening and what the fallback is, in plain language.
+ * This replaces the previous one-shot toast — caregivers can come back
+ * to this section at any time to see why a notification did or did not
+ * arrive on their device.
+ */
+function PushStatusSection() {
+  const [status, setStatus] = useState<PushStatus | "checking">("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    void ensurePushSubscriptionStatus().then((s) => {
+      if (!cancelled) setStatus(s);
+    });
+    return (): void => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function retry(): Promise<void> {
+    setStatus("checking");
+    const next = await ensurePushSubscriptionStatus();
+    setStatus(next);
+    if (next === "subscribed") {
+      toast.success("Notifications enabled");
+    }
+  }
+
+  if (status === "checking" || status === "subscribed") {
+    return (
+      <section
+        aria-label="Notification status"
+        className="rounded-xl bg-[color:var(--color-surface)] border border-[color:var(--color-border)] p-4 flex items-start gap-3"
+      >
+        <Bell className="w-5 h-5 mt-0.5 text-[color:var(--color-success,#16a34a)]" />
+        <div className="text-sm">
+          <div className="font-semibold">Push notifications</div>
+          <div className="text-[color:var(--color-muted)] mt-0.5">
+            {status === "checking"
+              ? "Checking your device…"
+              : "You'll get shift reminders and alerts on this device."}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const headline =
+    status === "denied"
+      ? "Push notifications are blocked"
+      : status === "unsupported"
+        ? "This device does not support push"
+        : status === "no-vapid-key"
+          ? "Push is not configured for this account"
+          : status === "dismissed"
+            ? "Push notifications are not enabled"
+            : "We could not enable push on this device";
+
+  const detail =
+    status === "denied"
+      ? "You blocked notifications for this app. Until you allow them again in your browser or device settings, we will email you for shift reminders, schedule changes, and incident follow-ups."
+      : status === "unsupported"
+        ? "Your browser or device cannot receive push notifications. We will email you instead for shift reminders, schedule changes, and incident follow-ups."
+        : status === "no-vapid-key"
+          ? "Your office has not finished setting up push notifications yet. We will email you instead until they do."
+          : status === "dismissed"
+            ? "You haven't allowed push yet. Tap Try again to grant permission, or we'll keep emailing you instead."
+            : "Something went wrong subscribing this device. We will keep emailing you while we retry.";
+
+  return (
+    <section
+      aria-label="Notification status"
+      role="status"
+      data-testid="push-status-section"
+      className="rounded-xl border border-amber-300 bg-amber-50 p-4 flex items-start gap-3"
+    >
+      <BellOff className="w-5 h-5 mt-0.5 text-amber-700 shrink-0" />
+      <div className="text-sm flex-1">
+        <div className="font-semibold text-amber-900">{headline}</div>
+        <p className="text-amber-900/90 mt-1 leading-snug">{detail}</p>
+        {(status === "dismissed" || status === "error") && (
+          <button
+            type="button"
+            onClick={() => void retry()}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 text-white text-xs font-medium hover:bg-amber-700"
+          >
+            <Bell className="w-3.5 h-3.5" /> Try again
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 

@@ -31,7 +31,57 @@ import {
   Play,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+interface RecentWebhookEvent {
+  id: string;
+  provider: string;
+  route: string;
+  eventType: string | null;
+  externalId: string | null;
+  signatureValid: boolean | null;
+  responseStatus: number | null;
+  errorMessage: string | null;
+  receivedAt: string;
+  completedAt: string | null;
+}
+
+interface RecentDeliveryFailure {
+  id: string;
+  notificationTypeId: string | null;
+  channel: string;
+  provider: string;
+  recipient: string | null;
+  status: "SENT" | "FAILED" | "SKIPPED";
+  attempt: number;
+  error: string | null;
+  subject: string | null;
+  createdAt: string;
+}
+
+function useOwnerJson<T>(
+  url: string,
+  headers: Record<string, string>,
+  refreshKey: number,
+): T | null {
+  const [data, setData] = useState<T | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(url, { credentials: "include", headers })
+      .then((r) => (r.ok ? (r.json() as Promise<T>) : null))
+      .then((json) => {
+        if (!cancelled) setData(json);
+      })
+      .catch(() => {
+        /* best-effort surface */
+      });
+    return (): void => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, refreshKey]);
+  return data;
+}
 
 export default function SystemHealth() {
   const { toast } = useToast();
@@ -65,6 +115,22 @@ export default function SystemHealth() {
     queue: string;
     action: "retry" | "discard";
   } | null>(null);
+
+  const [auditRefreshKey, setAuditRefreshKey] = useState(0);
+  const webhookData = useOwnerJson<{ events: RecentWebhookEvent[] }>(
+    "/api/admin/webhook-events/recent",
+    headers,
+    auditRefreshKey,
+  );
+  const deliveriesData = useOwnerJson<{ deliveries: RecentDeliveryFailure[] }>(
+    "/api/admin/notification-deliveries/recent-failures",
+    headers,
+    auditRefreshKey,
+  );
+  useEffect(() => {
+    const t = setInterval(() => setAuditRefreshKey((k) => k + 1), 30_000);
+    return (): void => clearInterval(t);
+  }, []);
 
   const onSaveToken = () => {
     localStorage.setItem("careos.adminToken", adminToken);
@@ -334,6 +400,142 @@ export default function SystemHealth() {
               </Card>
             </div>
           </>
+        )}
+
+        {webhookData && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3">
+              Recent inbound webhooks
+            </h2>
+            <Card>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs">
+                    <tr>
+                      <th className="text-left px-3 py-2">Received</th>
+                      <th className="text-left px-3 py-2">Provider</th>
+                      <th className="text-left px-3 py-2">Route</th>
+                      <th className="text-left px-3 py-2">Event</th>
+                      <th className="text-left px-3 py-2">External ID</th>
+                      <th className="text-right px-3 py-2">Status</th>
+                      <th className="text-left px-3 py-2">Signature</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {webhookData.events.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-3 py-4 text-center text-muted-foreground text-xs"
+                        >
+                          No webhook events recorded yet.
+                        </td>
+                      </tr>
+                    )}
+                    {webhookData.events.map((e) => (
+                      <tr
+                        key={e.id}
+                        data-testid={`row-webhook-${e.id}`}
+                        className="text-xs"
+                      >
+                        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                          {format(new Date(e.receivedAt), "MMM d HH:mm:ss")}
+                        </td>
+                        <td className="px-3 py-2 font-mono">{e.provider}</td>
+                        <td className="px-3 py-2 font-mono">{e.route}</td>
+                        <td className="px-3 py-2">{e.eventType ?? "—"}</td>
+                        <td className="px-3 py-2 font-mono">
+                          {e.externalId ?? "—"}
+                        </td>
+                        <td
+                          className={`text-right px-3 py-2 ${
+                            e.responseStatus && e.responseStatus >= 400
+                              ? "text-destructive font-semibold"
+                              : ""
+                          }`}
+                        >
+                          {e.responseStatus ?? "…"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {e.signatureValid === true ? (
+                            <Badge className="bg-green-600">valid</Badge>
+                          ) : e.signatureValid === false ? (
+                            <Badge variant="destructive">invalid</Badge>
+                          ) : (
+                            <Badge variant="secondary">n/a</Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {deliveriesData && (
+          <div>
+            <h2 className="text-lg font-semibold mb-3">
+              Recent notification delivery issues
+            </h2>
+            <Card>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-xs">
+                    <tr>
+                      <th className="text-left px-3 py-2">Time</th>
+                      <th className="text-left px-3 py-2">Type</th>
+                      <th className="text-left px-3 py-2">Channel</th>
+                      <th className="text-left px-3 py-2">Recipient</th>
+                      <th className="text-left px-3 py-2">Status</th>
+                      <th className="text-left px-3 py-2">Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {deliveriesData.deliveries.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="px-3 py-4 text-center text-muted-foreground text-xs"
+                        >
+                          No failed or skipped deliveries.
+                        </td>
+                      </tr>
+                    )}
+                    {deliveriesData.deliveries.map((d) => (
+                      <tr
+                        key={d.id}
+                        data-testid={`row-delivery-${d.id}`}
+                        className="text-xs"
+                      >
+                        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                          {format(new Date(d.createdAt), "MMM d HH:mm:ss")}
+                        </td>
+                        <td className="px-3 py-2 font-mono">
+                          {d.notificationTypeId ?? "—"}
+                        </td>
+                        <td className="px-3 py-2">{d.channel}</td>
+                        <td className="px-3 py-2 break-all">
+                          {d.recipient ?? "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {d.status === "FAILED" ? (
+                            <Badge variant="destructive">failed</Badge>
+                          ) : (
+                            <Badge variant="secondary">skipped</Badge>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground break-all">
+                          {d.error ?? d.subject ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         <AlertDialog

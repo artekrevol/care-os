@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { and, desc, eq, ne } from "drizzle-orm";
 import {
   ai,
   ocr,
@@ -14,7 +15,13 @@ import {
   ProbeSystemHealthModuleParams,
   ProbeSystemHealthModuleResponse,
 } from "@workspace/api-zod";
+import {
+  db,
+  webhookEventsTable,
+  notificationDeliveriesTable,
+} from "@workspace/db";
 import { ownerGuard } from "../middlewares/ownerGuard";
+import { AGENCY_ID } from "../lib/agency";
 import { recordAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
 
@@ -147,6 +154,73 @@ router.post(
         at: result.at,
       }),
     );
+  },
+);
+
+/**
+ * Recent inbound webhook events (Twilio today; structure is provider-agnostic).
+ * Owner-only. Returns the latest 50 rows for the agency, with PII fields
+ * already redacted at insert time by webhookLogMiddleware.
+ */
+router.get(
+  "/admin/webhook-events/recent",
+  ownerGuard,
+  async (_req, res): Promise<void> => {
+    const rows = await db
+      .select({
+        id: webhookEventsTable.id,
+        provider: webhookEventsTable.provider,
+        route: webhookEventsTable.route,
+        eventType: webhookEventsTable.eventType,
+        externalId: webhookEventsTable.externalId,
+        signatureValid: webhookEventsTable.signatureValid,
+        responseStatus: webhookEventsTable.responseStatus,
+        errorMessage: webhookEventsTable.errorMessage,
+        receivedAt: webhookEventsTable.receivedAt,
+        completedAt: webhookEventsTable.completedAt,
+      })
+      .from(webhookEventsTable)
+      .where(eq(webhookEventsTable.agencyId, AGENCY_ID))
+      .orderBy(desc(webhookEventsTable.receivedAt))
+      .limit(50);
+    res.json({ events: rows });
+  },
+);
+
+/**
+ * Recent outbound notification deliveries that did not land successfully —
+ * the FAILED rows are the most operationally interesting (they pair with
+ * the NOTIFICATION_DELIVERY_FAILED compliance alerts), but we also
+ * surface SKIPPED so owners can see when no channel was even attempted.
+ * Owner-only.
+ */
+router.get(
+  "/admin/notification-deliveries/recent-failures",
+  ownerGuard,
+  async (_req, res): Promise<void> => {
+    const rows = await db
+      .select({
+        id: notificationDeliveriesTable.id,
+        notificationTypeId: notificationDeliveriesTable.notificationTypeId,
+        channel: notificationDeliveriesTable.channel,
+        provider: notificationDeliveriesTable.provider,
+        recipient: notificationDeliveriesTable.recipient,
+        status: notificationDeliveriesTable.status,
+        attempt: notificationDeliveriesTable.attempt,
+        error: notificationDeliveriesTable.error,
+        subject: notificationDeliveriesTable.subject,
+        createdAt: notificationDeliveriesTable.createdAt,
+      })
+      .from(notificationDeliveriesTable)
+      .where(
+        and(
+          eq(notificationDeliveriesTable.agencyId, AGENCY_ID),
+          ne(notificationDeliveriesTable.status, "SENT"),
+        ),
+      )
+      .orderBy(desc(notificationDeliveriesTable.createdAt))
+      .limit(50);
+    res.json({ deliveries: rows });
   },
 );
 

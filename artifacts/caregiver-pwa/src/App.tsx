@@ -11,28 +11,10 @@ import { loadSession, clearSession, type Session } from "@/lib/session";
 import { api, type Me } from "@/lib/api";
 import { installAutoFlush } from "@/lib/outbox";
 import { ensurePushSubscriptionStatus, registerServiceWorker } from "@/lib/push";
-import { toast } from "sonner";
 
-const PUSH_FALLBACK_TOAST_KEY = "careos.pushFallbackShown";
-
-function maybeNotifyPushFallback(): void {
-  void ensurePushSubscriptionStatus().then((status) => {
-    if (status === "denied" || status === "unsupported") {
-      try {
-        if (sessionStorage.getItem(PUSH_FALLBACK_TOAST_KEY) === "1") return;
-        sessionStorage.setItem(PUSH_FALLBACK_TOAST_KEY, "1");
-      } catch {
-        // sessionStorage can throw in private browsing — fall through.
-      }
-      toast.message("Push notifications are off", {
-        description:
-          status === "denied"
-            ? "We will email you instead for shift reminders and alerts."
-            : "Your device does not support push. We will email you instead.",
-      });
-    }
-  });
-}
+// The persistent in-page push-status banner lives on the Profile page
+// (see Profile.tsx > PushStatusSection). We only kick off the
+// subscription attempt at login so the banner has fresh state to read.
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -61,7 +43,7 @@ function useAuth(): [AuthState, (s: Session | null) => void] {
     api<Me>("/m/me")
       .then((me) => {
         setState({ status: "authed", session: s, me });
-        maybeNotifyPushFallback();
+        void ensurePushSubscriptionStatus();
       })
       .catch(() => {
         clearSession();
@@ -79,7 +61,7 @@ function useAuth(): [AuthState, (s: Session | null) => void] {
     api<Me>("/m/me")
       .then((me) => {
         setState({ status: "authed", session: s, me });
-        maybeNotifyPushFallback();
+        void ensurePushSubscriptionStatus();
       })
       .catch(() => {
         clearSession();

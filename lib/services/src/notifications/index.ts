@@ -25,12 +25,15 @@ import { recordSuccess, recordError } from "../health/index";
  * critical event types.
  */
 export const CRITICAL_NOTIFICATION_TYPES = new Set<string>([
-  "shift.cancelled",
-  "shift.changed",
-  "incident.flagged",
-  "visit.no-show",
-  "auth.expiring-soon",
-  "compliance.alert",
+  // Aligned with the IDs seeded in artifacts/api-server/src/lib/seed.ts
+  // (seedNotificationTypes). Adding an ID that the seed does not produce
+  // is a silent no-op and was the root cause of the original drift.
+  "visit.late_clock_in",
+  "visit.missed",
+  "visit.incident_reported",
+  "compliance.auth_expiring",
+  "compliance.document_expiring",
+  "schedule.changed",
 ]);
 
 function genId(prefix: string): string {
