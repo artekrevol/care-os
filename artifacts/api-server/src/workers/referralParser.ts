@@ -146,6 +146,9 @@ export async function processReferralParse(payload: {
         triggeredBy: "system",
         triggerReason: `Parse referral draft ${draftId}`,
         inputSummary: `Referral PDF (${pdfBytes?.length ?? 0} bytes)`,
+        // Stash the original queue payload so an operator can retry this run
+        // from /admin/jobs/agent-runs without hunting down the source record.
+        metadata: { inputPayload: { referralDraftId: draftId } },
       },
       async () => {
         // 1) OCR

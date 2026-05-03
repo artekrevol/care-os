@@ -50,7 +50,7 @@ function Router() {
       <Route path="/compliance" component={Compliance} />
       <Route path="/labor-rules" component={LaborRules} />
       <Route path="/reports" component={Reports} />
-      <Route path="/agent-runs" component={AgentRuns} />
+      <Route path="/admin/jobs/agent-runs" component={AgentRuns} />
       <Route path="/admin/system-health" component={SystemHealth} />
       <Route path="/audit-log" component={AuditLog} />
       <Route path="/family/login" component={FamilyLogin} />

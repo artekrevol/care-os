@@ -108,6 +108,7 @@ async function runClassifier(
   filename: string,
   bytes: Buffer | null,
   triggerReason: string,
+  inputPayload?: { documentId: string; objectKey: string },
 ): Promise<{
   runId: string;
   documentType: string;
@@ -122,6 +123,7 @@ async function runClassifier(
       triggeredBy: "system",
       triggerReason,
       inputSummary: filename,
+      ...(inputPayload ? { metadata: { inputPayload } } : {}),
     },
     async () => {
       const ocrResult = bytes
@@ -216,6 +218,7 @@ export async function processDocumentClassify(payload: {
         cgDoc.originalFilename ?? "document upload",
         bytes,
         `Classify caregiver document ${docId}`,
+        { documentId: docId, objectKey: payload.objectKey },
       );
       const needsReview = r.confidence < CONFIDENCE_THRESHOLD;
       await db
@@ -260,6 +263,7 @@ export async function processDocumentClassify(payload: {
       clDoc.originalFilename ?? "document upload",
       bytes,
       `Classify client document ${docId}`,
+      { documentId: docId, objectKey: payload.objectKey },
     );
     const needsReview = r.confidence < CONFIDENCE_THRESHOLD;
     await db

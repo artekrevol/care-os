@@ -19,6 +19,7 @@ import {
   useProbeSystemHealthModule,
   useRetryAllFailedJobs,
   useDiscardAllFailedJobs,
+  getGetSystemHealthQueryKey,
 } from "@workspace/api-client-react";
 import {
   Activity,
@@ -43,19 +44,22 @@ export default function SystemHealth() {
     : { "x-careos-role": "OWNER" };
 
   const { data, isLoading, refetch } = useGetSystemHealth({
-    request: { headers } as any,
-    query: { refetchInterval: 15000 } as any,
-  } as any);
+    request: { headers },
+    query: {
+      queryKey: getGetSystemHealthQueryKey(),
+      refetchInterval: 15000,
+    },
+  });
 
   const probeMut = useProbeSystemHealthModule({
-    request: { headers } as any,
-  } as any);
+    request: { headers },
+  });
   const retryAllMut = useRetryAllFailedJobs({
-    request: { headers } as any,
-  } as any);
+    request: { headers },
+  });
   const discardAllMut = useDiscardAllFailedJobs({
-    request: { headers } as any,
-  } as any);
+    request: { headers },
+  });
 
   const [confirm, setConfirm] = useState<{
     queue: string;

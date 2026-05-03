@@ -22,6 +22,7 @@ import {
   useListAgentRuns,
   useGetAgentRunCostSummary,
   useRetryAgentRun,
+  getListAgentRunsQueryKey,
 } from "@workspace/api-client-react";
 import {
   Bot,
@@ -33,7 +34,7 @@ import {
   Filter,
 } from "lucide-react";
 import { format } from "date-fns";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const STATUS_FILTERS = [
   "SUCCEEDED",
@@ -53,6 +54,8 @@ export default function AgentRuns() {
   const [to, setTo] = useState<string>("");
   const [range, setRange] = useState<Range>("24h");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState<number>(50);
+  const [page, setPage] = useState<number>(0);
   const [adminToken] = useState<string>(
     () => localStorage.getItem("careos.adminToken") ?? "",
   );
@@ -62,24 +65,39 @@ export default function AgentRuns() {
     : { "x-careos-role": "OWNER" };
 
   const params = useMemo(() => {
-    const p: Record<string, unknown> = { limit: 100, offset: 0 };
+    const p: Record<string, unknown> = {
+      limit: pageSize,
+      offset: page * pageSize,
+    };
     const s = Array.from(statuses);
     if (s.length > 0) p["status"] = s;
     if (agentName.trim()) p["agentName"] = agentName.trim();
     if (from) p["from"] = new Date(from).toISOString();
     if (to) p["to"] = new Date(to).toISOString();
     return p;
-  }, [statuses, agentName, from, to]);
+  }, [statuses, agentName, from, to, pageSize, page]);
+
+  // Reset to first page whenever filters change.
+  useEffect(() => {
+    setPage(0);
+  }, [statuses, agentName, from, to, pageSize]);
 
   const { data, isLoading, refetch } = useListAgentRuns(params, {
-    query: { refetchInterval: 5000 } as any,
-  } as any);
+    request: { headers: adminHeaders },
+    query: {
+      queryKey: getListAgentRunsQueryKey(params),
+      refetchInterval: 5000,
+    },
+  });
 
-  const cost = useGetAgentRunCostSummary({ range });
+  const cost = useGetAgentRunCostSummary(
+    { range },
+    { request: { headers: adminHeaders } },
+  );
 
   const retryMut = useRetryAgentRun({
-    request: { headers: adminHeaders } as any,
-  } as any);
+    request: { headers: adminHeaders },
+  });
 
   const items = data?.items ?? [];
   const selected = items.find((r) => r.id === selectedId) ?? null;
@@ -317,6 +335,55 @@ export default function AgentRuns() {
               <p className="text-sm text-muted-foreground py-4">
                 No agent runs match the filters.
               </p>
+            )}
+            {!isLoading && items.length > 0 && data && (
+              <div className="flex items-center justify-between py-2 text-xs text-muted-foreground">
+                <div>
+                  Showing {page * pageSize + 1}–
+                  {page * pageSize + items.length} of {data.total}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(v) => setPageSize(Number(v))}
+                  >
+                    <SelectTrigger
+                      className="h-7 w-24"
+                      data-testid="select-page-size"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">25 / page</SelectItem>
+                      <SelectItem value="50">50 / page</SelectItem>
+                      <SelectItem value="100">100 / page</SelectItem>
+                      <SelectItem value="200">200 / page</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    data-testid="button-prev-page"
+                  >
+                    Prev
+                  </Button>
+                  <span>
+                    Page {page + 1} of{" "}
+                    {Math.max(1, Math.ceil(data.total / pageSize))}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={(page + 1) * pageSize >= data.total}
+                    onClick={() => setPage((p) => p + 1)}
+                    data-testid="button-next-page"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             )}
             {items.map((r) => (
               <div

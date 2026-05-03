@@ -60,7 +60,7 @@ function fmtRun(r: typeof agentRunsTable.$inferSelect) {
   };
 }
 
-router.get("/agent-runs", async (req, res): Promise<void> => {
+router.get("/agent-runs", ownerGuard, async (req, res): Promise<void> => {
   // Express query strings are strings; coerce date-time fields and ensure
   // status is an array even when only one value is supplied (?status=FAILED).
   const raw: Record<string, unknown> = { ...req.query };
@@ -123,7 +123,7 @@ router.get("/agent-runs", async (req, res): Promise<void> => {
   );
 });
 
-router.get("/agent-runs/cost-summary", async (req, res): Promise<void> => {
+router.get("/agent-runs/cost-summary", ownerGuard, async (req, res): Promise<void> => {
   const parsed = GetAgentRunCostSummaryQueryParams.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -191,7 +191,7 @@ router.get("/agent-runs/cost-summary", async (req, res): Promise<void> => {
   );
 });
 
-router.get("/agent-runs/:id", async (req, res): Promise<void> => {
+router.get("/agent-runs/:id", ownerGuard, async (req, res): Promise<void> => {
   const params = GetAgentRunParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
@@ -251,11 +251,10 @@ router.post(
     const triggeredBy = `retry-of-${row.id}`;
 
     if (!runner) {
-      // Queue-driven agents (referral-parser, document-classifier, anomaly-scan,
-      // schedule-optimizer, care-plan-drafter, etc.) cannot be re-run from a
-      // bare runId — the original input payload lives on the source row, not
-      // here. Map known agent names to their owning queue so the operator gets
-      // a precise BullBoard hint; otherwise fall back to a generic hint.
+      // Queue-driven agents store their original job payload in
+      // metadata.inputPayload (set by the worker via recordAgentRun's
+      // metadata field). When present, re-enqueue a fresh BullMQ job with
+      // that payload — this is a true retry, not a hint.
       const queueByAgent: Record<string, queue.QueueName | undefined> = {
         "referral-parser": "ai.intake-referral",
         "document-classifier": "ocr.extract-document",
@@ -264,6 +263,40 @@ router.post(
         "care-plan-drafter": "care-plan.generate",
       };
       const qName = queueByAgent[agentName];
+      const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      const inputPayload = meta["inputPayload"] as
+        | Record<string, unknown>
+        | undefined;
+
+      if (qName && inputPayload && typeof inputPayload === "object") {
+        try {
+          const enq = await queue.enqueue(
+            qName,
+            inputPayload as queue.CareOSJobMap[typeof qName],
+          );
+          await recordAudit(req.user, {
+            action: "AGENT_RUN_RETRY",
+            entityType: "agent_run",
+            entityId: row.id,
+            summary: `${req.user.name} re-enqueued agent ${agentName} via queue ${qName} (job ${enq.jobId ?? "n/a"})`,
+          });
+          res.json(
+            RetryAgentRunResponse.parse({
+              ok: enq.enqueued,
+              originalRunId: row.id,
+              newRunId: null,
+              agentName,
+              message: enq.enqueued
+                ? `Re-enqueued on queue "${qName}" (job ${enq.jobId ?? "n/a"})`
+                : `Queue "${qName}" not configured; could not re-enqueue`,
+            }),
+          );
+          return;
+        } catch (err) {
+          logger.warn({ err, qName }, "queue retry failed");
+        }
+      }
+
       await recordAudit(req.user, {
         action: "AGENT_RUN_RETRY",
         entityType: "agent_run",
@@ -271,7 +304,7 @@ router.post(
         summary: `${req.user.name} requested retry for queue-driven agent ${agentName}${qName ? ` (queue ${qName})` : ""}`,
       });
       const message = qName
-        ? `agent "${agentName}" runs from queue "${qName}" — re-enqueue from /admin/jobs with the original input payload`
+        ? `agent "${agentName}" runs from queue "${qName}" — original payload not stored on this run; re-enqueue from /admin/jobs with the source record`
         : `agent "${agentName}" is queue-driven; re-enqueue the original job from /admin/jobs (no in-process runner registered)`;
       res.json(
         RetryAgentRunResponse.parse({
