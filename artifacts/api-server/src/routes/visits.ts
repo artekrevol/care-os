@@ -105,6 +105,11 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
       .where(eq(schedulesTable.id, sch.id));
   }
   const id = newId("vis");
+  const now = new Date();
+  const occurredAt = parsed.data.occurredAt
+    ? new Date(parsed.data.occurredAt)
+    : now;
+  const wasOffline = parsed.data.occurredAt != null && occurredAt < now;
   const [row] = await db
     .insert(visitsTable)
     .values({
@@ -113,7 +118,7 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
       scheduleId,
       caregiverId: parsed.data.caregiverId,
       clientId: parsed.data.clientId,
-      clockInTime: new Date(),
+      clockInTime: occurredAt,
       clockInLat:
         parsed.data.latitude != null ? String(parsed.data.latitude) : null,
       clockInLng:
@@ -121,6 +126,7 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
       clockInMethod: parsed.data.method ?? "GPS",
       verificationStatus: "PENDING",
       geoFenceMatch: true,
+      offlineSyncedAt: wasOffline ? now : null,
     })
     .returning();
   await recordAudit({
@@ -155,8 +161,12 @@ router.post("/visits/:id/clock-out", async (req, res): Promise<void> => {
     return;
   }
   const now = new Date();
+  const occurredAt = parsed.data.occurredAt
+    ? new Date(parsed.data.occurredAt)
+    : now;
+  const wasOffline = parsed.data.occurredAt != null && occurredAt < now;
   const dur = existing.clockInTime
-    ? Math.round((now.getTime() - existing.clockInTime.getTime()) / 60000)
+    ? Math.round((occurredAt.getTime() - existing.clockInTime.getTime()) / 60000)
     : 0;
   const exception = dur > 0 && dur < 30 ? "EXCEPTION" : "PENDING";
   const exceptionReason =
@@ -164,7 +174,7 @@ router.post("/visits/:id/clock-out", async (req, res): Promise<void> => {
   const [row] = await db
     .update(visitsTable)
     .set({
-      clockOutTime: now,
+      clockOutTime: occurredAt,
       clockOutLat:
         parsed.data.latitude != null ? String(parsed.data.latitude) : null,
       clockOutLng:
@@ -176,6 +186,7 @@ router.post("/visits/:id/clock-out", async (req, res): Promise<void> => {
       verificationStatus: exception,
       exceptionReason,
       geoFenceMatch: true,
+      offlineSyncedAt: wasOffline ? now : existing.offlineSyncedAt,
     })
     .where(eq(visitsTable.id, existing.id))
     .returning();

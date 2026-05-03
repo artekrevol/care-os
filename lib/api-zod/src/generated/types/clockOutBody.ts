@@ -13,4 +13,9 @@ export interface ClockOutBody {
   method: ClockMethod;
   tasksCompleted?: string[];
   caregiverNotes?: string;
+  /** Original event timestamp captured on device. When supplied (e.g.
+replayed from the offline queue), the server uses this for
+`clockOutTime` and stamps `offlineSyncedAt`.
+ */
+  occurredAt?: Date;
 }

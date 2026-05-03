@@ -19,6 +19,7 @@ import LaborRules from "@/pages/LaborRules";
 import Reports from "@/pages/Reports";
 import AuditLog from "@/pages/AuditLog";
 import NotFound from "@/pages/not-found";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ function App() {
           <Router />
         </WouterRouter>
         <Toaster />
+        <InstallPrompt />
       </TooltipProvider>
     </QueryClientProvider>
   );

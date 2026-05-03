@@ -721,6 +721,12 @@ export const ClockInBody = zod.object({
   latitude: zod.number().optional(),
   longitude: zod.number().optional(),
   method: zod.enum(["GPS", "TELEPHONY", "FOB", "MANUAL"]),
+  occurredAt: zod.coerce
+    .date()
+    .optional()
+    .describe(
+      "Original event timestamp captured on device. When supplied (e.g.\nreplayed from the offline queue), the server uses this for\n`clockInTime` and stamps `offlineSyncedAt`.\n",
+    ),
 });
 
 export const ClockInResponse = zod.object({
@@ -762,6 +768,12 @@ export const ClockOutBody = zod.object({
   method: zod.enum(["GPS", "TELEPHONY", "FOB", "MANUAL"]),
   tasksCompleted: zod.array(zod.string()).optional(),
   caregiverNotes: zod.string().optional(),
+  occurredAt: zod.coerce
+    .date()
+    .optional()
+    .describe(
+      "Original event timestamp captured on device. When supplied (e.g.\nreplayed from the offline queue), the server uses this for\n`clockOutTime` and stamps `offlineSyncedAt`.\n",
+    ),
 });
 
 export const ClockOutResponse = zod.object({

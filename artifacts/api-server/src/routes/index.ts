@@ -10,6 +10,7 @@ import laborRulesRouter from "./laborRules";
 import alertsRouter from "./alerts";
 import auditLogRouter from "./auditLog";
 import reportsRouter from "./reports";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(laborRulesRouter);
 router.use(alertsRouter);
 router.use(auditLogRouter);
 router.use(reportsRouter);
+router.use(notificationsRouter);
 
 export default router;

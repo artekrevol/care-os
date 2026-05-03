@@ -365,6 +365,11 @@ export interface ClockInBody {
   latitude?: number;
   longitude?: number;
   method: ClockMethod;
+  /** Original event timestamp captured on device. When supplied (e.g.
+replayed from the offline queue), the server uses this for
+`clockInTime` and stamps `offlineSyncedAt`.
+ */
+  occurredAt?: string;
 }
 
 export interface ClockOutBody {
@@ -373,6 +378,11 @@ export interface ClockOutBody {
   method: ClockMethod;
   tasksCompleted?: string[];
   caregiverNotes?: string;
+  /** Original event timestamp captured on device. When supplied (e.g.
+replayed from the offline queue), the server uses this for
+`clockOutTime` and stamps `offlineSyncedAt`.
+ */
+  occurredAt?: string;
 }
 
 export type VerifyVisitBodyDecision =

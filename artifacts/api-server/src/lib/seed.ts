@@ -323,6 +323,7 @@ export async function seed(): Promise<void> {
   const caregivers = [
     {
       id: "cg_001",
+      userId: "user_caregiver_aisha",
       firstName: "Aisha",
       lastName: "Johnson",
       email: "aisha.j@careos.demo",

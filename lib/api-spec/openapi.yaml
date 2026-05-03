@@ -2000,6 +2000,13 @@ components:
         longitude: { type: number }
         method:
           $ref: "#/components/schemas/ClockMethod"
+        occurredAt:
+          type: string
+          format: date-time
+          description: |
+            Original event timestamp captured on device. When supplied (e.g.
+            replayed from the offline queue), the server uses this for
+            `clockInTime` and stamps `offlineSyncedAt`.
       required: [caregiverId, clientId, method]
 
     ClockOutBody:
@@ -2013,6 +2020,13 @@ components:
           type: array
           items: { type: string }
         caregiverNotes: { type: string }
+        occurredAt:
+          type: string
+          format: date-time
+          description: |
+            Original event timestamp captured on device. When supplied (e.g.
+            replayed from the offline queue), the server uses this for
+            `clockOutTime` and stamps `offlineSyncedAt`.
       required: [method]
 
     VerifyVisitBody:
