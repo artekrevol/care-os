@@ -96,13 +96,17 @@ Mounted at `/admin/jobs` (registered in `artifacts/api-server/.replit-artifact/a
 
 `pnpm demo:screenshots` runs a headless Playwright harness
 (`scripts/src/demo-screenshots.ts`) against the local stack and writes
-seven canonical "magic moment" PNGs to `demo-assets/` (gitignored). It
-clocks in cg_001 via OTP, seeds caregiver-pwa session + family-portal
-localStorage auth, and freezes Date to Tuesday 14:30 PT of the current
-week so seed-relative schedules populate. It does NOT freeze
-`performance.now()` (which would stall framer-motion animations at
-opacity:0). Recommended workflow: `demo:reset` then `demo:screenshots`.
-See `demo-assets/README.md`.
+seven canonical "magic moment" PNGs to `demo-assets/`. The PNGs and
+`manifest.json` are committed as the baseline fallback set; only `*.tmp`
+under that directory is gitignored. The harness clocks in cg_001 via
+OTP, seeds caregiver-pwa session + family-portal localStorage auth, and
+freezes Date to Monday 11:00 UTC of the current week (mid-shift inside
+sch_001) so seed-relative schedules populate and the just-clocked-in
+visit row falls inside the family-portal Today query window. It also
+closes pp_prev so the payroll capture shows the OT calculation
+breakdown. It does NOT freeze `performance.now()` (which would stall
+framer-motion animations at opacity:0). Recommended workflow:
+`demo:reset` then `demo:screenshots`. See `demo-assets/README.md`.
 
 ### Environment variables (Phase 2)
 
