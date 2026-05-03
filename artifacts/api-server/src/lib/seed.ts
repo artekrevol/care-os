@@ -11,6 +11,8 @@ import {
   laborRuleSetsTable,
   complianceAlertsTable,
   auditLogTable,
+  notificationTypesTable,
+  taskTemplatesTable,
 } from "@workspace/db";
 import { AGENCY_ID } from "./agency";
 import { newId } from "./ids";
@@ -36,7 +38,12 @@ function dateAt(daysFromMonday: number, hour: number, minute = 0): Date {
 }
 
 export async function seed(): Promise<void> {
-  // Skip if already seeded
+  // Phase 2 reference rows are idempotent (ON CONFLICT DO NOTHING) and need
+  // to run on every boot so newly added types/templates land without a wipe.
+  await seedNotificationTypes();
+  await seedTaskTemplates();
+
+  // Skip Phase 1 demo data if already seeded.
   const existing = await db
     .select()
     .from(clientsTable)
@@ -780,4 +787,131 @@ export async function seed(): Promise<void> {
   ]);
 
   logger.info("Seed complete.");
+}
+
+/**
+ * Reference rows for the Phase 2 notification system. Idempotent: safe to
+ * re-run on every boot. Uses ON CONFLICT DO NOTHING so existing rows are not
+ * disturbed.
+ */
+async function seedNotificationTypes(): Promise<void> {
+  const rows = [
+    {
+      id: "visit.late_clock_in",
+      category: "VISIT",
+      label: "Caregiver late clock-in",
+      description: "A caregiver did not clock in within the grace window.",
+      defaultChannels: ["IN_APP", "PUSH"],
+      audienceRoles: ["OWNER", "SCHEDULER"],
+    },
+    {
+      id: "visit.missed",
+      category: "VISIT",
+      label: "Missed visit",
+      description: "A scheduled visit was missed.",
+      defaultChannels: ["IN_APP", "PUSH", "SMS"],
+      audienceRoles: ["OWNER", "SCHEDULER"],
+    },
+    {
+      id: "visit.incident_reported",
+      category: "VISIT",
+      label: "Incident reported",
+      description: "An incident was logged during a visit.",
+      defaultChannels: ["IN_APP", "EMAIL", "PUSH"],
+      audienceRoles: ["OWNER", "FAMILY"],
+    },
+    {
+      id: "compliance.auth_expiring",
+      category: "COMPLIANCE",
+      label: "Authorization expiring",
+      description: "A client authorization will expire soon.",
+      defaultChannels: ["IN_APP", "EMAIL"],
+      audienceRoles: ["OWNER"],
+    },
+    {
+      id: "compliance.document_expiring",
+      category: "COMPLIANCE",
+      label: "Caregiver document expiring",
+      description: "A caregiver document (TB, CPR, etc.) is expiring soon.",
+      defaultChannels: ["IN_APP", "EMAIL"],
+      audienceRoles: ["OWNER", "CAREGIVER"],
+    },
+    {
+      id: "schedule.shift_offered",
+      category: "SCHEDULE",
+      label: "Shift offered",
+      description: "A new shift has been offered to a caregiver.",
+      defaultChannels: ["PUSH", "SMS"],
+      audienceRoles: ["CAREGIVER"],
+    },
+    {
+      id: "messaging.new_message",
+      category: "MESSAGING",
+      label: "New message",
+      description: "A new message arrived in one of your threads.",
+      defaultChannels: ["IN_APP", "PUSH"],
+      audienceRoles: ["OWNER", "CAREGIVER", "FAMILY"],
+    },
+    {
+      id: "family.visit_summary",
+      category: "FAMILY",
+      label: "Visit summary",
+      description: "Summary of a completed visit for family members.",
+      defaultChannels: ["EMAIL"],
+      audienceRoles: ["FAMILY"],
+    },
+  ];
+  for (const r of rows) {
+    await db.insert(notificationTypesTable).values(r).onConflictDoNothing();
+  }
+  logger.info({ count: rows.length }, "Seeded notification types.");
+}
+
+/**
+ * Starter library of care task templates so freshly-bootstrapped care plans
+ * have something to pick from.
+ */
+async function seedTaskTemplates(): Promise<void> {
+  const rows = [
+    { category: "ADL", title: "Assist with bathing", defaultMinutes: 20, requiresPhoto: 0 },
+    { category: "ADL", title: "Assist with dressing", defaultMinutes: 15, requiresPhoto: 0 },
+    { category: "ADL", title: "Toileting & incontinence care", defaultMinutes: 10, requiresPhoto: 0 },
+    { category: "ADL", title: "Mobility & transfer assist", defaultMinutes: 15, requiresPhoto: 0 },
+    { category: "MEAL", title: "Prepare meal", defaultMinutes: 30, requiresPhoto: 1 },
+    { category: "MEAL", title: "Feeding assistance", defaultMinutes: 20, requiresPhoto: 0 },
+    { category: "MEAL", title: "Hydration check", defaultMinutes: 5, requiresPhoto: 0 },
+    { category: "MEDICATION", title: "Medication reminder", defaultMinutes: 5, requiresPhoto: 0 },
+    { category: "MEDICATION", title: "Vital signs check", defaultMinutes: 10, requiresPhoto: 0 },
+    { category: "HOUSEKEEPING", title: "Light housekeeping", defaultMinutes: 30, requiresPhoto: 0 },
+    { category: "HOUSEKEEPING", title: "Laundry", defaultMinutes: 45, requiresPhoto: 0 },
+    { category: "COMPANIONSHIP", title: "Companionship & conversation", defaultMinutes: 30, requiresPhoto: 0 },
+    { category: "COMPANIONSHIP", title: "Cognitive engagement activity", defaultMinutes: 20, requiresPhoto: 0 },
+    { category: "EXERCISE", title: "Range-of-motion exercises", defaultMinutes: 15, requiresPhoto: 0 },
+    { category: "EXERCISE", title: "Walk / outdoor activity", defaultMinutes: 30, requiresPhoto: 1 },
+  ];
+  for (const r of rows) {
+    // Deterministic id: <agency>_<category>_<slug(title)>. Combined with the
+    // primary-key conflict target this makes the insert truly idempotent
+    // across reboots — no duplicates accumulate.
+    const slug = r.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    const id = `ttpl_${AGENCY_ID}_${r.category.toLowerCase()}_${slug}`.slice(
+      0,
+      64,
+    );
+    await db
+      .insert(taskTemplatesTable)
+      .values({
+        id,
+        agencyId: AGENCY_ID,
+        category: r.category,
+        title: r.title,
+        defaultMinutes: r.defaultMinutes,
+        requiresPhoto: r.requiresPhoto,
+      })
+      .onConflictDoNothing({ target: taskTemplatesTable.id });
+  }
+  logger.info({ count: rows.length }, "Seeded task templates.");
 }

@@ -21,6 +21,10 @@ export const schedulesTable = pgTable("schedules", {
     .default("Home health aide services, per 15 minutes"),
   status: text("status").notNull().default("SCHEDULED"),
   notes: text("notes"),
+  recurrenceRule: text("recurrence_rule"),
+  parentScheduleId: varchar("parent_schedule_id", { length: 64 }),
+  travelMinutesEstimate: integer("travel_minutes_estimate"),
+  optimizationRunId: varchar("optimization_run_id", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

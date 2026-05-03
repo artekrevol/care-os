@@ -1063,3 +1063,464 @@ export const ListAuditLogResponseItem = zod.object({
   timestamp: zod.coerce.date(),
 });
 export const ListAuditLogResponse = zod.array(ListAuditLogResponseItem);
+
+export const ListCarePlansQueryParams = zod.object({
+  clientId: zod.coerce.string().optional(),
+  status: zod
+    .enum(["DRAFT", "PENDING_APPROVAL", "ACTIVE", "ARCHIVED"])
+    .optional(),
+});
+
+export const ListCarePlansResponseItem = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  version: zod.number(),
+  status: zod.enum(["DRAFT", "PENDING_APPROVAL", "ACTIVE", "ARCHIVED"]),
+  title: zod.string(),
+  goals: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().optional(),
+      targetMetric: zod.string().optional(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      templateId: zod.string().optional(),
+      category: zod.string(),
+      title: zod.string(),
+      instructions: zod.string().optional(),
+      frequency: zod.string().optional(),
+      requiresPhoto: zod.boolean().optional(),
+    }),
+  ),
+  riskFactors: zod.array(zod.string()),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  effectiveStart: zod.coerce.date().nullish(),
+  effectiveEnd: zod.coerce.date().nullish(),
+  approvedBy: zod.string().nullish(),
+  approvedAt: zod.coerce.date().nullish(),
+  sourceAgentRunId: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListCarePlansResponse = zod.array(ListCarePlansResponseItem);
+
+export const CreateCarePlanBody = zod.object({
+  clientId: zod.string(),
+  title: zod.string(),
+  goals: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        title: zod.string(),
+        description: zod.string().optional(),
+        targetMetric: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  tasks: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        templateId: zod.string().optional(),
+        category: zod.string(),
+        title: zod.string(),
+        instructions: zod.string().optional(),
+        frequency: zod.string().optional(),
+        requiresPhoto: zod.boolean().optional(),
+      }),
+    )
+    .optional(),
+  riskFactors: zod.array(zod.string()).optional(),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  sourceAgentRunId: zod.string().optional(),
+});
+
+export const GetCarePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetCarePlanResponse = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  version: zod.number(),
+  status: zod.enum(["DRAFT", "PENDING_APPROVAL", "ACTIVE", "ARCHIVED"]),
+  title: zod.string(),
+  goals: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().optional(),
+      targetMetric: zod.string().optional(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      templateId: zod.string().optional(),
+      category: zod.string(),
+      title: zod.string(),
+      instructions: zod.string().optional(),
+      frequency: zod.string().optional(),
+      requiresPhoto: zod.boolean().optional(),
+    }),
+  ),
+  riskFactors: zod.array(zod.string()),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  effectiveStart: zod.coerce.date().nullish(),
+  effectiveEnd: zod.coerce.date().nullish(),
+  approvedBy: zod.string().nullish(),
+  approvedAt: zod.coerce.date().nullish(),
+  sourceAgentRunId: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+export const ApproveCarePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ApproveCarePlanResponse = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  version: zod.number(),
+  status: zod.enum(["DRAFT", "PENDING_APPROVAL", "ACTIVE", "ARCHIVED"]),
+  title: zod.string(),
+  goals: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().optional(),
+      targetMetric: zod.string().optional(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      templateId: zod.string().optional(),
+      category: zod.string(),
+      title: zod.string(),
+      instructions: zod.string().optional(),
+      frequency: zod.string().optional(),
+      requiresPhoto: zod.boolean().optional(),
+    }),
+  ),
+  riskFactors: zod.array(zod.string()),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  effectiveStart: zod.coerce.date().nullish(),
+  effectiveEnd: zod.coerce.date().nullish(),
+  approvedBy: zod.string().nullish(),
+  approvedAt: zod.coerce.date().nullish(),
+  sourceAgentRunId: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+export const GetVisitChecklistParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetVisitChecklistResponse = zod.object({
+  id: zod.string(),
+  visitId: zod.string(),
+  carePlanId: zod.string().nullish(),
+  carePlanVersion: zod.number().nullish(),
+  tasks: zod.array(
+    zod.object({
+      taskId: zod.string(),
+      title: zod.string(),
+      completed: zod.boolean(),
+      completedAt: zod.coerce.date().nullish(),
+      photoUrl: zod.string().nullish(),
+      skippedReason: zod.string().nullish(),
+    }),
+  ),
+  completedAt: zod.coerce.date().nullish(),
+});
+
+export const ListVisitNotesParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ListVisitNotesResponseItem = zod.object({
+  id: zod.string(),
+  visitId: zod.string(),
+  authorId: zod.string(),
+  authorRole: zod.string(),
+  body: zod.string(),
+  voiceClipUrl: zod.string().nullish(),
+  aiSummary: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListVisitNotesResponse = zod.array(ListVisitNotesResponseItem);
+
+export const CreateVisitNoteParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const CreateVisitNoteBody = zod.object({
+  body: zod.string(),
+  voiceClipUrl: zod.string().optional(),
+});
+
+export const CreateVisitIncidentParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const CreateVisitIncidentBody = zod.object({
+  severity: zod.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+  category: zod.string(),
+  description: zod.string(),
+  photoUrls: zod.array(zod.string()).optional(),
+});
+
+export const CreateVisitSignatureParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const CreateVisitSignatureBody = zod.object({
+  signerRole: zod.string(),
+  signerName: zod.string(),
+  signatureSvg: zod.string().optional(),
+  signatureImageUrl: zod.string().optional(),
+  declined: zod.boolean().optional(),
+  declinedReason: zod.string().optional(),
+});
+
+export const ListFamilyUsersQueryParams = zod.object({
+  clientId: zod.coerce.string().optional(),
+});
+
+export const ListFamilyUsersResponseItem = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  email: zod.string(),
+  phone: zod.string().nullish(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  relationship: zod.string(),
+  accessLevel: zod.enum(["VIEWER", "COMMENTER", "MANAGER"]),
+  invitedAt: zod.coerce.date().nullish(),
+  acceptedAt: zod.coerce.date().nullish(),
+  isActive: zod.boolean(),
+  createdAt: zod.coerce.date(),
+});
+export const ListFamilyUsersResponse = zod.array(ListFamilyUsersResponseItem);
+
+export const InviteFamilyUserBody = zod.object({
+  clientId: zod.string(),
+  email: zod.string(),
+  phone: zod.string().optional(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  relationship: zod.string(),
+  accessLevel: zod.enum(["VIEWER", "COMMENTER", "MANAGER"]).optional(),
+});
+
+export const ListMessageThreadsQueryParams = zod.object({
+  clientId: zod.coerce.string().optional(),
+  caregiverId: zod.coerce.string().optional(),
+});
+
+export const ListMessageThreadsResponseItem = zod.object({
+  id: zod.string(),
+  clientId: zod.string().nullish(),
+  caregiverId: zod.string().nullish(),
+  topic: zod.string(),
+  subject: zod.string().nullish(),
+  participants: zod.array(
+    zod.object({
+      userId: zod.string(),
+      role: zod.string(),
+      name: zod.string(),
+    }),
+  ),
+  lastMessageAt: zod.coerce.date().nullish(),
+  closedAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListMessageThreadsResponse = zod.array(
+  ListMessageThreadsResponseItem,
+);
+
+export const ListThreadMessagesParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ListThreadMessagesResponseItem = zod.object({
+  id: zod.string(),
+  threadId: zod.string(),
+  authorId: zod.string(),
+  authorRole: zod.string(),
+  authorName: zod.string(),
+  body: zod.string(),
+  attachments: zod.array(zod.record(zod.string(), zod.unknown())),
+  redacted: zod.boolean(),
+  readBy: zod.array(zod.string()),
+  createdAt: zod.coerce.date(),
+});
+export const ListThreadMessagesResponse = zod.array(
+  ListThreadMessagesResponseItem,
+);
+
+export const PostThreadMessageParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const PostThreadMessageBody = zod.object({
+  body: zod.string(),
+  attachments: zod.array(zod.record(zod.string(), zod.unknown())).optional(),
+});
+
+export const ListNotificationTypesResponseItem = zod.object({
+  id: zod.string(),
+  category: zod.string(),
+  label: zod.string(),
+  description: zod.string().nullish(),
+  defaultChannels: zod.array(zod.enum(["EMAIL", "SMS", "PUSH", "IN_APP"])),
+  audienceRoles: zod.array(zod.string()),
+  isActive: zod.boolean(),
+});
+export const ListNotificationTypesResponse = zod.array(
+  ListNotificationTypesResponseItem,
+);
+
+export const ListMyNotificationPreferencesResponseItem = zod.object({
+  notificationTypeId: zod.string(),
+  channels: zod.array(zod.enum(["EMAIL", "SMS", "PUSH", "IN_APP"])),
+  quietHoursStart: zod.string().nullish(),
+  quietHoursEnd: zod.string().nullish(),
+  timezone: zod.string().nullish(),
+  enabled: zod.boolean(),
+});
+export const ListMyNotificationPreferencesResponse = zod.array(
+  ListMyNotificationPreferencesResponseItem,
+);
+
+export const UpdateMyNotificationPreferencesBodyItem = zod.object({
+  notificationTypeId: zod.string(),
+  channels: zod.array(zod.enum(["EMAIL", "SMS", "PUSH", "IN_APP"])),
+  quietHoursStart: zod.string().optional(),
+  quietHoursEnd: zod.string().optional(),
+  timezone: zod.string().optional(),
+  enabled: zod.boolean(),
+});
+export const UpdateMyNotificationPreferencesBody = zod.array(
+  UpdateMyNotificationPreferencesBodyItem,
+);
+
+export const UpdateMyNotificationPreferencesResponseItem = zod.object({
+  notificationTypeId: zod.string(),
+  channels: zod.array(zod.enum(["EMAIL", "SMS", "PUSH", "IN_APP"])),
+  quietHoursStart: zod.string().nullish(),
+  quietHoursEnd: zod.string().nullish(),
+  timezone: zod.string().nullish(),
+  enabled: zod.boolean(),
+});
+export const UpdateMyNotificationPreferencesResponse = zod.array(
+  UpdateMyNotificationPreferencesResponseItem,
+);
+
+export const RegisterPushSubscriptionBody = zod.object({
+  endpoint: zod.string(),
+  p256dh: zod.string(),
+  auth: zod.string(),
+  userAgent: zod.string().optional(),
+});
+
+export const GetVapidPublicKeyResponse = zod.object({
+  publicKey: zod.string().nullable(),
+});
+
+export const ListAgentRunsQueryParams = zod.object({
+  agentName: zod.coerce.string().optional(),
+  status: zod.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]).optional(),
+});
+
+export const ListAgentRunsResponseItem = zod.object({
+  id: zod.string(),
+  agentName: zod.string(),
+  promptVersion: zod.string(),
+  model: zod.string(),
+  status: zod.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]),
+  triggeredBy: zod.string().nullish(),
+  triggerReason: zod.string().nullish(),
+  inputRef: zod.string().nullish(),
+  inputSummary: zod.string().nullish(),
+  outputRef: zod.string().nullish(),
+  outputSummary: zod.string().nullish(),
+  confidence: zod.number().nullish(),
+  latencyMs: zod.number().nullish(),
+  inputTokens: zod.number().nullish(),
+  outputTokens: zod.number().nullish(),
+  costUsd: zod.number().nullish(),
+  error: zod.string().nullish(),
+  startedAt: zod.coerce.date(),
+  completedAt: zod.coerce.date().nullish(),
+});
+export const ListAgentRunsResponse = zod.array(ListAgentRunsResponseItem);
+
+export const GetAgentRunParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetAgentRunResponse = zod.object({
+  id: zod.string(),
+  agentName: zod.string(),
+  promptVersion: zod.string(),
+  model: zod.string(),
+  status: zod.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]),
+  triggeredBy: zod.string().nullish(),
+  triggerReason: zod.string().nullish(),
+  inputRef: zod.string().nullish(),
+  inputSummary: zod.string().nullish(),
+  outputRef: zod.string().nullish(),
+  outputSummary: zod.string().nullish(),
+  confidence: zod.number().nullish(),
+  latencyMs: zod.number().nullish(),
+  inputTokens: zod.number().nullish(),
+  outputTokens: zod.number().nullish(),
+  costUsd: zod.number().nullish(),
+  error: zod.string().nullish(),
+  startedAt: zod.coerce.date(),
+  completedAt: zod.coerce.date().nullish(),
+});
+
+export const ListAnomalyEventsQueryParams = zod.object({
+  entityType: zod.coerce.string().optional(),
+  resolved: zod.coerce.boolean().optional(),
+});
+
+export const ListAnomalyEventsResponseItem = zod.object({
+  id: zod.string(),
+  entityType: zod.string(),
+  entityId: zod.string(),
+  category: zod.string(),
+  severity: zod.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+  summary: zod.string(),
+  evidence: zod.record(zod.string(), zod.unknown()).optional(),
+  agentRunId: zod.string().nullish(),
+  resolvedAt: zod.coerce.date().nullish(),
+  resolvedBy: zod.string().nullish(),
+  resolutionNotes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListAnomalyEventsResponse = zod.array(
+  ListAnomalyEventsResponseItem,
+);
+
+export const ListReferralDraftsResponseItem = zod.object({
+  id: zod.string(),
+  source: zod.string(),
+  rawContent: zod.string().nullish(),
+  rawAttachmentUrl: zod.string().nullish(),
+  parsedFields: zod.record(zod.string(), zod.unknown()),
+  confidence: zod.number().nullish(),
+  status: zod.enum(["DRAFT", "REVIEW", "ACCEPTED", "REJECTED"]),
+  promotedClientId: zod.string().nullish(),
+  agentRunId: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListReferralDraftsResponse = zod.array(
+  ListReferralDraftsResponseItem,
+);

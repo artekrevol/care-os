@@ -27,6 +27,16 @@ export const caregiversTable = pgTable("caregivers", {
   addressState: text("address_state"),
   homeLat: numeric("home_lat", { precision: 10, scale: 6 }),
   homeLng: numeric("home_lng", { precision: 10, scale: 6 }),
+  userId: varchar("user_id", { length: 64 }),
+  pwaInstalled: boolean("pwa_installed").notNull().default(false),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  compatibilityTags: text("compatibility_tags").array().notNull().default([]),
+  certifications: text("certifications").array().notNull().default([]),
+  preferredRadiusMiles: numeric("preferred_radius_miles", {
+    precision: 5,
+    scale: 1,
+  }),
+  ratingAverage: numeric("rating_average", { precision: 3, scale: 2 }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

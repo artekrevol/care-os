@@ -1,0 +1,19 @@
+{
+  "name": "CareOS Caregiver",
+  "short_name": "CareOS",
+  "description": "CareOS field app for caregivers — visits, tasks, notes, signatures.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

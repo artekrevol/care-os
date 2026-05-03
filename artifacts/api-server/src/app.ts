@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { mountBullBoard } from "./lib/bullBoard";
 
 const app: Express = express();
 
@@ -26,6 +27,10 @@ app.use(
   }),
 );
 app.use(cors());
+
+// BullBoard mounts BEFORE express.json so its internal routes work.
+mountBullBoard(app);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

@@ -574,6 +574,356 @@ export interface OvertimeProjection {
   entries: OvertimeProjectionEntry[];
 }
 
+export type CarePlanStatus =
+  (typeof CarePlanStatus)[keyof typeof CarePlanStatus];
+
+export const CarePlanStatus = {
+  DRAFT: "DRAFT",
+  PENDING_APPROVAL: "PENDING_APPROVAL",
+  ACTIVE: "ACTIVE",
+  ARCHIVED: "ARCHIVED",
+} as const;
+
+export interface CarePlanGoal {
+  id: string;
+  title: string;
+  description?: string;
+  targetMetric?: string;
+}
+
+export interface CarePlanTask {
+  id: string;
+  templateId?: string;
+  category: string;
+  title: string;
+  instructions?: string;
+  frequency?: string;
+  requiresPhoto?: boolean;
+}
+
+export type CarePlanPreferences = { [key: string]: unknown };
+
+export interface CarePlan {
+  id: string;
+  clientId: string;
+  version: number;
+  status: CarePlanStatus;
+  title: string;
+  goals: CarePlanGoal[];
+  tasks: CarePlanTask[];
+  riskFactors: string[];
+  preferences?: CarePlanPreferences;
+  effectiveStart?: string | null;
+  effectiveEnd?: string | null;
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  sourceAgentRunId?: string | null;
+  createdAt: string;
+}
+
+export type CreateCarePlanBodyPreferences = { [key: string]: unknown };
+
+export interface CreateCarePlanBody {
+  clientId: string;
+  title: string;
+  goals?: CarePlanGoal[];
+  tasks?: CarePlanTask[];
+  riskFactors?: string[];
+  preferences?: CreateCarePlanBodyPreferences;
+  sourceAgentRunId?: string;
+}
+
+export interface VisitChecklistTask {
+  taskId: string;
+  title: string;
+  completed: boolean;
+  completedAt?: string | null;
+  photoUrl?: string | null;
+  skippedReason?: string | null;
+}
+
+export interface VisitChecklistInstance {
+  id: string;
+  visitId: string;
+  carePlanId?: string | null;
+  carePlanVersion?: number | null;
+  tasks: VisitChecklistTask[];
+  completedAt?: string | null;
+}
+
+export interface VisitNote {
+  id: string;
+  visitId: string;
+  authorId: string;
+  authorRole: string;
+  body: string;
+  voiceClipUrl?: string | null;
+  aiSummary?: string | null;
+  createdAt: string;
+}
+
+export interface CreateVisitNoteBody {
+  body: string;
+  voiceClipUrl?: string;
+}
+
+export type IncidentSeverity =
+  (typeof IncidentSeverity)[keyof typeof IncidentSeverity];
+
+export const IncidentSeverity = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+  CRITICAL: "CRITICAL",
+} as const;
+
+export interface VisitIncident {
+  id: string;
+  visitId: string;
+  reportedBy: string;
+  severity: IncidentSeverity;
+  category: string;
+  description: string;
+  photoUrls: string[];
+  resolvedAt?: string | null;
+  createdAt: string;
+}
+
+export interface CreateVisitIncidentBody {
+  severity: IncidentSeverity;
+  category: string;
+  description: string;
+  photoUrls?: string[];
+}
+
+export interface VisitSignature {
+  id: string;
+  visitId: string;
+  signerRole: string;
+  signerName: string;
+  signatureSvg?: string | null;
+  signatureImageUrl?: string | null;
+  capturedAt: string;
+  declined: boolean;
+  declinedReason?: string | null;
+}
+
+export interface CreateVisitSignatureBody {
+  signerRole: string;
+  signerName: string;
+  signatureSvg?: string;
+  signatureImageUrl?: string;
+  declined?: boolean;
+  declinedReason?: string;
+}
+
+export type FamilyAccessLevel =
+  (typeof FamilyAccessLevel)[keyof typeof FamilyAccessLevel];
+
+export const FamilyAccessLevel = {
+  VIEWER: "VIEWER",
+  COMMENTER: "COMMENTER",
+  MANAGER: "MANAGER",
+} as const;
+
+export interface FamilyUser {
+  id: string;
+  clientId: string;
+  email: string;
+  phone?: string | null;
+  firstName: string;
+  lastName: string;
+  relationship: string;
+  accessLevel: FamilyAccessLevel;
+  invitedAt?: string | null;
+  acceptedAt?: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface InviteFamilyUserBody {
+  clientId: string;
+  email: string;
+  phone?: string;
+  firstName: string;
+  lastName: string;
+  relationship: string;
+  accessLevel?: FamilyAccessLevel;
+}
+
+export type MessageThreadParticipantsItem = {
+  userId: string;
+  role: string;
+  name: string;
+};
+
+export interface MessageThread {
+  id: string;
+  clientId?: string | null;
+  caregiverId?: string | null;
+  topic: string;
+  subject?: string | null;
+  participants: MessageThreadParticipantsItem[];
+  lastMessageAt?: string | null;
+  closedAt?: string | null;
+  createdAt: string;
+}
+
+export type MessageAttachmentsItem = { [key: string]: unknown };
+
+export interface Message {
+  id: string;
+  threadId: string;
+  authorId: string;
+  authorRole: string;
+  authorName: string;
+  body: string;
+  attachments: MessageAttachmentsItem[];
+  redacted: boolean;
+  readBy: string[];
+  createdAt: string;
+}
+
+export type PostMessageBodyAttachmentsItem = { [key: string]: unknown };
+
+export interface PostMessageBody {
+  body: string;
+  attachments?: PostMessageBodyAttachmentsItem[];
+}
+
+export type NotificationChannel =
+  (typeof NotificationChannel)[keyof typeof NotificationChannel];
+
+export const NotificationChannel = {
+  EMAIL: "EMAIL",
+  SMS: "SMS",
+  PUSH: "PUSH",
+  IN_APP: "IN_APP",
+} as const;
+
+export interface NotificationType {
+  id: string;
+  category: string;
+  label: string;
+  description?: string | null;
+  defaultChannels: NotificationChannel[];
+  audienceRoles: string[];
+  isActive: boolean;
+}
+
+export interface NotificationPreference {
+  notificationTypeId: string;
+  channels: NotificationChannel[];
+  quietHoursStart?: string | null;
+  quietHoursEnd?: string | null;
+  timezone?: string | null;
+  enabled: boolean;
+}
+
+export interface UpdateNotificationPreferenceBody {
+  notificationTypeId: string;
+  channels: NotificationChannel[];
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+  timezone?: string;
+  enabled: boolean;
+}
+
+export interface RegisterPushSubscriptionBody {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string;
+}
+
+export interface VapidPublicKey {
+  publicKey: string | null;
+}
+
+export type AgentRunStatus =
+  (typeof AgentRunStatus)[keyof typeof AgentRunStatus];
+
+export const AgentRunStatus = {
+  PENDING: "PENDING",
+  RUNNING: "RUNNING",
+  SUCCEEDED: "SUCCEEDED",
+  FAILED: "FAILED",
+} as const;
+
+export interface AgentRun {
+  id: string;
+  agentName: string;
+  promptVersion: string;
+  model: string;
+  status: AgentRunStatus;
+  triggeredBy?: string | null;
+  triggerReason?: string | null;
+  inputRef?: string | null;
+  inputSummary?: string | null;
+  outputRef?: string | null;
+  outputSummary?: string | null;
+  confidence?: number | null;
+  latencyMs?: number | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  costUsd?: number | null;
+  error?: string | null;
+  startedAt: string;
+  completedAt?: string | null;
+}
+
+export type AnomalySeverity =
+  (typeof AnomalySeverity)[keyof typeof AnomalySeverity];
+
+export const AnomalySeverity = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+  CRITICAL: "CRITICAL",
+} as const;
+
+export type AnomalyEventEvidence = { [key: string]: unknown };
+
+export interface AnomalyEvent {
+  id: string;
+  entityType: string;
+  entityId: string;
+  category: string;
+  severity: AnomalySeverity;
+  summary: string;
+  evidence?: AnomalyEventEvidence;
+  agentRunId?: string | null;
+  resolvedAt?: string | null;
+  resolvedBy?: string | null;
+  resolutionNotes?: string | null;
+  createdAt: string;
+}
+
+export type ReferralDraftStatus =
+  (typeof ReferralDraftStatus)[keyof typeof ReferralDraftStatus];
+
+export const ReferralDraftStatus = {
+  DRAFT: "DRAFT",
+  REVIEW: "REVIEW",
+  ACCEPTED: "ACCEPTED",
+  REJECTED: "REJECTED",
+} as const;
+
+export type ReferralDraftParsedFields = { [key: string]: unknown };
+
+export interface ReferralDraft {
+  id: string;
+  source: string;
+  rawContent?: string | null;
+  rawAttachmentUrl?: string | null;
+  parsedFields: ReferralDraftParsedFields;
+  confidence?: number | null;
+  status: ReferralDraftStatus;
+  promotedClientId?: string | null;
+  agentRunId?: string | null;
+  createdAt: string;
+}
+
 export type ListClientsParams = {
   status?: ClientStatus;
   search?: string;
@@ -604,4 +954,28 @@ export type ListComplianceAlertsParams = {
 export type ListAuditLogParams = {
   entityType?: string;
   entityId?: string;
+};
+
+export type ListCarePlansParams = {
+  clientId?: string;
+  status?: CarePlanStatus;
+};
+
+export type ListFamilyUsersParams = {
+  clientId?: string;
+};
+
+export type ListMessageThreadsParams = {
+  clientId?: string;
+  caregiverId?: string;
+};
+
+export type ListAgentRunsParams = {
+  agentName?: string;
+  status?: AgentRunStatus;
+};
+
+export type ListAnomalyEventsParams = {
+  entityType?: string;
+  resolved?: boolean;
 };

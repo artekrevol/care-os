@@ -3,6 +3,8 @@ import {
   varchar,
   text,
   date,
+  numeric,
+  boolean,
   timestamp,
 } from "drizzle-orm/pg-core";
 
@@ -27,6 +29,19 @@ export const clientsTable = pgTable("clients", {
   allergies: text("allergies"),
   emergencyContactName: text("emergency_contact_name"),
   emergencyContactPhone: text("emergency_contact_phone"),
+  homeLat: numeric("home_lat", { precision: 10, scale: 6 }),
+  homeLng: numeric("home_lng", { precision: 10, scale: 6 }),
+  geofenceRadiusMeters: numeric("geofence_radius_meters", {
+    precision: 8,
+    scale: 2,
+  }),
+  riskTier: text("risk_tier").notNull().default("STANDARD"),
+  fallRisk: text("fall_risk"),
+  cognitiveStatus: text("cognitive_status"),
+  familyPortalEnabled: boolean("family_portal_enabled")
+    .notNull()
+    .default(false),
+  activeCarePlanId: varchar("active_care_plan_id", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

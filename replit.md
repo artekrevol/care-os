@@ -51,3 +51,60 @@ Each computed entry is stamped with `${state}-${version}` (e.g. `CA-2026.1`) so 
 ## Routes
 
 All under `/api`. See `artifacts/api-server/src/routes/` — files are sliced by domain matching the OpenAPI tag groups. The barrel `routes/index.ts` mounts every router on the shared root.
+
+## Phase 2 Foundation
+
+Phase 2 introduces shared infrastructure for AI agents, real-time collaboration, family portal, messaging, push notifications, and route optimization. All services degrade gracefully when their env vars are absent — the API still boots, and a startup report is logged listing which services are enabled vs disabled.
+
+### `lib/services` (`@workspace/services`)
+
+Submodule entry points (import from `@workspace/services/<name>`):
+
+- `queue` — BullMQ + ioredis; queues only created when Redis is reachable
+- `ai` — Anthropic SDK wrapper (used by `recordAgentRun` cost calc)
+- `ocr` — AWS Textract document analysis
+- `realtime` — Pusher server-side trigger
+- `storage` — Replit Object Storage with HMAC-signed pre-signed upload/read URL helpers (`getPresignedUploadUrl`, `getPresignedReadUrl`, `verifySignedUrl`). The Replit SDK lacks native signed URLs, so these tokens are validated by companion api-server routes that proxy bytes to/from the bucket (route implementation lands in a follow-up slice).
+- `notifications` — Resend (email) + Twilio (SMS) + web-push (push) fan-out
+- `maps` — Google Distance Matrix with `drive_time_cache` read-through and haversine fallback
+
+Server startup calls `logServiceStartupReport()` to print the enabled/disabled matrix.
+
+### Phase 2 schema additions (`lib/db/src/schema`)
+
+New tables: `care_plans`, `task_templates`, `visit_checklist_instances`, `visit_notes`, `visit_incidents`, `visit_signatures`, `family_users`, `message_threads`, `messages`, `notification_types`, `notification_preferences`, `notification_log`, `push_subscriptions`, `agent_runs`, `drive_time_cache`, `compatibility_scores`, `anomaly_events`, `auth_renewal_predictions`, `referral_drafts`.
+
+Extended tables:
+- `clients` — `homeLat/Lng`, `geofenceRadius`, `riskTier`, `fallRisk`, `cognitiveStatus`, `familyPortalEnabled`, `activeCarePlanId`
+- `caregivers` — `userId`, `pwaInstalled`, `lastSeenAt`, `compatibilityTags`, `certifications`, `preferredRadiusMiles`, `ratingAverage`
+- `visits` — `carePlanId`, `carePlanVersion`, `riskScore`, `anomalyFlags`, `offlineSyncedAt`, `clientSignatureId`, `hasIncident`
+- `schedules` — `recurrenceRule`, `parentScheduleId`, `travelMinutesEstimate`, `optimizationRunId`
+
+### Agent run audit
+
+`artifacts/api-server/src/lib/agentRun.ts` provides `startAgentRun` / `completeAgentRun` / `failAgentRun` / `recordAgentRun`. Inputs/outputs are uploaded to object storage; the row stores token counts and an estimated USD cost (Anthropic pricing for Sonnet/Haiku).
+
+### BullBoard
+
+Mounted at `/admin/jobs` (registered in `artifacts/api-server/.replit-artifact/artifact.toml` `services.paths`) behind `ownerGuard`. Auth: `Authorization: Bearer ${ADMIN_BEARER_TOKEN}` is honored in any environment when the env var is set; `X-CareOS-Role: OWNER` is honored only in non-production as a dev convenience. Without either credential the route returns `401`. When no Redis is configured the route returns `503` instead of failing to boot.
+
+### PWA scaffolding
+
+`artifacts/careos/public/manifest.webmanifest` and `sw.js` are placeholders (empty install/activate/fetch/push handlers) wired into `index.html` via `<link rel="manifest">` and Apple/theme meta tags. Service worker registration logic for offline visits ships in a later phase.
+
+### Environment variables (Phase 2)
+
+All of these are optional — missing values disable the corresponding service and log a warning at startup. Set them via the Secrets pane (never write them to code).
+
+| Service           | Variables |
+|-------------------|-----------|
+| Queue (BullMQ)    | `UPSTASH_REDIS_URL` |
+| AI (Anthropic)    | `ANTHROPIC_API_KEY` |
+| OCR (Textract)    | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` |
+| Realtime (Pusher) | `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER` |
+| Object Storage    | `REPLIT_OBJECT_STORE_BUCKET_ID`, `STORAGE_URL_SIGNING_SECRET` (HMAC key for pre-signed upload/read URLs; falls back to a per-process random secret in dev) |
+| Email (Resend)    | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` |
+| SMS (Twilio)      | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` |
+| Web Push          | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` |
+| Maps              | `GOOGLE_MAPS_API_KEY` |
+| Admin             | `ADMIN_BEARER_TOKEN` (alternative to the `X-CareOS-Role: OWNER` header for `/admin/jobs`) |

@@ -5,6 +5,7 @@ import {
   numeric,
   boolean,
   integer,
+  jsonb,
   timestamp,
 } from "drizzle-orm/pg-core";
 
@@ -29,6 +30,13 @@ export const visitsTable = pgTable("visits", {
   verificationStatus: text("verification_status").notNull().default("PENDING"),
   exceptionReason: text("exception_reason"),
   geoFenceMatch: boolean("geo_fence_match").notNull().default(true),
+  carePlanId: varchar("care_plan_id", { length: 64 }),
+  carePlanVersion: integer("care_plan_version"),
+  riskScore: numeric("risk_score", { precision: 4, scale: 3 }),
+  anomalyFlags: jsonb("anomaly_flags").notNull().default([]),
+  offlineSyncedAt: timestamp("offline_synced_at", { withTimezone: true }),
+  clientSignatureId: varchar("client_signature_id", { length: 64 }),
+  hasIncident: boolean("has_incident").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

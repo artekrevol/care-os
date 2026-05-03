@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seed } from "./lib/seed";
+import { logServiceStartupReport } from "@workspace/services";
 
 const rawPort = process.env["PORT"];
 
@@ -17,6 +18,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function main() {
+  logServiceStartupReport();
   try {
     await seed();
   } catch (err) {

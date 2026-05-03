@@ -20,6 +20,14 @@ tags:
   - name: rules
   - name: alerts
   - name: audit
+  - name: care-plans
+  - name: visit-artifacts
+  - name: family
+  - name: messaging
+  - name: notifications
+  - name: agent-runs
+  - name: intelligence
+  - name: referrals
 paths:
   /healthz:
     get:
@@ -715,6 +723,441 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AuditLogEntry"
+
+  /care-plans:
+    get:
+      operationId: listCarePlans
+      tags: [care-plans]
+      parameters:
+        - in: query
+          name: clientId
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/CarePlanStatus"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CarePlan"
+    post:
+      operationId: createCarePlan
+      tags: [care-plans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCarePlanBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlan"
+
+  /care-plans/{id}:
+    get:
+      operationId: getCarePlan
+      tags: [care-plans]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlan"
+
+  /care-plans/{id}/approve:
+    post:
+      operationId: approveCarePlan
+      tags: [care-plans]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlan"
+
+  /visits/{id}/checklist:
+    get:
+      operationId: getVisitChecklist
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitChecklistInstance"
+
+  /visits/{id}/notes:
+    get:
+      operationId: listVisitNotes
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VisitNote"
+    post:
+      operationId: createVisitNote
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVisitNoteBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitNote"
+
+  /visits/{id}/incidents:
+    post:
+      operationId: createVisitIncident
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVisitIncidentBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitIncident"
+
+  /visits/{id}/signatures:
+    post:
+      operationId: createVisitSignature
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVisitSignatureBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitSignature"
+
+  /family-users:
+    get:
+      operationId: listFamilyUsers
+      tags: [family]
+      parameters:
+        - in: query
+          name: clientId
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FamilyUser"
+    post:
+      operationId: inviteFamilyUser
+      tags: [family]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteFamilyUserBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilyUser"
+
+  /message-threads:
+    get:
+      operationId: listMessageThreads
+      tags: [messaging]
+      parameters:
+        - in: query
+          name: clientId
+          schema:
+            type: string
+        - in: query
+          name: caregiverId
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MessageThread"
+
+  /message-threads/{id}/messages:
+    get:
+      operationId: listThreadMessages
+      tags: [messaging]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+    post:
+      operationId: postThreadMessage
+      tags: [messaging]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostMessageBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /notifications/types:
+    get:
+      operationId: listNotificationTypes
+      tags: [notifications]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationType"
+
+  /notifications/preferences:
+    get:
+      operationId: listMyNotificationPreferences
+      tags: [notifications]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationPreference"
+    put:
+      operationId: updateMyNotificationPreferences
+      tags: [notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/UpdateNotificationPreferenceBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationPreference"
+
+  /notifications/push/subscribe:
+    post:
+      operationId: registerPushSubscription
+      tags: [notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPushSubscriptionBody"
+      responses:
+        "204":
+          description: Registered
+
+  /notifications/push/vapid-public-key:
+    get:
+      operationId: getVapidPublicKey
+      tags: [notifications]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapidPublicKey"
+
+  /agent-runs:
+    get:
+      operationId: listAgentRuns
+      tags: [agent-runs]
+      parameters:
+        - in: query
+          name: agentName
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/AgentRunStatus"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentRun"
+
+  /agent-runs/{id}:
+    get:
+      operationId: getAgentRun
+      tags: [agent-runs]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRun"
+
+  /anomaly-events:
+    get:
+      operationId: listAnomalyEvents
+      tags: [intelligence]
+      parameters:
+        - in: query
+          name: entityType
+          schema:
+            type: string
+        - in: query
+          name: resolved
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnomalyEvent"
+
+  /referral-drafts:
+    get:
+      operationId: listReferralDrafts
+      tags: [referrals]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReferralDraft"
 
 components:
   schemas:
@@ -1498,3 +1941,429 @@ components:
           totalOvertimeCost,
           entries,
         ]
+
+    CarePlanStatus:
+      type: string
+      enum: [DRAFT, PENDING_APPROVAL, ACTIVE, ARCHIVED]
+
+    CarePlanGoal:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string }
+        targetMetric: { type: string }
+      required: [id, title]
+
+    CarePlanTask:
+      type: object
+      properties:
+        id: { type: string }
+        templateId: { type: string }
+        category: { type: string }
+        title: { type: string }
+        instructions: { type: string }
+        frequency: { type: string }
+        requiresPhoto: { type: boolean }
+      required: [id, category, title]
+
+    CarePlan:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        version: { type: integer }
+        status:
+          $ref: "#/components/schemas/CarePlanStatus"
+        title: { type: string }
+        goals:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarePlanGoal"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarePlanTask"
+        riskFactors:
+          type: array
+          items: { type: string }
+        preferences:
+          type: object
+          additionalProperties: true
+        effectiveStart:
+          { type: string, format: date-time, nullable: true }
+        effectiveEnd:
+          { type: string, format: date-time, nullable: true }
+        approvedBy: { type: string, nullable: true }
+        approvedAt:
+          { type: string, format: date-time, nullable: true }
+        sourceAgentRunId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required:
+        [id, clientId, version, status, title, goals, tasks, riskFactors, createdAt]
+
+    CreateCarePlanBody:
+      type: object
+      properties:
+        clientId: { type: string }
+        title: { type: string }
+        goals:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarePlanGoal"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarePlanTask"
+        riskFactors:
+          type: array
+          items: { type: string }
+        preferences:
+          type: object
+          additionalProperties: true
+        sourceAgentRunId: { type: string }
+      required: [clientId, title]
+
+    VisitChecklistTask:
+      type: object
+      properties:
+        taskId: { type: string }
+        title: { type: string }
+        completed: { type: boolean }
+        completedAt:
+          { type: string, format: date-time, nullable: true }
+        photoUrl: { type: string, nullable: true }
+        skippedReason: { type: string, nullable: true }
+      required: [taskId, title, completed]
+
+    VisitChecklistInstance:
+      type: object
+      properties:
+        id: { type: string }
+        visitId: { type: string }
+        carePlanId: { type: string, nullable: true }
+        carePlanVersion: { type: integer, nullable: true }
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisitChecklistTask"
+        completedAt:
+          { type: string, format: date-time, nullable: true }
+      required: [id, visitId, tasks]
+
+    VisitNote:
+      type: object
+      properties:
+        id: { type: string }
+        visitId: { type: string }
+        authorId: { type: string }
+        authorRole: { type: string }
+        body: { type: string }
+        voiceClipUrl: { type: string, nullable: true }
+        aiSummary: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, visitId, authorId, authorRole, body, createdAt]
+
+    CreateVisitNoteBody:
+      type: object
+      properties:
+        body: { type: string }
+        voiceClipUrl: { type: string }
+      required: [body]
+
+    IncidentSeverity:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    VisitIncident:
+      type: object
+      properties:
+        id: { type: string }
+        visitId: { type: string }
+        reportedBy: { type: string }
+        severity:
+          $ref: "#/components/schemas/IncidentSeverity"
+        category: { type: string }
+        description: { type: string }
+        photoUrls:
+          type: array
+          items: { type: string }
+        resolvedAt:
+          { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required:
+        [id, visitId, reportedBy, severity, category, description, photoUrls, createdAt]
+
+    CreateVisitIncidentBody:
+      type: object
+      properties:
+        severity:
+          $ref: "#/components/schemas/IncidentSeverity"
+        category: { type: string }
+        description: { type: string }
+        photoUrls:
+          type: array
+          items: { type: string }
+      required: [severity, category, description]
+
+    VisitSignature:
+      type: object
+      properties:
+        id: { type: string }
+        visitId: { type: string }
+        signerRole: { type: string }
+        signerName: { type: string }
+        signatureSvg: { type: string, nullable: true }
+        signatureImageUrl: { type: string, nullable: true }
+        capturedAt: { type: string, format: date-time }
+        declined: { type: boolean }
+        declinedReason: { type: string, nullable: true }
+      required: [id, visitId, signerRole, signerName, capturedAt, declined]
+
+    CreateVisitSignatureBody:
+      type: object
+      properties:
+        signerRole: { type: string }
+        signerName: { type: string }
+        signatureSvg: { type: string }
+        signatureImageUrl: { type: string }
+        declined: { type: boolean }
+        declinedReason: { type: string }
+      required: [signerRole, signerName]
+
+    FamilyAccessLevel:
+      type: string
+      enum: [VIEWER, COMMENTER, MANAGER]
+
+    FamilyUser:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string }
+        email: { type: string }
+        phone: { type: string, nullable: true }
+        firstName: { type: string }
+        lastName: { type: string }
+        relationship: { type: string }
+        accessLevel:
+          $ref: "#/components/schemas/FamilyAccessLevel"
+        invitedAt:
+          { type: string, format: date-time, nullable: true }
+        acceptedAt:
+          { type: string, format: date-time, nullable: true }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+      required:
+        [id, clientId, email, firstName, lastName, relationship, accessLevel, isActive, createdAt]
+
+    InviteFamilyUserBody:
+      type: object
+      properties:
+        clientId: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        relationship: { type: string }
+        accessLevel:
+          $ref: "#/components/schemas/FamilyAccessLevel"
+      required: [clientId, email, firstName, lastName, relationship]
+
+    MessageThread:
+      type: object
+      properties:
+        id: { type: string }
+        clientId: { type: string, nullable: true }
+        caregiverId: { type: string, nullable: true }
+        topic: { type: string }
+        subject: { type: string, nullable: true }
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              userId: { type: string }
+              role: { type: string }
+              name: { type: string }
+            required: [userId, role, name]
+        lastMessageAt:
+          { type: string, format: date-time, nullable: true }
+        closedAt:
+          { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, topic, participants, createdAt]
+
+    Message:
+      type: object
+      properties:
+        id: { type: string }
+        threadId: { type: string }
+        authorId: { type: string }
+        authorRole: { type: string }
+        authorName: { type: string }
+        body: { type: string }
+        attachments:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        redacted: { type: boolean }
+        readBy:
+          type: array
+          items: { type: string }
+        createdAt: { type: string, format: date-time }
+      required:
+        [id, threadId, authorId, authorRole, authorName, body, attachments, redacted, readBy, createdAt]
+
+    PostMessageBody:
+      type: object
+      properties:
+        body: { type: string }
+        attachments:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required: [body]
+
+    NotificationChannel:
+      type: string
+      enum: [EMAIL, SMS, PUSH, IN_APP]
+
+    NotificationType:
+      type: object
+      properties:
+        id: { type: string }
+        category: { type: string }
+        label: { type: string }
+        description: { type: string, nullable: true }
+        defaultChannels:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationChannel"
+        audienceRoles:
+          type: array
+          items: { type: string }
+        isActive: { type: boolean }
+      required: [id, category, label, defaultChannels, audienceRoles, isActive]
+
+    NotificationPreference:
+      type: object
+      properties:
+        notificationTypeId: { type: string }
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationChannel"
+        quietHoursStart: { type: string, nullable: true }
+        quietHoursEnd: { type: string, nullable: true }
+        timezone: { type: string, nullable: true }
+        enabled: { type: boolean }
+      required: [notificationTypeId, channels, enabled]
+
+    UpdateNotificationPreferenceBody:
+      type: object
+      properties:
+        notificationTypeId: { type: string }
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationChannel"
+        quietHoursStart: { type: string }
+        quietHoursEnd: { type: string }
+        timezone: { type: string }
+        enabled: { type: boolean }
+      required: [notificationTypeId, channels, enabled]
+
+    RegisterPushSubscriptionBody:
+      type: object
+      properties:
+        endpoint: { type: string }
+        p256dh: { type: string }
+        auth: { type: string }
+        userAgent: { type: string }
+      required: [endpoint, p256dh, auth]
+
+    VapidPublicKey:
+      type: object
+      properties:
+        publicKey: { type: string, nullable: true }
+      required: [publicKey]
+
+    AgentRunStatus:
+      type: string
+      enum: [PENDING, RUNNING, SUCCEEDED, FAILED]
+
+    AgentRun:
+      type: object
+      properties:
+        id: { type: string }
+        agentName: { type: string }
+        promptVersion: { type: string }
+        model: { type: string }
+        status:
+          $ref: "#/components/schemas/AgentRunStatus"
+        triggeredBy: { type: string, nullable: true }
+        triggerReason: { type: string, nullable: true }
+        inputRef: { type: string, nullable: true }
+        inputSummary: { type: string, nullable: true }
+        outputRef: { type: string, nullable: true }
+        outputSummary: { type: string, nullable: true }
+        confidence: { type: number, nullable: true }
+        latencyMs: { type: integer, nullable: true }
+        inputTokens: { type: integer, nullable: true }
+        outputTokens: { type: integer, nullable: true }
+        costUsd: { type: number, nullable: true }
+        error: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time }
+        completedAt:
+          { type: string, format: date-time, nullable: true }
+      required: [id, agentName, promptVersion, model, status, startedAt]
+
+    AnomalySeverity:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    AnomalyEvent:
+      type: object
+      properties:
+        id: { type: string }
+        entityType: { type: string }
+        entityId: { type: string }
+        category: { type: string }
+        severity:
+          $ref: "#/components/schemas/AnomalySeverity"
+        summary: { type: string }
+        evidence:
+          type: object
+          additionalProperties: true
+        agentRunId: { type: string, nullable: true }
+        resolvedAt:
+          { type: string, format: date-time, nullable: true }
+        resolvedBy: { type: string, nullable: true }
+        resolutionNotes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required:
+        [id, entityType, entityId, category, severity, summary, createdAt]
+
+    ReferralDraftStatus:
+      type: string
+      enum: [DRAFT, REVIEW, ACCEPTED, REJECTED]
+
+    ReferralDraft:
+      type: object
+      properties:
+        id: { type: string }
+        source: { type: string }
+        rawContent: { type: string, nullable: true }
+        rawAttachmentUrl: { type: string, nullable: true }
+        parsedFields:
+          type: object
+          additionalProperties: true
+        confidence: { type: number, nullable: true }
+        status:
+          $ref: "#/components/schemas/ReferralDraftStatus"
+        promotedClientId: { type: string, nullable: true }
+        agentRunId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+      required: [id, source, parsedFields, status, createdAt]

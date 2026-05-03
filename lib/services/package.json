@@ -1,0 +1,38 @@
+{
+  "name": "@workspace/services",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./queue": "./src/queue/index.ts",
+    "./ai": "./src/ai/index.ts",
+    "./ocr": "./src/ocr/index.ts",
+    "./realtime": "./src/realtime/index.ts",
+    "./storage": "./src/storage/index.ts",
+    "./notifications": "./src/notifications/index.ts",
+    "./maps": "./src/maps/index.ts",
+    "./env": "./src/env.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.1",
+    "@aws-sdk/client-textract": "^3.700.0",
+    "@bull-board/api": "^6.7.7",
+    "@bull-board/express": "^6.7.7",
+    "@googlemaps/google-maps-services-js": "^3.4.0",
+    "@replit/object-storage": "^1.0.0",
+    "@workspace/db": "workspace:*",
+    "bullmq": "^5.34.0",
+    "drizzle-orm": "catalog:",
+    "ioredis": "^5.4.1",
+    "pino": "^9",
+    "pusher": "^5.2.0",
+    "resend": "^4.0.0",
+    "twilio": "^5.4.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/web-push": "^3.6.4"
+  }
+}
