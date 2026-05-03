@@ -5,8 +5,12 @@ import { Toaster } from "sonner";
 import Login from "@/pages/Login";
 import Schedule from "@/pages/Schedule";
 import Visit from "@/pages/Visit";
+import Profile from "@/pages/Profile";
+import Messages from "@/pages/Messages";
 import { loadSession, clearSession, type Session } from "@/lib/session";
 import { api, type Me } from "@/lib/api";
+import { installAutoFlush } from "@/lib/outbox";
+import { ensurePushSubscription, registerServiceWorker } from "@/lib/push";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -22,13 +26,21 @@ function useAuth(): [AuthState, (s: Session | null) => void] {
   const qc = useQueryClient();
 
   useEffect(() => {
+    void registerServiceWorker();
+    installAutoFlush();
+  }, []);
+
+  useEffect(() => {
     const s = loadSession();
     if (!s) {
       setState({ status: "anon" });
       return;
     }
     api<Me>("/m/me")
-      .then((me) => setState({ status: "authed", session: s, me }))
+      .then((me) => {
+        setState({ status: "authed", session: s, me });
+        void ensurePushSubscription();
+      })
       .catch(() => {
         clearSession();
         setState({ status: "anon" });
@@ -43,7 +55,10 @@ function useAuth(): [AuthState, (s: Session | null) => void] {
       return;
     }
     api<Me>("/m/me")
-      .then((me) => setState({ status: "authed", session: s, me }))
+      .then((me) => {
+        setState({ status: "authed", session: s, me });
+        void ensurePushSubscription();
+      })
       .catch(() => {
         clearSession();
         setState({ status: "anon" });
@@ -87,6 +102,15 @@ function Routes() {
       </Route>
       <Route path="/visit/:id">
         {(params) => <Visit visitId={params.id} me={auth.me} />}
+      </Route>
+      <Route path="/profile">
+        <Profile me={auth.me} onLogout={() => setSession(null)} />
+      </Route>
+      <Route path="/messages/:id">
+        <Messages me={auth.me} />
+      </Route>
+      <Route path="/messages">
+        <Messages me={auth.me} />
       </Route>
       <Route>
         <Redirect to="/" />

@@ -64,7 +64,14 @@ export type ScheduleEntry = {
     state: string | null;
     postalCode: string | null;
     phone: string | null;
+    carePreferences?: string | null;
+    allergies?: string | null;
+    emergencyContactName?: string | null;
+    emergencyContactPhone?: string | null;
   } | null;
+  carePlanTitle?: string | null;
+  carePlanTasks?: Array<{ id: string; label: string }>;
+  visitId?: string | null;
 };
 
 export type ScheduleDay = {

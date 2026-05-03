@@ -24,7 +24,21 @@ export type RealtimeChannel =
   | `agency-${string}-schedule`
   | `agency-${string}-alerts`
   | `client-${string}`
-  | `caregiver-${string}`;
+  | `caregiver-${string}`
+  | `private-thread-${string}`;
+
+/** Sign a Pusher channel-auth request for a private channel. The caller is
+ * responsible for verifying authorization (e.g. confirming the user is a
+ * member of the thread) BEFORE calling this. Returns null when realtime is
+ * not configured (dev fallback). */
+export function authorizeChannel(
+  socketId: string,
+  channel: RealtimeChannel,
+): { auth: string; channel_data?: string } | null {
+  const p = getPusherServer();
+  if (!p) return null;
+  return p.authorizeChannel(socketId, channel);
+}
 
 export async function publish(
   channel: RealtimeChannel,

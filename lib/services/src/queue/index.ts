@@ -22,6 +22,7 @@ export type CareOSJobMap = {
   "compliance.daily-scan": { triggeredBy: string };
   "pay-period.auto-close": { triggeredBy: string };
   "drive-time.refresh": { originId: string; destId: string };
+  "visit.reminder-15min": { triggeredBy: string };
 };
 
 export type QueueName = keyof CareOSJobMap;

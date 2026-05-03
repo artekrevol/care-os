@@ -25,6 +25,7 @@ import {
 import { AGENCY_ID } from "../lib/agency";
 import { newId } from "../lib/ids";
 import { recordAudit } from "../lib/audit";
+import { dispatchNotificationToUsers } from "../lib/notify";
 
 const router: IRouter = Router();
 
@@ -310,6 +311,29 @@ router.post("/visits/:id/verify", async (req, res): Promise<void> => {
     summary: `Visit ${newStatus.toLowerCase()}`,
     afterState: row,
   });
+  if (newStatus === "VERIFIED") {
+    try {
+      const [cg] = await db
+        .select({ userId: caregiversTable.userId })
+        .from(caregiversTable)
+        .where(eq(caregiversTable.id, row.caregiverId))
+        .limit(1);
+      if (cg?.userId) {
+        await dispatchNotificationToUsers({
+          notificationTypeId: "visit.verified",
+          recipients: [{ userId: cg.userId, userRole: "CAREGIVER" }],
+          payload: {
+            subject: "Visit verified",
+            body: `Your visit on ${row.clockInTime?.toISOString().slice(0, 10) ?? ""} was approved.`,
+            url: `/m/`,
+            visitId: row.id,
+          },
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   res.json(VerifyVisitResponse.parse(await format(row)));
 });
 

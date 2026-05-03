@@ -3,13 +3,27 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { LogOut, ChevronRight, MapPin, Clock, RefreshCw, PlayCircle } from "lucide-react";
-import { api, type Me, type ScheduleResponse, type VisitDetail } from "@/lib/api";
+import { api, type Me, type ScheduleEntry, type ScheduleResponse, type VisitDetail } from "@/lib/api";
+import OfflineBanner from "@/components/OfflineBanner";
+import BottomNav from "@/components/BottomNav";
+import { useOnline } from "@/lib/online";
+import { enqueue } from "@/lib/outbox";
+import { prefetchSession } from "@/lib/sync";
+import { db } from "@/lib/db";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 type Props = { me: Me; onLogout: () => void };
 
 export default function Schedule({ me, onLogout }: Props) {
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Session-start prefetch: warm Dexie cache for today + tomorrow's schedule
+  // and the active visit detail so the PWA boots usable when offline.
+  useEffect(() => {
+    void prefetchSession();
+  }, []);
 
   const schedule = useQuery({
     queryKey: ["m", "schedule"],
@@ -44,7 +58,7 @@ export default function Schedule({ me, onLogout }: Props) {
   const activeVisit = active.data?.visit;
 
   return (
-    <div className="min-h-screen safe-bottom">
+    <div className="min-h-screen flex flex-col">
       <header className="safe-top px-5 pb-4 sticky top-0 z-10 bg-[color:var(--color-bg)]/95 backdrop-blur border-b border-[color:var(--color-border)]">
         <div className="flex items-center justify-between pt-2">
           <div>
@@ -71,8 +85,9 @@ export default function Schedule({ me, onLogout }: Props) {
           </div>
         </div>
       </header>
+      <OfflineBanner />
 
-      <main className="px-5 py-5 space-y-6 max-w-md mx-auto">
+      <main className="flex-1 px-5 py-5 space-y-6 max-w-md mx-auto w-full">
         {activeVisit && (
           <Link href={`/visit/${activeVisit.id}`}>
             <a className="block rounded-2xl p-5 bg-gradient-to-br from-[color:var(--color-accent)] to-cyan-600 text-[color:var(--color-accent-fg)] shadow-lg active:scale-[0.99] transition">
@@ -123,6 +138,7 @@ export default function Schedule({ me, onLogout }: Props) {
           ))}
         </Section>
       </main>
+      <BottomNav />
     </div>
   );
 }
@@ -166,7 +182,7 @@ function ScheduleCard({
   entry,
   canStart,
 }: {
-  entry: ScheduleResponse["today"]["entries"][number];
+  entry: ScheduleEntry;
   canStart: boolean;
 }) {
   const start = parseISO(entry.scheduledStart);
@@ -214,7 +230,7 @@ function ScheduleCard({
         </div>
         {status !== "COMPLETED" && status !== "CANCELLED" && (
           <ClockInButton
-            scheduleId={entry.id}
+            entry={entry}
             disabled={!canStart && status !== "IN_PROGRESS"}
           />
         )}
@@ -223,9 +239,54 @@ function ScheduleCard({
   );
 }
 
-function ClockInButton({ scheduleId, disabled }: { scheduleId: string; disabled: boolean }) {
+function genLocalVisitId(): string {
+  return `local_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Build a synthetic VisitDetail for an offline-started visit. The PWA renders
+ * this from Dexie until the queued clock-in syncs and the real visit ID
+ * supplants it.
+ */
+function buildSyntheticVisit(
+  localId: string,
+  entry: ScheduleEntry,
+  occurredAt: string,
+): VisitDetail {
+  return {
+    id: localId,
+    scheduleId: entry.id,
+    clockInTime: occurredAt,
+    clockOutTime: null,
+    durationMinutes: null,
+    verificationStatus: "PENDING",
+    geoFenceMatch: null,
+    hasIncident: false,
+    client: entry.client,
+    carePlan: null,
+    checklist:
+      (entry.carePlanTasks ?? []).length > 0
+        ? {
+            id: `chk_${localId}`,
+            tasks: (entry.carePlanTasks ?? []).map((t) => ({
+              id: t.id,
+              label: t.label,
+              done: false,
+            })),
+            completedAt: null,
+          }
+        : null,
+    notes: [],
+    incidents: [],
+    signature: null,
+  };
+}
+
+function ClockInButton({ entry, disabled }: { entry: ScheduleEntry; disabled: boolean }) {
   const [busy, setBusy] = useState(false);
   const qc = useQueryClient();
+  const online = useOnline();
+  const scheduleId = entry.id;
 
   async function start() {
     setBusy(true);
@@ -250,19 +311,56 @@ function ClockInButton({ scheduleId, disabled }: { scheduleId: string; disabled:
     } catch {
       /* ignore */
     }
+    const occurredAt = new Date().toISOString();
+
+    async function startLocal(reason: "offline" | "error", message: string) {
+      const localId = genLocalVisitId();
+      const synthetic = buildSyntheticVisit(localId, entry, occurredAt);
+      // Cache synthetic detail so /visit/<localId> renders without server.
+      await db.visits.put({
+        visitId: localId,
+        data: synthetic,
+        fetchedAt: Date.now(),
+      });
+      await enqueue({
+        kind: "clock-in",
+        path: "/m/visits/clock-in",
+        method: "POST",
+        body: { scheduleId, ...coords },
+        occurredAt,
+        scheduleId,
+        localVisitId: localId,
+      });
+      if (reason === "offline") {
+        toast.success(message);
+      } else {
+        toast.error(message);
+      }
+      setBusy(false);
+      window.location.assign(`${import.meta.env.BASE_URL}visit/${localId}`);
+    }
+
+    if (!online) {
+      await startLocal(
+        "offline",
+        "Clock-in saved offline — continue your visit, it will sync later",
+      );
+      return;
+    }
     try {
       const v = await api<VisitDetail>("/m/visits/clock-in", {
         method: "POST",
-        body: JSON.stringify({ scheduleId, ...coords }),
+        body: JSON.stringify({ scheduleId, ...coords, occurredAt }),
       });
       await qc.invalidateQueries({ queryKey: ["m"] });
       window.location.assign(`${import.meta.env.BASE_URL}visit/${v.id}`);
     } catch (e) {
-      // Surface error
-      const { toast } = await import("sonner");
-      toast.error(e instanceof Error ? e.message : "Failed to clock in");
-    } finally {
-      setBusy(false);
+      await startLocal(
+        "error",
+        e instanceof Error
+          ? `${e.message} — running visit offline, will sync later`
+          : "Server unreachable — running visit offline, will sync later",
+      );
     }
   }
 

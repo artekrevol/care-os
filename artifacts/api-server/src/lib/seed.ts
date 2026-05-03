@@ -1196,6 +1196,39 @@ async function seedNotificationTypes(): Promise<void> {
       defaultChannels: ["EMAIL"],
       audienceRoles: ["FAMILY"],
     },
+    {
+      id: "visit.reminder_15min",
+      category: "VISIT",
+      label: "Visit starting soon",
+      description: "Caregiver reminder 15 minutes before a scheduled visit.",
+      defaultChannels: ["PUSH", "IN_APP"],
+      audienceRoles: ["CAREGIVER"],
+    },
+    {
+      id: "visit.verified",
+      category: "VISIT",
+      label: "Visit verified",
+      description: "A caregiver's visit has been approved by the office.",
+      defaultChannels: ["PUSH", "IN_APP"],
+      audienceRoles: ["CAREGIVER"],
+    },
+    {
+      id: "schedule.changed",
+      category: "SCHEDULE",
+      label: "Schedule changed",
+      description:
+        "An assigned shift was rescheduled or reassigned.",
+      defaultChannels: ["PUSH", "IN_APP"],
+      audienceRoles: ["CAREGIVER"],
+    },
+    {
+      id: "payroll.period_closed",
+      category: "PAYROLL",
+      label: "Pay period closed",
+      description: "A pay period was closed and totals are available.",
+      defaultChannels: ["PUSH", "IN_APP", "EMAIL"],
+      audienceRoles: ["CAREGIVER"],
+    },
   ];
   for (const r of rows) {
     await db.insert(notificationTypesTable).values(r).onConflictDoNothing();

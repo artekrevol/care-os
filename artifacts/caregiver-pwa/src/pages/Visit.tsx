@@ -16,18 +16,71 @@ import {
   Phone,
   ShieldAlert,
   X,
+  CloudOff,
 } from "lucide-react";
 import { api, type Me, type VisitDetail, type ChecklistTask } from "@/lib/api";
+import OfflineBanner from "@/components/OfflineBanner";
+import { mutateOrQueue } from "@/lib/sync";
+import { db } from "@/lib/db";
+import { enqueue, subscribe as subscribeOutbox } from "@/lib/outbox";
+import { useOnline } from "@/lib/online";
 
 type Props = { visitId: string; me: Me };
+
+const isLocalVisitId = (id: string) => id.startsWith("local_");
 
 export default function Visit({ visitId, me }: Props) {
   const [, setLocation] = useLocation();
   const qc = useQueryClient();
+  const local = isLocalVisitId(visitId);
+
+  // Once the queued clock-in syncs, the outbox flusher writes a localId→realId
+  // mapping. Watch for it and seamlessly transition the URL to the real visit.
+  useEffect(() => {
+    if (!local) return;
+    let cancelled = false;
+    async function checkAndRedirect() {
+      const m = await db.idMap.get(visitId);
+      if (m && !cancelled) {
+        window.location.replace(`${import.meta.env.BASE_URL}visit/${m.realId}`);
+      }
+    }
+    void checkAndRedirect();
+    const unsub = subscribeOutbox(() => {
+      void checkAndRedirect();
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [local, visitId]);
+
   const visit = useQuery({
     queryKey: ["m", "visit", visitId],
-    queryFn: () => api<VisitDetail>(`/m/visits/${visitId}`),
-    refetchInterval: 30_000,
+    queryFn: async () => {
+      if (local) {
+        const cached = await db.visits.get(visitId);
+        if (cached) return cached.data as VisitDetail;
+        throw new Error("Offline visit not found");
+      }
+      try {
+        const data = await api<VisitDetail>(`/m/visits/${visitId}`);
+        // Cache for offline reload.
+        await db.visits.put({
+          visitId,
+          data,
+          fetchedAt: Date.now(),
+        });
+        return data;
+      } catch (err) {
+        // Fall back to cached detail if available (e.g. mid-visit offline drop).
+        const cached = await db.visits.get(visitId);
+        if (cached) return cached.data as VisitDetail;
+        throw err;
+      }
+    },
+    refetchInterval: local ? false : 30_000,
+    retry: local ? false : 1,
   });
 
   const [tab, setTab] = useState<"plan" | "notes" | "incidents">("plan");
@@ -77,6 +130,7 @@ export default function Visit({ visitId, me }: Props) {
           </div>
         </div>
       </header>
+      <OfflineBanner />
 
       <main className="flex-1 px-4 py-4 space-y-4 max-w-md mx-auto w-full">
         <ClientCard visit={v} />
@@ -102,13 +156,22 @@ export default function Visit({ visitId, me }: Props) {
           ))}
         </div>
 
-        {tab === "plan" && <PlanTab visit={v} disabled={completed} onChange={() => qc.invalidateQueries({ queryKey: ["m", "visit", visitId] })} />}
-        {tab === "notes" && <NotesTab visit={v} disabled={completed} onChange={() => qc.invalidateQueries({ queryKey: ["m", "visit", visitId] })} />}
-        {tab === "incidents" && <IncidentsTab visit={v} disabled={completed} onChange={() => qc.invalidateQueries({ queryKey: ["m", "visit", visitId] })} />}
+        {local && (
+          <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-200 flex items-start gap-2">
+            <CloudOff className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>
+              Running offline — your work is being saved on this device and
+              will sync to the office when you're back online.
+            </span>
+          </div>
+        )}
+        {tab === "plan" && <PlanTab visit={v} localVisitId={local ? visitId : undefined} disabled={completed} onChange={() => qc.invalidateQueries({ queryKey: ["m", "visit", visitId] })} />}
+        {tab === "notes" && <NotesTab visit={v} localVisitId={local ? visitId : undefined} disabled={completed} onChange={() => qc.invalidateQueries({ queryKey: ["m", "visit", visitId] })} />}
+        {tab === "incidents" && <IncidentsTab visit={v} localVisitId={local ? visitId : undefined} disabled={completed} onChange={() => qc.invalidateQueries({ queryKey: ["m", "visit", visitId] })} />}
       </main>
 
       {!completed && (
-        <ClockOutBar visit={v} me={me} onDone={() => setLocation("/")} />
+        <ClockOutBar visit={v} me={me} localVisitId={local ? visitId : undefined} onDone={() => setLocation("/")} />
       )}
       {completed && (
         <div className="safe-bottom px-4 py-4 border-t border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
@@ -161,10 +224,12 @@ function ClientCard({ visit }: { visit: VisitDetail }) {
 
 function PlanTab({
   visit,
+  localVisitId,
   disabled,
   onChange,
 }: {
   visit: VisitDetail;
+  localVisitId?: string;
   disabled: boolean;
   onChange: () => void;
 }) {
@@ -182,12 +247,31 @@ function PlanTab({
     if (disabled) return;
     setSaving(true);
     try {
-      await api(`/m/visits/${visit.id}/checklist`, {
+      // Optimistically persist the synthetic visit detail so an offline
+      // reload re-renders the latest checklist state.
+      if (localVisitId) {
+        await db.visits.put({
+          visitId: localVisitId,
+          data: {
+            ...visit,
+            checklist: visit.checklist
+              ? { ...visit.checklist, tasks: next }
+              : { id: `chk_${localVisitId}`, tasks: next, completedAt: null },
+          },
+          fetchedAt: Date.now(),
+        });
+      }
+      const r = await mutateOrQueue({
+        kind: "checklist",
+        path: `/m/visits/${visit.id}/checklist`,
         method: "PUT",
-        body: JSON.stringify({ tasks: next }),
+        body: { tasks: next },
+        visitId: localVisitId ? undefined : visit.id,
+        localVisitId,
       });
+      if (r.queued) toast.message("Saved offline — will sync");
       onChange();
-    } catch (e) {
+    } catch {
       toast.error("Couldn't save checklist");
     } finally {
       setSaving(false);
@@ -332,10 +416,12 @@ function TaskRow({
 
 function NotesTab({
   visit,
+  localVisitId,
   disabled,
   onChange,
 }: {
   visit: VisitDetail;
+  localVisitId?: string;
   disabled: boolean;
   onChange: () => void;
 }) {
@@ -375,19 +461,23 @@ function NotesTab({
     setBusy(true);
     try {
       const b64 = await blobToBase64(blob);
-      await api(`/m/visits/${visit.id}/notes`, {
+      const r = await mutateOrQueue({
+        kind: "note",
+        path: `/m/visits/${visit.id}/notes`,
         method: "POST",
-        body: JSON.stringify({
+        body: {
           body: body || undefined,
           voiceClipBase64: b64,
           voiceClipMime: mime,
           autoTranscribe: true,
-        }),
+        },
+        visitId: localVisitId ? undefined : visit.id,
+        localVisitId,
       });
       setBody("");
       onChange();
-      toast.success("Voice note saved");
-    } catch (e) {
+      toast.success(r.queued ? "Voice note saved offline" : "Voice note saved");
+    } catch {
       toast.error("Couldn't save voice note");
     } finally {
       setBusy(false);
@@ -398,12 +488,17 @@ function NotesTab({
     if (!body.trim()) return;
     setBusy(true);
     try {
-      await api(`/m/visits/${visit.id}/notes`, {
+      const r = await mutateOrQueue({
+        kind: "note",
+        path: `/m/visits/${visit.id}/notes`,
         method: "POST",
-        body: JSON.stringify({ body }),
+        body: { body },
+        visitId: localVisitId ? undefined : visit.id,
+        localVisitId,
       });
       setBody("");
       onChange();
+      if (r.queued) toast.message("Note saved offline — will sync");
     } catch {
       toast.error("Couldn't save note");
     } finally {
@@ -472,10 +567,12 @@ function NotesTab({
 
 function IncidentsTab({
   visit,
+  localVisitId,
   disabled,
   onChange,
 }: {
   visit: VisitDetail;
+  localVisitId?: string;
   disabled: boolean;
   onChange: () => void;
 }) {
@@ -547,6 +644,7 @@ function IncidentsTab({
       {open && (
         <IncidentSheet
           visitId={visit.id}
+          localVisitId={localVisitId}
           category={open}
           defaultSeverity={QUICK.find((q) => q.cat === open)?.severity ?? "MEDIUM"}
           onClose={() => setOpen(null)}
@@ -562,12 +660,14 @@ function IncidentsTab({
 
 function IncidentSheet({
   visitId,
+  localVisitId,
   category,
   defaultSeverity,
   onClose,
   onSaved,
 }: {
   visitId: string;
+  localVisitId?: string;
   category: string;
   defaultSeverity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
   onClose: () => void;
@@ -586,18 +686,17 @@ function IncidentSheet({
     }
     setBusy(true);
     try {
-      await api(`/m/visits/${visitId}/incidents`, {
+      const r = await mutateOrQueue({
+        kind: "incident",
+        path: `/m/visits/${visitId}/incidents`,
         method: "POST",
-        body: JSON.stringify({
-          severity,
-          category,
-          description,
-          photoBase64s: photos,
-        }),
+        body: { severity, category, description, photoBase64s: photos },
+        visitId: localVisitId ? undefined : visitId,
+        localVisitId,
       });
-      toast.success("Incident reported");
+      toast.success(r.queued ? "Incident saved offline" : "Incident reported");
       onSaved();
-    } catch (e) {
+    } catch {
       toast.error("Couldn't save incident");
     } finally {
       setBusy(false);
@@ -681,10 +780,12 @@ function IncidentSheet({
 function ClockOutBar({
   visit,
   me,
+  localVisitId,
   onDone,
 }: {
   visit: VisitDetail;
   me: Me;
+  localVisitId?: string;
   onDone: () => void;
 }) {
   const [signing, setSigning] = useState(false);
@@ -703,6 +804,7 @@ function ClockOutBar({
         <ClockOutSheet
           visit={visit}
           me={me}
+          localVisitId={localVisitId}
           onClose={() => setSigning(false)}
           onDone={onDone}
         />
@@ -714,14 +816,17 @@ function ClockOutBar({
 function ClockOutSheet({
   visit,
   me,
+  localVisitId,
   onClose,
   onDone,
 }: {
   visit: VisitDetail;
   me: Me;
+  localVisitId?: string;
   onClose: () => void;
   onDone: () => void;
 }) {
+  const online = useOnline();
   const [signerName, setSignerName] = useState(
     `${visit.client?.firstName ?? ""} ${visit.client?.lastName ?? ""}`.trim(),
   );
@@ -796,44 +901,95 @@ function ClockOutSheet({
       return;
     }
     setBusy(true);
+    const occurredAt = new Date().toISOString();
+    const svg = declined ? null : toSvg();
+    const sigBody = {
+      signerRole,
+      signerName: declined ? me.firstName + " " + me.lastName : signerName,
+      signatureSvg: svg ?? undefined,
+      declined,
+      declinedReason: declined ? declinedReason : undefined,
+    };
+    const coords = await new Promise<{
+      latitude?: number;
+      longitude?: number;
+    }>((resolve) => {
+      if (!navigator.geolocation) return resolve({});
+      navigator.geolocation.getCurrentPosition(
+        (p) =>
+          resolve({
+            latitude: p.coords.latitude,
+            longitude: p.coords.longitude,
+          }),
+        () => resolve({}),
+        { enableHighAccuracy: true, timeout: 8000 },
+      );
+    });
+    const clockOutBody = {
+      ...coords,
+      caregiverNotes: notes || undefined,
+    };
+
+    if (!online || localVisitId) {
+      await enqueue({
+        kind: "signature",
+        path: `/m/visits/${visit.id}/signature`,
+        method: "POST",
+        body: sigBody,
+        occurredAt,
+        visitId: localVisitId ? undefined : visit.id,
+        localVisitId,
+      });
+      await enqueue({
+        kind: "clock-out",
+        path: `/m/visits/${visit.id}/clock-out`,
+        method: "POST",
+        body: clockOutBody,
+        occurredAt,
+        visitId: localVisitId ? undefined : visit.id,
+        localVisitId,
+      });
+      toast.success("Saved offline — will sync when you're back online");
+      setBusy(false);
+      onDone();
+      return;
+    }
+
     try {
-      const svg = declined ? null : toSvg();
       await api(`/m/visits/${visit.id}/signature`, {
         method: "POST",
-        body: JSON.stringify({
-          signerRole,
-          signerName: declined ? me.firstName + " " + me.lastName : signerName,
-          signatureSvg: svg ?? undefined,
-          declined,
-          declinedReason: declined ? declinedReason : undefined,
-        }),
-      });
-      const coords = await new Promise<{
-        latitude?: number;
-        longitude?: number;
-      }>((resolve) => {
-        if (!navigator.geolocation) return resolve({});
-        navigator.geolocation.getCurrentPosition(
-          (p) =>
-            resolve({
-              latitude: p.coords.latitude,
-              longitude: p.coords.longitude,
-            }),
-          () => resolve({}),
-          { enableHighAccuracy: true, timeout: 8000 },
-        );
+        body: JSON.stringify(sigBody),
       });
       await api(`/m/visits/${visit.id}/clock-out`, {
         method: "POST",
-        body: JSON.stringify({
-          ...coords,
-          caregiverNotes: notes || undefined,
-        }),
+        body: JSON.stringify({ ...clockOutBody, occurredAt }),
       });
       toast.success("Visit complete");
       onDone();
     } catch (e) {
-      toast.error("Couldn't clock out");
+      // Likely transient — queue for retry so the caregiver isn't stuck.
+      await enqueue({
+        kind: "signature",
+        path: `/m/visits/${visit.id}/signature`,
+        method: "POST",
+        body: sigBody,
+        occurredAt,
+        visitId: visit.id,
+      });
+      await enqueue({
+        kind: "clock-out",
+        path: `/m/visits/${visit.id}/clock-out`,
+        method: "POST",
+        body: clockOutBody,
+        occurredAt,
+        visitId: visit.id,
+      });
+      toast.error(
+        e instanceof Error
+          ? `${e.message} — queued for retry`
+          : "Couldn't reach server — queued for retry",
+      );
+      onDone();
     } finally {
       setBusy(false);
     }

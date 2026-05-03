@@ -5,6 +5,7 @@ import {
   runAuthRenewalPredictor,
   runDailyComplianceScan,
   autoClosePayPeriods,
+  runVisitReminders,
 } from "./agents";
 
 let started = false;
@@ -13,6 +14,7 @@ const ANOMALY_REPEAT_KEY = "anomaly-hourly";
 const PREDICT_REPEAT_KEY = "predict-daily";
 const COMPLIANCE_REPEAT_KEY = "compliance-daily";
 const PAYPERIOD_REPEAT_KEY = "pay-period-daily";
+const VISIT_REMINDER_REPEAT_KEY = "visit-reminder-5min";
 
 function attachErrorHandler(name: string, emitter: { on: (e: string, cb: (err: unknown) => void) => unknown } | null | undefined): void {
   if (!emitter) return;
@@ -68,6 +70,9 @@ export async function startWorkers(): Promise<void> {
       return r;
     },
   );
+  const reminderW = queue.registerWorker("visit.reminder-15min", async () => {
+    return await runVisitReminders();
+  });
 
   // Always attach error handlers so a misconfigured Redis (e.g. WRONGPASS) does
   // not crash the API server via unhandled 'error' events on Queue/Worker.
@@ -75,15 +80,18 @@ export async function startWorkers(): Promise<void> {
   attachErrorHandler("predict.worker", predictW);
   attachErrorHandler("compliance.worker", complianceW);
   attachErrorHandler("payperiod.worker", payPeriodW);
+  attachErrorHandler("reminder.worker", reminderW);
 
   const anomalyQ = queue.getQueue("anomaly.scan-all");
   const predictQ = queue.getQueue("auth.predict-renewals-all");
   const complianceQ = queue.getQueue("compliance.daily-scan");
   const payPeriodQ = queue.getQueue("pay-period.auto-close");
+  const reminderQ = queue.getQueue("visit.reminder-15min");
   attachErrorHandler("anomaly.queue", anomalyQ);
   attachErrorHandler("predict.queue", predictQ);
   attachErrorHandler("compliance.queue", complianceQ);
   attachErrorHandler("payperiod.queue", payPeriodQ);
+  attachErrorHandler("reminder.queue", reminderQ);
 
   if (!anomalyW || !predictW || !complianceW || !payPeriodW) {
     logger.warn(
@@ -98,6 +106,8 @@ export async function startWorkers(): Promise<void> {
   safeAddRepeat(predictQ, "auth.predict-renewals-all", { triggeredBy: "cron" }, "15 6 * * *", PREDICT_REPEAT_KEY);
   safeAddRepeat(complianceQ, "compliance.daily-scan", { triggeredBy: "cron" }, "30 6 * * *", COMPLIANCE_REPEAT_KEY);
   safeAddRepeat(payPeriodQ, "pay-period.auto-close", { triggeredBy: "cron" }, "45 7 * * *", PAYPERIOD_REPEAT_KEY);
+  // Every 5 minutes: scan for shifts starting in ~15 minutes and remind the caregiver.
+  safeAddRepeat(reminderQ, "visit.reminder-15min", { triggeredBy: "cron" }, "*/5 * * * *", VISIT_REMINDER_REPEAT_KEY);
 
   logger.info("Background intelligence workers started with cron schedules.");
 }

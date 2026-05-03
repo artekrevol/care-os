@@ -20,6 +20,8 @@ import {
   loadFamilyCaller,
   assertFamilyThreadAccess,
 } from "../lib/familyAuth";
+import { realtime } from "@workspace/services";
+import { dispatchNotificationToUsers } from "../lib/notify";
 
 const router: IRouter = Router();
 
@@ -233,6 +235,50 @@ router.post(
       .update(messageThreadsTable)
       .set({ lastMessageAt: now })
       .where(eq(messageThreadsTable.id, thread.id));
+    // Realtime fan-out for live updates on the caregiver PWA. Best-effort.
+    try {
+      await realtime.publish(
+        `private-thread-${thread.id}`,
+        "message.created",
+        formatMessage(row),
+      );
+    } catch {
+      /* ignore */
+    }
+    // Push fallback: when a coordinator/staff posts, dispatch a notification
+    // to every non-author thread participant (CAREGIVER + AGENCY roles only —
+    // family↔caregiver direct messaging is forbidden by product policy).
+    const authorRole = (me?.role ?? authorRoleHeader ?? "AGENCY").toUpperCase();
+    if (authorRole !== "FAMILY") {
+      const authorId = me?.userId ?? authorHeader ?? "anonymous";
+      const recipients = participants
+        .filter(
+          (p) =>
+            p.userId !== authorId &&
+            p.role !== "FAMILY" &&
+            p.role !== "CLIENT" &&
+            p.role !== "GUARDIAN" &&
+            p.role !== "EMERGENCY_CONTACT",
+        )
+        .map((p) => ({ userId: p.userId, userRole: p.role }));
+      if (recipients.length > 0) {
+        try {
+          await dispatchNotificationToUsers({
+            notificationTypeId: "messaging.new_message",
+            recipients,
+            payload: {
+              subject: `New message from ${row.authorName}`,
+              body: row.body.slice(0, 140),
+              url: `/m/messages/${thread.id}`,
+              threadId: thread.id,
+              messageId: row.id,
+            },
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
     res.status(201).json(formatMessage(row));
   },
 );

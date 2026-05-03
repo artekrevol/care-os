@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte, inArray } from "drizzle-orm";
 import {
   db,
   schedulesTable,
@@ -20,6 +20,7 @@ import { queue } from "@workspace/services";
 import { AGENCY_ID } from "../lib/agency";
 import { newId } from "../lib/ids";
 import { recordAudit } from "../lib/audit";
+import { dispatchNotificationToUsers } from "../lib/notify";
 import { startAgentRun, failAgentRun } from "../lib/agentRun";
 import { runScheduleOptimizerJob } from "../lib/scheduleOptimizerWorker";
 import { logger } from "../lib/logger";
@@ -433,6 +434,33 @@ router.patch("/schedules/:id", async (req, res): Promise<void> => {
     beforeState: existing,
     afterState: row,
   });
+  // Notify the affected caregiver(s) when the assignment, time, or status changes.
+  try {
+    const affected = new Set<string>();
+    if (existing.caregiverId) affected.add(existing.caregiverId);
+    if (row.caregiverId) affected.add(row.caregiverId);
+    const cgs = await db
+      .select({ id: caregiversTable.id, userId: caregiversTable.userId })
+      .from(caregiversTable)
+      .where(inArray(caregiversTable.id, Array.from(affected)));
+    const recipients = cgs
+      .filter((c) => c.userId)
+      .map((c) => ({ userId: c.userId as string, userRole: "CAREGIVER" }));
+    if (recipients.length > 0) {
+      await dispatchNotificationToUsers({
+        notificationTypeId: "schedule.changed",
+        recipients,
+        payload: {
+          subject: "Schedule update",
+          body: `Your shift on ${row.startTime.toISOString().slice(0, 10)} has changed`,
+          url: "/m/",
+          scheduleId: row.id,
+        },
+      });
+    }
+  } catch {
+    /* ignore */
+  }
   res.json({ schedule: formatted, conflicts, blocked: false });
 });
 

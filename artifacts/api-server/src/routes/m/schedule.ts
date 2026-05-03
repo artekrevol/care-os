@@ -104,6 +104,14 @@ router.get(
             }
           : null,
         carePlanTitle: plan?.title ?? null,
+        carePlanId: plan?.id ?? null,
+        carePlanVersion: plan?.version ?? null,
+        carePlanTasks: Array.isArray(plan?.tasks)
+          ? (plan.tasks as Array<Record<string, unknown>>).map((t, i) => ({
+              id: String(t.id ?? `t${i}`),
+              label: String(t.title ?? t.label ?? `Task ${i + 1}`),
+            }))
+          : [],
         visitId: v?.id ?? null,
         visitStatus: v?.verificationStatus ?? null,
       };

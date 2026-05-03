@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq, asc, desc } from "drizzle-orm";
+import { and, eq, asc, desc, inArray } from "drizzle-orm";
 import {
   db,
   payPeriodsTable,
@@ -19,6 +19,7 @@ import {
 import { AGENCY_ID } from "../lib/agency";
 import { newId } from "../lib/ids";
 import { recordAudit } from "../lib/audit";
+import { dispatchNotificationToUsers } from "../lib/notify";
 import { applyRule, type RawWorkDay } from "../lib/laborRuleEngine";
 
 const router: IRouter = Router();
@@ -260,6 +261,33 @@ router.post(
       summary: `Pay period ${p.startDate} – ${p.endDate} closed under ${activeRule.state}-${activeRule.version} (${computed.length} entries)`,
       afterState: updated,
     });
+    // Notify caregivers whose entries were finalized in this period.
+    try {
+      const caregiverIds = Array.from(new Set(computed.map((e) => e.caregiverId)));
+      if (caregiverIds.length > 0) {
+        const cgs = await db
+          .select({ id: caregiversTable.id, userId: caregiversTable.userId })
+          .from(caregiversTable)
+          .where(inArray(caregiversTable.id, caregiverIds));
+        const recipients = cgs
+          .filter((c) => c.userId)
+          .map((c) => ({ userId: c.userId as string, userRole: "CAREGIVER" }));
+        if (recipients.length > 0) {
+          await dispatchNotificationToUsers({
+            notificationTypeId: "payroll.period_closed",
+            recipients,
+            payload: {
+              subject: "Pay period closed",
+              body: `Your pay for ${p.startDate} – ${p.endDate} has been finalized.`,
+              url: "/m/profile",
+              payPeriodId: p.id,
+            },
+          });
+        }
+      }
+    } catch {
+      /* ignore */
+    }
 
     res.json(
       ClosePayPeriodResponse.parse({

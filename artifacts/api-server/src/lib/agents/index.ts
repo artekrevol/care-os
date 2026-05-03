@@ -5,3 +5,4 @@ export {
 } from "./authRenewalPredictor";
 export { runDailyComplianceScan } from "./complianceScan";
 export { autoClosePayPeriods } from "./payPeriodAutoClose";
+export { runVisitReminders } from "./visitReminders";

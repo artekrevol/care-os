@@ -62,6 +62,8 @@ export const MClockInBody = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   accuracy: z.number().optional(),
+  occurredAt: z.string().datetime().optional(),
+  clientRequestId: z.string().optional(),
 });
 
 export const MClockOutBody = z.object({
@@ -69,6 +71,8 @@ export const MClockOutBody = z.object({
   longitude: z.number().optional(),
   accuracy: z.number().optional(),
   caregiverNotes: z.string().optional(),
+  occurredAt: z.string().datetime().optional(),
+  clientRequestId: z.string().optional(),
 });
 
 export const MChecklistTask = z.object({
@@ -83,6 +87,8 @@ export const MChecklistTask = z.object({
 export const MSaveChecklistBody = z.object({
   tasks: z.array(MChecklistTask),
   completed: z.boolean().optional(),
+  occurredAt: z.string().datetime().optional(),
+  clientRequestId: z.string().optional(),
 });
 
 export const MCreateNoteBody = z.object({
@@ -90,6 +96,8 @@ export const MCreateNoteBody = z.object({
   voiceClipBase64: z.string().optional(),
   voiceClipMime: z.string().optional(),
   autoTranscribe: z.boolean().optional(),
+  occurredAt: z.string().datetime().optional(),
+  clientRequestId: z.string().optional(),
 });
 
 export const MIncidentSeverity = z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
@@ -98,6 +106,8 @@ export const MCreateIncidentBody = z.object({
   category: z.string(),
   description: z.string(),
   photoBase64s: z.array(z.string()).optional(),
+  occurredAt: z.string().datetime().optional(),
+  clientRequestId: z.string().optional(),
 });
 
 export const MCreateSignatureBody = z.object({
@@ -108,6 +118,8 @@ export const MCreateSignatureBody = z.object({
   longitude: z.number().optional(),
   declined: z.boolean().optional(),
   declinedReason: z.string().optional(),
+  occurredAt: z.string().datetime().optional(),
+  clientRequestId: z.string().optional(),
 });
 
 export const MTranscribeBody = z.object({

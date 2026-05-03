@@ -11,6 +11,8 @@ import {
   visitIncidentsTable,
   visitSignaturesTable,
   complianceAlertsTable,
+  messageThreadsTable,
+  caregiversTable,
 } from "@workspace/db";
 import { M } from "@workspace/api-zod";
 import { AGENCY_ID } from "../../lib/agency";
@@ -234,6 +236,9 @@ router.post(
       .limit(1);
     const plan = plans[0] ?? null;
     const id = newId("vis");
+    const occurred = parsed.data.occurredAt
+      ? new Date(parsed.data.occurredAt)
+      : new Date();
     const [row] = await db
       .insert(visitsTable)
       .values({
@@ -242,12 +247,13 @@ router.post(
         scheduleId: sch.id,
         caregiverId,
         clientId: sch.clientId,
-        clockInTime: new Date(),
+        clockInTime: occurred,
         clockInLat:
           parsed.data.latitude != null ? String(parsed.data.latitude) : null,
         clockInLng:
           parsed.data.longitude != null ? String(parsed.data.longitude) : null,
         clockInMethod: "GPS",
+        offlineSyncedAt: parsed.data.occurredAt ? new Date() : null,
         verificationStatus: "PENDING",
         geoFenceMatch: true,
         carePlanId: plan?.id ?? null,
@@ -285,6 +291,57 @@ router.post(
       summary: "Clock-in (mobile PWA)",
       afterState: row,
     });
+    // Auto-create a per-shift caregiver↔coordinator thread keyed by visit id
+    // so messaging is reliably available without an extra round-trip from
+    // the PWA. Idempotent — uses the same subject convention the messaging
+    // route checks before creating.
+    try {
+      const subject = `visit:${row.id}`;
+      const existing = await db
+        .select()
+        .from(messageThreadsTable)
+        .where(
+          and(
+            eq(messageThreadsTable.agencyId, AGENCY_ID),
+            eq(messageThreadsTable.caregiverId, caregiverId),
+            eq(messageThreadsTable.clientId, sch.clientId),
+            eq(messageThreadsTable.topic, "VISIT"),
+            eq(messageThreadsTable.subject, subject),
+          ),
+        )
+        .limit(1);
+      if (!existing[0]) {
+        const cg = await db
+          .select()
+          .from(caregiversTable)
+          .where(eq(caregiversTable.id, caregiverId))
+          .limit(1);
+        const c = cg[0];
+        await db.insert(messageThreadsTable).values({
+          id: newId("thr"),
+          agencyId: AGENCY_ID,
+          clientId: sch.clientId,
+          caregiverId,
+          topic: "VISIT",
+          subject,
+          participants: [
+            {
+              userId: c?.userId ?? caregiverId,
+              role: "CAREGIVER",
+              name: c ? `${c.firstName} ${c.lastName}` : "Caregiver",
+            },
+            {
+              userId: "agency:coordinator",
+              role: "AGENCY",
+              name: "Care Coordinator",
+            },
+          ],
+        });
+      }
+    } catch (err) {
+      // Thread auto-create is best-effort — don't fail the clock-in.
+      req.log.warn({ err, visitId: row.id }, "auto-create thread failed");
+    }
     const detail = await loadVisitDetail(row.id);
     res.status(201).json(detail);
   },
@@ -337,9 +394,11 @@ router.post(
       res.status(404).json({ error: "not found" });
       return;
     }
-    const now = new Date();
+    const occurred = parsed.data.occurredAt
+      ? new Date(parsed.data.occurredAt)
+      : new Date();
     const dur = v.clockInTime
-      ? Math.round((now.getTime() - v.clockInTime.getTime()) / 60000)
+      ? Math.round((occurred.getTime() - v.clockInTime.getTime()) / 60000)
       : 0;
     const exception = dur > 0 && dur < 30 ? "EXCEPTION" : "PENDING";
     const exceptionReason =
@@ -347,7 +406,7 @@ router.post(
     const [row] = await db
       .update(visitsTable)
       .set({
-        clockOutTime: now,
+        clockOutTime: occurred,
         clockOutLat:
           parsed.data.latitude != null ? String(parsed.data.latitude) : null,
         clockOutLng:
@@ -415,12 +474,15 @@ router.put(
       .from(visitChecklistInstancesTable)
       .where(eq(visitChecklistInstancesTable.visitId, v.id))
       .limit(1);
+    const occurred = parsed.data.occurredAt
+      ? new Date(parsed.data.occurredAt)
+      : new Date();
     if (existing) {
       await db
         .update(visitChecklistInstancesTable)
         .set({
           tasks: parsed.data.tasks,
-          completedAt: parsed.data.completed ? new Date() : existing.completedAt,
+          completedAt: parsed.data.completed ? occurred : existing.completedAt,
         })
         .where(eq(visitChecklistInstancesTable.id, existing.id));
     } else {
@@ -431,7 +493,8 @@ router.put(
         carePlanId: v.carePlanId,
         carePlanVersion: v.carePlanVersion,
         tasks: parsed.data.tasks,
-        completedAt: parsed.data.completed ? new Date() : null,
+        completedAt: parsed.data.completed ? occurred : null,
+        ...(parsed.data.occurredAt ? { createdAt: occurred } : {}),
       });
     }
     await db
@@ -509,6 +572,9 @@ router.post(
       body,
       voiceClipUrl,
       transcribedAt,
+      ...(parsed.data.occurredAt
+        ? { createdAt: new Date(parsed.data.occurredAt) }
+        : {}),
     });
     const detail = await loadVisitDetail(v.id);
     res.json(detail);
@@ -562,6 +628,9 @@ router.post(
       category: parsed.data.category,
       description: parsed.data.description,
       photoUrls,
+      ...(parsed.data.occurredAt
+        ? { createdAt: new Date(parsed.data.occurredAt) }
+        : {}),
     });
     await db
       .update(visitsTable)
@@ -625,6 +694,9 @@ router.post(
         parsed.data.longitude != null ? String(parsed.data.longitude) : null,
       declined: parsed.data.declined ?? false,
       declinedReason: parsed.data.declinedReason ?? null,
+      ...(parsed.data.occurredAt
+        ? { capturedAt: new Date(parsed.data.occurredAt) }
+        : {}),
     });
     await db
       .update(visitsTable)
