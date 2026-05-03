@@ -12,6 +12,7 @@ export * from "./complianceAlerts";
 export * from "./auditLog";
 export * from "./carePlans";
 export * from "./visitArtifacts";
+export * from "./caregiverAuth";
 export * from "./familyUsers";
 export * from "./messaging";
 export * from "./notifications";

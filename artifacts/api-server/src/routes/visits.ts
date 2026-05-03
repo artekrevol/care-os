@@ -59,6 +59,8 @@ async function format(v: typeof visitsTable.$inferSelect) {
     verificationStatus: v.verificationStatus,
     exceptionReason: v.exceptionReason,
     geoFenceMatch: v.geoFenceMatch,
+    hasIncident: v.hasIncident ?? false,
+    clientSignatureId: v.clientSignatureId ?? null,
   };
 }
 

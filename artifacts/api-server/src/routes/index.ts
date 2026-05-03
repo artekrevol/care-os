@@ -18,6 +18,8 @@ import agentRunsRouter from "./agentRuns";
 import familyRouter from "./family";
 import messagingRouter from "./messaging";
 import visitArtifactsRouter from "./visitArtifacts";
+import visitArtifactsAdminRouter from "./visitArtifactsAdmin";
+import mRouter from "./m";
 
 const router: IRouter = Router();
 
@@ -40,5 +42,7 @@ router.use(agentRunsRouter);
 router.use(familyRouter);
 router.use(messagingRouter);
 router.use(visitArtifactsRouter);
+router.use(visitArtifactsAdminRouter);
+router.use(mRouter);
 
 export default router;

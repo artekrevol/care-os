@@ -118,6 +118,8 @@ export interface Visit {
   verificationStatus: VisitVerificationStatus;
   exceptionReason?: string | null;
   geoFenceMatch: boolean;
+  hasIncident: boolean;
+  clientSignatureId?: string | null;
 }
 
 export type ClientDetail = Client & {
@@ -1385,6 +1387,212 @@ export interface UploadClientDocumentBody {
   documentType?: DocumentType | null;
 }
 
+export interface MOk {
+  ok: boolean;
+}
+
+export interface MRequestOtpBody {
+  phone: string;
+}
+
+export interface MRequestOtpResponse {
+  sent: boolean;
+  /** In development without Twilio configured, the OTP is returned for testing. */
+  devCode?: string | null;
+}
+
+export interface MVerifyOtpBody {
+  phone: string;
+  code: string;
+}
+
+export type MOtpChallenge = (typeof MOtpChallenge)[keyof typeof MOtpChallenge];
+
+export const MOtpChallenge = {
+  PIN_REQUIRED: "PIN_REQUIRED",
+  PIN_SETUP_REQUIRED: "PIN_SETUP_REQUIRED",
+} as const;
+
+export interface MVerifyOtpResponse {
+  challenge: MOtpChallenge;
+  otpToken: string;
+  caregiverId: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface MSetPinBody {
+  otpToken: string;
+  /**
+   * @minLength 4
+   * @maxLength 8
+   */
+  pin: string;
+  deviceLabel?: string;
+}
+
+export interface MLoginPinBody {
+  caregiverId: string;
+  pin: string;
+  deviceLabel?: string;
+}
+
+export interface MSession {
+  token: string;
+  expiresAt: string;
+  caregiverId: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface MWebauthnRegisterBody {
+  credentialId: string;
+  publicKey: string;
+  deviceLabel?: string;
+}
+
+export interface MWebauthnLoginBody {
+  caregiverId: string;
+  credentialId: string;
+  signature?: string;
+  deviceLabel?: string;
+}
+
+export interface MMe {
+  caregiverId: string;
+  firstName: string;
+  lastName: string;
+  phone?: string | null;
+  sessionExpiresAt: string;
+  webauthnEnabled: boolean;
+}
+
+export interface MScheduleClient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  addressLine1?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  phone?: string | null;
+  carePreferences?: string | null;
+  allergies?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+}
+
+export interface MScheduleEntry {
+  scheduleId: string;
+  startTime: string;
+  endTime: string;
+  scheduledMinutes: number;
+  serviceCode: string;
+  serviceDescription: string;
+  status: string;
+  notes?: string | null;
+  client: MScheduleClient;
+  carePlanTitle?: string | null;
+  visitId?: string | null;
+  visitStatus?: string | null;
+}
+
+export interface MScheduleDay {
+  date: string;
+  entries: MScheduleEntry[];
+}
+
+export interface MSchedule {
+  days: MScheduleDay[];
+  nextEntry?: MScheduleEntry;
+}
+
+export interface MVisitDetail {
+  id: string;
+  scheduleId?: string | null;
+  clockInTime?: string | null;
+  clockOutTime?: string | null;
+  clockInLat?: number | null;
+  clockInLng?: number | null;
+  durationMinutes?: number | null;
+  verificationStatus: string;
+  geoFenceMatch: boolean;
+  hasIncident: boolean;
+  client: MScheduleClient;
+  carePlan?: CarePlan;
+  checklist?: VisitChecklistInstance;
+  notes: VisitNote[];
+  incidents: VisitIncident[];
+  signature?: VisitSignature;
+}
+
+export interface MActiveVisit {
+  visit?: MVisitDetail;
+}
+
+export interface MClockInBody {
+  scheduleId: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+}
+
+export interface MClockOutBody {
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  caregiverNotes?: string;
+}
+
+export interface MSaveChecklistBody {
+  tasks: VisitChecklistTask[];
+  completed?: boolean;
+}
+
+export interface MCreateNoteBody {
+  body?: string;
+  voiceClipBase64?: string;
+  voiceClipMime?: string;
+  autoTranscribe?: boolean;
+}
+
+export type MIncidentSeverity =
+  (typeof MIncidentSeverity)[keyof typeof MIncidentSeverity];
+
+export const MIncidentSeverity = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+  CRITICAL: "CRITICAL",
+} as const;
+
+export interface MCreateIncidentBody {
+  severity: MIncidentSeverity;
+  category: string;
+  description: string;
+  photoBase64s?: string[];
+}
+
+export interface MCreateSignatureBody {
+  signerRole: string;
+  signerName: string;
+  signatureSvg?: string;
+  latitude?: number;
+  longitude?: number;
+  declined?: boolean;
+  declinedReason?: string;
+}
+
+export interface MTranscribeBody {
+  audioBase64: string;
+  mime?: string;
+}
+
+export interface MTranscribeResponse {
+  transcript: string;
+  provider: string;
+}
+
 export type ListClientsParams = {
   status?: ClientStatus;
   search?: string;
@@ -1550,4 +1758,8 @@ export type ExportAuthorizationPipelineCsvParams = {
 export type ExportAuthorizationPipelinePdfParams = {
   clientId?: string;
   payer?: string;
+};
+
+export type MGetScheduleParams = {
+  days?: number;
 };

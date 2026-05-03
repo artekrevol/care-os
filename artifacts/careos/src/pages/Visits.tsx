@@ -26,7 +26,8 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, MapPin, CheckCircle, XCircle, Pointer, Phone, Smartphone, Hand, KeyRound, ClipboardList, Camera, SkipForward, ImageIcon } from "lucide-react";
+import { Clock, MapPin, CheckCircle, XCircle, Pointer, Phone, Smartphone, Hand, KeyRound, ClipboardList, Camera, SkipForward, ImageIcon, FileText, AlertTriangle, Mic, PenLine, ListChecks, Eye } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Visits() {
   const [statusFilter, setStatusFilter] = useState<VisitVerificationStatus | "">("");
@@ -93,6 +94,7 @@ export default function Visits() {
                   <TableHead>Time (In - Out)</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Details</TableHead>
+                  <TableHead>Artifacts</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Checklist</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -101,11 +103,11 @@ export default function Visits() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading visits...</TableCell>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading visits...</TableCell>
                   </TableRow>
                 ) : visits?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No visits found.</TableCell>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No visits found.</TableCell>
                   </TableRow>
                 ) : (
                   visits?.map((visit) => (
@@ -128,6 +130,9 @@ export default function Visits() {
                             <MapPin className="w-3 h-3" /> {visit.geoFenceMatch ? "Location Match" : "Location Mismatch"}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <ArtifactsCell visitId={visit.id} hasIncident={!!visit.hasIncident} />
                       </TableCell>
                       <TableCell>
                         <Badge variant={
@@ -208,6 +213,7 @@ function VerifyDialog({ visitId, onConfirm, action }: { visitId: string, onConfi
     </Dialog>
   );
 }
+
 
 function ChecklistDialog({ visitId, clientName }: { visitId: string; clientName: string }) {
   const [open, setOpen] = useState(false);
@@ -538,6 +544,144 @@ function ClockMethodBadge({ method }: { method: ClockMethod }) {
     <Badge variant="outline" className={`text-xs ${m.className}`}>
       <Icon className="w-3 h-3 mr-1" /> {m.label}
     </Badge>
+  );
+}
+
+type VisitArtifacts = {
+  checklist: { id: string; tasks: Array<{ id: string; label: string; done: boolean; photoUrl?: string; completedAt?: string }>; completedAt: string | null } | null;
+  notes: Array<{ id: string; authorRole: string; body: string; voiceClipUrl: string | null; createdAt: string }>;
+  incidents: Array<{ id: string; severity: string; category: string; description: string; photoUrls: string[]; createdAt: string }>;
+  signature: { id: string; signerRole: string; signerName: string; signatureSvg: string | null; declined: boolean; declinedReason: string | null; capturedAt: string } | null;
+};
+
+function ArtifactsCell({ visitId, hasIncident }: { visitId: string; hasIncident: boolean }) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading } = useQuery<VisitArtifacts>({
+    queryKey: ["visit-artifacts", visitId],
+    queryFn: async () => {
+      const r = await fetch(`/api/visits/${visitId}/artifacts`);
+      if (!r.ok) throw new Error("failed");
+      return r.json();
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-8 gap-1">
+          <Eye className="w-4 h-4" />
+          {hasIncident && <AlertTriangle className="w-3.5 h-3.5 text-destructive" />}
+          View
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Visit artifacts</DialogTitle>
+        </DialogHeader>
+        {isLoading || !data ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">Loading…</div>
+        ) : (
+          <div className="space-y-5 pt-3">
+            <section>
+              <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2"><ListChecks className="w-4 h-4" /> Care plan checklist</h4>
+              {data.checklist ? (
+                <div className="space-y-1.5">
+                  <div className="text-xs text-muted-foreground">
+                    {data.checklist.tasks.filter((t) => t.done).length}/{data.checklist.tasks.length} complete
+                    {data.checklist.completedAt && ` · finalized ${format(new Date(data.checklist.completedAt), "MMM d, h:mm a")}`}
+                  </div>
+                  {data.checklist.tasks.map((t) => (
+                    <div key={t.id} className="flex items-start gap-2 text-sm">
+                      {t.done ? <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" /> : <XCircle className="w-4 h-4 text-muted-foreground mt-0.5" />}
+                      <span className={t.done ? "" : "text-muted-foreground"}>{t.label}</span>
+                      {t.photoUrl && <img src={t.photoUrl} alt="" className="ml-auto w-10 h-10 rounded object-cover" />}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground">No checklist captured.</div>
+              )}
+            </section>
+
+            <section>
+              <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2"><FileText className="w-4 h-4" /> Notes ({data.notes.length})</h4>
+              {data.notes.length === 0 ? (
+                <div className="text-xs text-muted-foreground">No notes.</div>
+              ) : (
+                <div className="space-y-2">
+                  {data.notes.map((n) => (
+                    <div key={n.id} className="rounded border p-2.5 text-sm">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        {format(new Date(n.createdAt), "MMM d, h:mm a")} · {n.authorRole}
+                      </div>
+                      <div className="whitespace-pre-wrap">{n.body}</div>
+                      {n.voiceClipUrl && (
+                        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Mic className="w-3 h-3" />
+                          <audio controls src={n.voiceClipUrl} className="h-7" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section>
+              <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2"><AlertTriangle className="w-4 h-4" /> Incidents ({data.incidents.length})</h4>
+              {data.incidents.length === 0 ? (
+                <div className="text-xs text-muted-foreground">No incidents reported.</div>
+              ) : (
+                <div className="space-y-2">
+                  {data.incidents.map((i) => (
+                    <div key={i.id} className="rounded border border-destructive/40 bg-destructive/5 p-2.5 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{i.category}</span>
+                        <Badge variant="destructive" className="text-[10px]">{i.severity}</Badge>
+                        <span className="ml-auto text-xs text-muted-foreground">{format(new Date(i.createdAt), "MMM d, h:mm a")}</span>
+                      </div>
+                      <div className="mt-1.5 whitespace-pre-wrap">{i.description}</div>
+                      {i.photoUrls.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {i.photoUrls.map((u, idx) => (
+                            <img key={idx} src={u} alt="" className="w-16 h-16 rounded object-cover" />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section>
+              <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2"><PenLine className="w-4 h-4" /> Client signature</h4>
+              {data.signature ? (
+                data.signature.declined ? (
+                  <div className="text-sm">
+                    <Badge variant="secondary">Declined</Badge>{" "}
+                    <span className="text-muted-foreground">{data.signature.declinedReason}</span>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Signed by {data.signature.signerName} ({data.signature.signerRole}) · {format(new Date(data.signature.capturedAt), "MMM d, h:mm a")}
+                    </div>
+                    {data.signature.signatureSvg && (
+                      <div className="rounded border bg-white p-2 inline-block" dangerouslySetInnerHTML={{ __html: data.signature.signatureSvg }} />
+                    )}
+                  </div>
+                )
+              ) : (
+                <div className="text-xs text-muted-foreground">No signature captured.</div>
+              )}
+            </section>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

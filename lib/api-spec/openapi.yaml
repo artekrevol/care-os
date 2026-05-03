@@ -2060,6 +2060,394 @@ paths:
               schema:
                 $ref: "#/components/schemas/CaregiverDocument"
 
+
+  /m/auth/request-otp:
+    post:
+      operationId: mRequestOtp
+      tags: [mobile]
+      summary: Request SMS OTP for caregiver login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MRequestOtpBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MRequestOtpResponse"
+
+  /m/auth/verify-otp:
+    post:
+      operationId: mVerifyOtp
+      tags: [mobile]
+      summary: Verify OTP and start (or continue) login challenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MVerifyOtpBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MVerifyOtpResponse"
+
+  /m/auth/set-pin:
+    post:
+      operationId: mSetPin
+      tags: [mobile]
+      summary: Set or rotate caregiver PIN, finalize login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MSetPinBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MSession"
+
+  /m/auth/login-pin:
+    post:
+      operationId: mLoginWithPin
+      tags: [mobile]
+      summary: Login with PIN (no SMS) using saved phone hint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MLoginPinBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MSession"
+
+  /m/auth/webauthn/register:
+    post:
+      operationId: mRegisterWebauthn
+      tags: [mobile]
+      summary: Register a WebAuthn credential for the current caregiver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MWebauthnRegisterBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MOk"
+
+  /m/auth/webauthn/login:
+    post:
+      operationId: mLoginWithWebauthn
+      tags: [mobile]
+      summary: Login with WebAuthn credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MWebauthnLoginBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MSession"
+
+  /m/auth/logout:
+    post:
+      operationId: mLogout
+      tags: [mobile]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MOk"
+
+  /m/me:
+    get:
+      operationId: mGetMe
+      tags: [mobile]
+      summary: Current caregiver and session
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MMe"
+
+  /m/schedule:
+    get:
+      operationId: mGetSchedule
+      tags: [mobile]
+      summary: Caregiver's schedule (today + N days)
+      parameters:
+        - in: query
+          name: days
+          schema:
+            type: integer
+            default: 7
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MSchedule"
+
+  /m/visits/active:
+    get:
+      operationId: mGetActiveVisit
+      tags: [mobile]
+      summary: Currently clocked-in visit, if any
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MActiveVisit"
+
+  /m/visits/clock-in:
+    post:
+      operationId: mClockIn
+      tags: [mobile]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MClockInBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MVisitDetail"
+
+  /m/visits/{id}:
+    get:
+      operationId: mGetVisit
+      tags: [mobile]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MVisitDetail"
+
+  /m/visits/{id}/clock-out:
+    post:
+      operationId: mClockOut
+      tags: [mobile]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MClockOutBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MVisitDetail"
+
+  /m/visits/{id}/checklist:
+    put:
+      operationId: mSaveChecklist
+      tags: [mobile]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MSaveChecklistBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitChecklistInstance"
+
+  /m/visits/{id}/notes:
+    post:
+      operationId: mAddVisitNote
+      tags: [mobile]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MCreateNoteBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitNote"
+
+  /m/visits/{id}/incidents:
+    post:
+      operationId: mAddVisitIncident
+      tags: [mobile]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MCreateIncidentBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitIncident"
+
+  /m/visits/{id}/signature:
+    post:
+      operationId: mAddVisitSignature
+      tags: [mobile]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MCreateSignatureBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitSignature"
+
+  /m/transcribe:
+    post:
+      operationId: mTranscribeAudio
+      tags: [mobile]
+      summary: Transcribe an audio clip (base64 encoded)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MTranscribeBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MTranscribeResponse"
+
+  /visits/{id}/incidents-list:
+    get:
+      operationId: listVisitIncidents
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VisitIncident"
+
+  /visits/{id}/signatures-list:
+    get:
+      operationId: listVisitSignatures
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VisitSignature"
+
+
 components:
   schemas:
     HealthStatus:
@@ -2656,6 +3044,8 @@ components:
           $ref: "#/components/schemas/VisitVerificationStatus"
         exceptionReason: { type: string, nullable: true }
         geoFenceMatch: { type: boolean }
+        hasIncident: { type: boolean }
+        clientSignatureId: { type: string, nullable: true }
       required:
         [
           id,
@@ -2667,6 +3057,7 @@ components:
           clockOutMethod,
           tasksCompleted,
           verificationStatus,
+          hasIncident,
           geoFenceMatch,
         ]
 
@@ -3981,3 +4372,279 @@ components:
             - $ref: "#/components/schemas/DocumentType"
           nullable: true
       required: [filename, contentBase64]
+
+    MOk:
+      type: object
+      properties:
+        ok: { type: boolean }
+      required: [ok]
+
+    MRequestOtpBody:
+      type: object
+      properties:
+        phone: { type: string }
+      required: [phone]
+
+    MRequestOtpResponse:
+      type: object
+      properties:
+        sent: { type: boolean }
+        devCode:
+          type: string
+          nullable: true
+          description: In development without Twilio configured, the OTP is returned for testing.
+      required: [sent]
+
+    MVerifyOtpBody:
+      type: object
+      properties:
+        phone: { type: string }
+        code: { type: string }
+      required: [phone, code]
+
+    MOtpChallenge:
+      type: string
+      enum: [PIN_REQUIRED, PIN_SETUP_REQUIRED]
+
+    MVerifyOtpResponse:
+      type: object
+      properties:
+        challenge:
+          $ref: "#/components/schemas/MOtpChallenge"
+        otpToken: { type: string }
+        caregiverId: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+      required: [challenge, otpToken, caregiverId, firstName, lastName]
+
+    MSetPinBody:
+      type: object
+      properties:
+        otpToken: { type: string }
+        pin:
+          type: string
+          minLength: 4
+          maxLength: 8
+        deviceLabel: { type: string }
+      required: [otpToken, pin]
+
+    MLoginPinBody:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        pin: { type: string }
+        deviceLabel: { type: string }
+      required: [caregiverId, pin]
+
+    MSession:
+      type: object
+      properties:
+        token: { type: string }
+        expiresAt: { type: string, format: date-time }
+        caregiverId: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+      required: [token, expiresAt, caregiverId, firstName, lastName]
+
+    MWebauthnRegisterBody:
+      type: object
+      properties:
+        credentialId: { type: string }
+        publicKey: { type: string }
+        deviceLabel: { type: string }
+      required: [credentialId, publicKey]
+
+    MWebauthnLoginBody:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        credentialId: { type: string }
+        signature: { type: string }
+        deviceLabel: { type: string }
+      required: [caregiverId, credentialId]
+
+    MMe:
+      type: object
+      properties:
+        caregiverId: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        phone: { type: string, nullable: true }
+        sessionExpiresAt: { type: string, format: date-time }
+        webauthnEnabled: { type: boolean }
+      required: [caregiverId, firstName, lastName, sessionExpiresAt, webauthnEnabled]
+
+    MScheduleClient:
+      type: object
+      properties:
+        id: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        addressLine1: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        postalCode: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        carePreferences: { type: string, nullable: true }
+        allergies: { type: string, nullable: true }
+        emergencyContactName: { type: string, nullable: true }
+        emergencyContactPhone: { type: string, nullable: true }
+      required: [id, firstName, lastName]
+
+    MScheduleEntry:
+      type: object
+      properties:
+        scheduleId: { type: string }
+        startTime: { type: string, format: date-time }
+        endTime: { type: string, format: date-time }
+        scheduledMinutes: { type: integer }
+        serviceCode: { type: string }
+        serviceDescription: { type: string }
+        status: { type: string }
+        notes: { type: string, nullable: true }
+        client:
+          $ref: "#/components/schemas/MScheduleClient"
+        carePlanTitle: { type: string, nullable: true }
+        visitId: { type: string, nullable: true }
+        visitStatus: { type: string, nullable: true }
+      required:
+        [scheduleId, startTime, endTime, scheduledMinutes, serviceCode, serviceDescription, status, client]
+
+    MScheduleDay:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/MScheduleEntry"
+      required: [date, entries]
+
+    MSchedule:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/MScheduleDay"
+        nextEntry:
+          $ref: "#/components/schemas/MScheduleEntry"
+      required: [days]
+
+    MActiveVisit:
+      type: object
+      properties:
+        visit:
+          $ref: "#/components/schemas/MVisitDetail"
+      required: []
+
+    MVisitDetail:
+      type: object
+      properties:
+        id: { type: string }
+        scheduleId: { type: string, nullable: true }
+        clockInTime: { type: string, format: date-time, nullable: true }
+        clockOutTime: { type: string, format: date-time, nullable: true }
+        clockInLat: { type: number, nullable: true }
+        clockInLng: { type: number, nullable: true }
+        durationMinutes: { type: integer, nullable: true }
+        verificationStatus: { type: string }
+        geoFenceMatch: { type: boolean }
+        hasIncident: { type: boolean }
+        client:
+          $ref: "#/components/schemas/MScheduleClient"
+        carePlan:
+          $ref: "#/components/schemas/CarePlan"
+        checklist:
+          $ref: "#/components/schemas/VisitChecklistInstance"
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisitNote"
+        incidents:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisitIncident"
+        signature:
+          $ref: "#/components/schemas/VisitSignature"
+      required:
+        [id, verificationStatus, geoFenceMatch, hasIncident, client, notes, incidents]
+
+    MClockInBody:
+      type: object
+      properties:
+        scheduleId: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        accuracy: { type: number }
+      required: [scheduleId]
+
+    MClockOutBody:
+      type: object
+      properties:
+        latitude: { type: number }
+        longitude: { type: number }
+        accuracy: { type: number }
+        caregiverNotes: { type: string }
+      required: []
+
+    MSaveChecklistBody:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisitChecklistTask"
+        completed: { type: boolean }
+      required: [tasks]
+
+    MCreateNoteBody:
+      type: object
+      properties:
+        body: { type: string }
+        voiceClipBase64: { type: string }
+        voiceClipMime: { type: string }
+        autoTranscribe: { type: boolean }
+      required: []
+
+    MIncidentSeverity:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    MCreateIncidentBody:
+      type: object
+      properties:
+        severity:
+          $ref: "#/components/schemas/MIncidentSeverity"
+        category: { type: string }
+        description: { type: string }
+        photoBase64s:
+          type: array
+          items: { type: string }
+      required: [severity, category, description]
+
+    MCreateSignatureBody:
+      type: object
+      properties:
+        signerRole: { type: string }
+        signerName: { type: string }
+        signatureSvg: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        declined: { type: boolean }
+        declinedReason: { type: string }
+      required: [signerRole, signerName]
+
+    MTranscribeBody:
+      type: object
+      properties:
+        audioBase64: { type: string }
+        mime: { type: string }
+      required: [audioBase64]
+
+    MTranscribeResponse:
+      type: object
+      properties:
+        transcript: { type: string }
+        provider: { type: string }
+      required: [transcript, provider]

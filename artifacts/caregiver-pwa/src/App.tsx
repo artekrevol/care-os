@@ -1,0 +1,111 @@
+import { useEffect, useState } from "react";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { Toaster } from "sonner";
+import Login from "@/pages/Login";
+import Schedule from "@/pages/Schedule";
+import Visit from "@/pages/Visit";
+import { loadSession, clearSession, type Session } from "@/lib/session";
+import { api, type Me } from "@/lib/api";
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
+
+type AuthState =
+  | { status: "loading" }
+  | { status: "anon" }
+  | { status: "authed"; session: Session; me: Me };
+
+function useAuth(): [AuthState, (s: Session | null) => void] {
+  const [state, setState] = useState<AuthState>({ status: "loading" });
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const s = loadSession();
+    if (!s) {
+      setState({ status: "anon" });
+      return;
+    }
+    api<Me>("/m/me")
+      .then((me) => setState({ status: "authed", session: s, me }))
+      .catch(() => {
+        clearSession();
+        setState({ status: "anon" });
+      });
+  }, []);
+
+  function setSession(s: Session | null) {
+    if (!s) {
+      clearSession();
+      qc.clear();
+      setState({ status: "anon" });
+      return;
+    }
+    api<Me>("/m/me")
+      .then((me) => setState({ status: "authed", session: s, me }))
+      .catch(() => {
+        clearSession();
+        setState({ status: "anon" });
+      });
+  }
+
+  return [state, setSession];
+}
+
+function Routes() {
+  const [auth, setSession] = useAuth();
+
+  if (auth.status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-[color:var(--color-muted)] text-sm">Loading…</div>
+      </div>
+    );
+  }
+
+  if (auth.status === "anon") {
+    return (
+      <Switch>
+        <Route path="/login">
+          <Login onAuthed={setSession} />
+        </Route>
+        <Route>
+          <Redirect to="/login" />
+        </Route>
+      </Switch>
+    );
+  }
+
+  return (
+    <Switch>
+      <Route path="/login">
+        <Redirect to="/" />
+      </Route>
+      <Route path="/" >
+        <Schedule me={auth.me} onLogout={() => setSession(null)} />
+      </Route>
+      <Route path="/visit/:id">
+        {(params) => <Visit visitId={params.id} me={auth.me} />}
+      </Route>
+      <Route>
+        <Redirect to="/" />
+      </Route>
+    </Switch>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <div className="min-h-screen bg-[color:var(--color-bg)] text-[color:var(--color-fg)]">
+          <Routes />
+        </div>
+        <Toaster position="top-center" richColors theme="dark" />
+      </WouterRouter>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

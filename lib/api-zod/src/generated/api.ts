@@ -220,6 +220,8 @@ export const GetClientResponse = zod
           ]),
           exceptionReason: zod.string().nullish(),
           geoFenceMatch: zod.boolean(),
+          hasIncident: zod.boolean(),
+          clientSignatureId: zod.string().nullish(),
         }),
       ),
     }),
@@ -513,6 +515,8 @@ export const GetCaregiverResponse = zod
           ]),
           exceptionReason: zod.string().nullish(),
           geoFenceMatch: zod.boolean(),
+          hasIncident: zod.boolean(),
+          clientSignatureId: zod.string().nullish(),
         }),
       ),
     }),
@@ -929,6 +933,8 @@ export const ListVisitsResponseItem = zod.object({
   ]),
   exceptionReason: zod.string().nullish(),
   geoFenceMatch: zod.boolean(),
+  hasIncident: zod.boolean(),
+  clientSignatureId: zod.string().nullish(),
 });
 export const ListVisitsResponse = zod.array(ListVisitsResponseItem);
 
@@ -974,6 +980,8 @@ export const ClockInResponse = zod.object({
   ]),
   exceptionReason: zod.string().nullish(),
   geoFenceMatch: zod.boolean(),
+  hasIncident: zod.boolean(),
+  clientSignatureId: zod.string().nullish(),
 });
 
 export const ClockOutParams = zod.object({
@@ -1021,6 +1029,8 @@ export const ClockOutResponse = zod.object({
   ]),
   exceptionReason: zod.string().nullish(),
   geoFenceMatch: zod.boolean(),
+  hasIncident: zod.boolean(),
+  clientSignatureId: zod.string().nullish(),
 });
 
 export const VerifyVisitParams = zod.object({
@@ -1059,6 +1069,8 @@ export const VerifyVisitResponse = zod.object({
   ]),
   exceptionReason: zod.string().nullish(),
   geoFenceMatch: zod.boolean(),
+  hasIncident: zod.boolean(),
+  clientSignatureId: zod.string().nullish(),
 });
 
 export const ListPayPeriodsResponseItem = zod.object({
@@ -2874,3 +2886,22 @@ export const UploadCaregiverDocumentBody = zod.object({
     ])
     .nullish(),
 });
+
+export const ListVisitSignaturesParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ListVisitSignaturesResponseItem = zod.object({
+  id: zod.string(),
+  visitId: zod.string(),
+  signerRole: zod.string(),
+  signerName: zod.string(),
+  signatureSvg: zod.string().nullish(),
+  signatureImageUrl: zod.string().nullish(),
+  capturedAt: zod.coerce.date(),
+  declined: zod.boolean(),
+  declinedReason: zod.string().nullish(),
+});
+export const ListVisitSignaturesResponse = zod.array(
+  ListVisitSignaturesResponseItem,
+);

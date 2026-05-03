@@ -92,6 +92,29 @@ import type {
   ListPendingFamilyAcknowledgmentsParams,
   ListSchedulesParams,
   ListVisitsParams,
+  MActiveVisit,
+  MClockInBody,
+  MClockOutBody,
+  MCreateIncidentBody,
+  MCreateNoteBody,
+  MCreateSignatureBody,
+  MGetScheduleParams,
+  MLoginPinBody,
+  MMe,
+  MOk,
+  MRequestOtpBody,
+  MRequestOtpResponse,
+  MSaveChecklistBody,
+  MSchedule,
+  MSession,
+  MSetPinBody,
+  MTranscribeBody,
+  MTranscribeResponse,
+  MVerifyOtpBody,
+  MVerifyOtpResponse,
+  MVisitDetail,
+  MWebauthnLoginBody,
+  MWebauthnRegisterBody,
   Message,
   MessageThread,
   NotificationPreference,
@@ -4775,7 +4798,7 @@ export const useCreateVisitNote = <
 };
 
 export const getListVisitIncidentsUrl = (id: string) => {
-  return `/api/visits/${id}/incidents`;
+  return `/api/visits/${id}/incidents-list`;
 };
 
 export const listVisitIncidents = async (
@@ -4789,7 +4812,7 @@ export const listVisitIncidents = async (
 };
 
 export const getListVisitIncidentsQueryKey = (id: string) => {
-  return [`/api/visits/${id}/incidents`] as const;
+  return [`/api/visits/${id}/incidents-list`] as const;
 };
 
 export const getListVisitIncidentsQueryOptions = <
@@ -8832,3 +8855,1553 @@ export const useUploadCaregiverDocument = <
 > => {
   return useMutation(getUploadCaregiverDocumentMutationOptions(options));
 };
+
+/**
+ * @summary Request SMS OTP for caregiver login
+ */
+export const getMRequestOtpUrl = () => {
+  return `/api/m/auth/request-otp`;
+};
+
+export const mRequestOtp = async (
+  mRequestOtpBody: MRequestOtpBody,
+  options?: RequestInit,
+): Promise<MRequestOtpResponse> => {
+  return customFetch<MRequestOtpResponse>(getMRequestOtpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mRequestOtpBody),
+  });
+};
+
+export const getMRequestOtpMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mRequestOtp>>,
+    TError,
+    { data: BodyType<MRequestOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mRequestOtp>>,
+  TError,
+  { data: BodyType<MRequestOtpBody> },
+  TContext
+> => {
+  const mutationKey = ["mRequestOtp"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mRequestOtp>>,
+    { data: BodyType<MRequestOtpBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mRequestOtp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MRequestOtpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mRequestOtp>>
+>;
+export type MRequestOtpMutationBody = BodyType<MRequestOtpBody>;
+export type MRequestOtpMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Request SMS OTP for caregiver login
+ */
+export const useMRequestOtp = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mRequestOtp>>,
+    TError,
+    { data: BodyType<MRequestOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mRequestOtp>>,
+  TError,
+  { data: BodyType<MRequestOtpBody> },
+  TContext
+> => {
+  return useMutation(getMRequestOtpMutationOptions(options));
+};
+
+/**
+ * @summary Verify OTP and start (or continue) login challenge
+ */
+export const getMVerifyOtpUrl = () => {
+  return `/api/m/auth/verify-otp`;
+};
+
+export const mVerifyOtp = async (
+  mVerifyOtpBody: MVerifyOtpBody,
+  options?: RequestInit,
+): Promise<MVerifyOtpResponse> => {
+  return customFetch<MVerifyOtpResponse>(getMVerifyOtpUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mVerifyOtpBody),
+  });
+};
+
+export const getMVerifyOtpMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mVerifyOtp>>,
+    TError,
+    { data: BodyType<MVerifyOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mVerifyOtp>>,
+  TError,
+  { data: BodyType<MVerifyOtpBody> },
+  TContext
+> => {
+  const mutationKey = ["mVerifyOtp"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mVerifyOtp>>,
+    { data: BodyType<MVerifyOtpBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mVerifyOtp(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MVerifyOtpMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mVerifyOtp>>
+>;
+export type MVerifyOtpMutationBody = BodyType<MVerifyOtpBody>;
+export type MVerifyOtpMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Verify OTP and start (or continue) login challenge
+ */
+export const useMVerifyOtp = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mVerifyOtp>>,
+    TError,
+    { data: BodyType<MVerifyOtpBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mVerifyOtp>>,
+  TError,
+  { data: BodyType<MVerifyOtpBody> },
+  TContext
+> => {
+  return useMutation(getMVerifyOtpMutationOptions(options));
+};
+
+/**
+ * @summary Set or rotate caregiver PIN, finalize login
+ */
+export const getMSetPinUrl = () => {
+  return `/api/m/auth/set-pin`;
+};
+
+export const mSetPin = async (
+  mSetPinBody: MSetPinBody,
+  options?: RequestInit,
+): Promise<MSession> => {
+  return customFetch<MSession>(getMSetPinUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mSetPinBody),
+  });
+};
+
+export const getMSetPinMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mSetPin>>,
+    TError,
+    { data: BodyType<MSetPinBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mSetPin>>,
+  TError,
+  { data: BodyType<MSetPinBody> },
+  TContext
+> => {
+  const mutationKey = ["mSetPin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mSetPin>>,
+    { data: BodyType<MSetPinBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mSetPin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MSetPinMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mSetPin>>
+>;
+export type MSetPinMutationBody = BodyType<MSetPinBody>;
+export type MSetPinMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Set or rotate caregiver PIN, finalize login
+ */
+export const useMSetPin = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mSetPin>>,
+    TError,
+    { data: BodyType<MSetPinBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mSetPin>>,
+  TError,
+  { data: BodyType<MSetPinBody> },
+  TContext
+> => {
+  return useMutation(getMSetPinMutationOptions(options));
+};
+
+/**
+ * @summary Login with PIN (no SMS) using saved phone hint
+ */
+export const getMLoginWithPinUrl = () => {
+  return `/api/m/auth/login-pin`;
+};
+
+export const mLoginWithPin = async (
+  mLoginPinBody: MLoginPinBody,
+  options?: RequestInit,
+): Promise<MSession> => {
+  return customFetch<MSession>(getMLoginWithPinUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mLoginPinBody),
+  });
+};
+
+export const getMLoginWithPinMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mLoginWithPin>>,
+    TError,
+    { data: BodyType<MLoginPinBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mLoginWithPin>>,
+  TError,
+  { data: BodyType<MLoginPinBody> },
+  TContext
+> => {
+  const mutationKey = ["mLoginWithPin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mLoginWithPin>>,
+    { data: BodyType<MLoginPinBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mLoginWithPin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MLoginWithPinMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mLoginWithPin>>
+>;
+export type MLoginWithPinMutationBody = BodyType<MLoginPinBody>;
+export type MLoginWithPinMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Login with PIN (no SMS) using saved phone hint
+ */
+export const useMLoginWithPin = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mLoginWithPin>>,
+    TError,
+    { data: BodyType<MLoginPinBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mLoginWithPin>>,
+  TError,
+  { data: BodyType<MLoginPinBody> },
+  TContext
+> => {
+  return useMutation(getMLoginWithPinMutationOptions(options));
+};
+
+/**
+ * @summary Register a WebAuthn credential for the current caregiver
+ */
+export const getMRegisterWebauthnUrl = () => {
+  return `/api/m/auth/webauthn/register`;
+};
+
+export const mRegisterWebauthn = async (
+  mWebauthnRegisterBody: MWebauthnRegisterBody,
+  options?: RequestInit,
+): Promise<MOk> => {
+  return customFetch<MOk>(getMRegisterWebauthnUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mWebauthnRegisterBody),
+  });
+};
+
+export const getMRegisterWebauthnMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mRegisterWebauthn>>,
+    TError,
+    { data: BodyType<MWebauthnRegisterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mRegisterWebauthn>>,
+  TError,
+  { data: BodyType<MWebauthnRegisterBody> },
+  TContext
+> => {
+  const mutationKey = ["mRegisterWebauthn"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mRegisterWebauthn>>,
+    { data: BodyType<MWebauthnRegisterBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mRegisterWebauthn(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MRegisterWebauthnMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mRegisterWebauthn>>
+>;
+export type MRegisterWebauthnMutationBody = BodyType<MWebauthnRegisterBody>;
+export type MRegisterWebauthnMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Register a WebAuthn credential for the current caregiver
+ */
+export const useMRegisterWebauthn = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mRegisterWebauthn>>,
+    TError,
+    { data: BodyType<MWebauthnRegisterBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mRegisterWebauthn>>,
+  TError,
+  { data: BodyType<MWebauthnRegisterBody> },
+  TContext
+> => {
+  return useMutation(getMRegisterWebauthnMutationOptions(options));
+};
+
+/**
+ * @summary Login with WebAuthn credential
+ */
+export const getMLoginWithWebauthnUrl = () => {
+  return `/api/m/auth/webauthn/login`;
+};
+
+export const mLoginWithWebauthn = async (
+  mWebauthnLoginBody: MWebauthnLoginBody,
+  options?: RequestInit,
+): Promise<MSession> => {
+  return customFetch<MSession>(getMLoginWithWebauthnUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mWebauthnLoginBody),
+  });
+};
+
+export const getMLoginWithWebauthnMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mLoginWithWebauthn>>,
+    TError,
+    { data: BodyType<MWebauthnLoginBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mLoginWithWebauthn>>,
+  TError,
+  { data: BodyType<MWebauthnLoginBody> },
+  TContext
+> => {
+  const mutationKey = ["mLoginWithWebauthn"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mLoginWithWebauthn>>,
+    { data: BodyType<MWebauthnLoginBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mLoginWithWebauthn(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MLoginWithWebauthnMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mLoginWithWebauthn>>
+>;
+export type MLoginWithWebauthnMutationBody = BodyType<MWebauthnLoginBody>;
+export type MLoginWithWebauthnMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Login with WebAuthn credential
+ */
+export const useMLoginWithWebauthn = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mLoginWithWebauthn>>,
+    TError,
+    { data: BodyType<MWebauthnLoginBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mLoginWithWebauthn>>,
+  TError,
+  { data: BodyType<MWebauthnLoginBody> },
+  TContext
+> => {
+  return useMutation(getMLoginWithWebauthnMutationOptions(options));
+};
+
+export const getMLogoutUrl = () => {
+  return `/api/m/auth/logout`;
+};
+
+export const mLogout = async (options?: RequestInit): Promise<MOk> => {
+  return customFetch<MOk>(getMLogoutUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getMLogoutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mLogout>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mLogout>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["mLogout"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mLogout>>,
+    void
+  > = () => {
+    return mLogout(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MLogoutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mLogout>>
+>;
+
+export type MLogoutMutationError = ErrorType<unknown>;
+
+export const useMLogout = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mLogout>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mLogout>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getMLogoutMutationOptions(options));
+};
+
+/**
+ * @summary Current caregiver and session
+ */
+export const getMGetMeUrl = () => {
+  return `/api/m/me`;
+};
+
+export const mGetMe = async (options?: RequestInit): Promise<MMe> => {
+  return customFetch<MMe>(getMGetMeUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMGetMeQueryKey = () => {
+  return [`/api/m/me`] as const;
+};
+
+export const getMGetMeQueryOptions = <
+  TData = Awaited<ReturnType<typeof mGetMe>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof mGetMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMGetMeQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof mGetMe>>> = ({
+    signal,
+  }) => mGetMe({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof mGetMe>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type MGetMeQueryResult = NonNullable<Awaited<ReturnType<typeof mGetMe>>>;
+export type MGetMeQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Current caregiver and session
+ */
+
+export function useMGetMe<
+  TData = Awaited<ReturnType<typeof mGetMe>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<Awaited<ReturnType<typeof mGetMe>>, TError, TData>;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getMGetMeQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Caregiver's schedule (today + N days)
+ */
+export const getMGetScheduleUrl = (params?: MGetScheduleParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/m/schedule?${stringifiedParams}`
+    : `/api/m/schedule`;
+};
+
+export const mGetSchedule = async (
+  params?: MGetScheduleParams,
+  options?: RequestInit,
+): Promise<MSchedule> => {
+  return customFetch<MSchedule>(getMGetScheduleUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMGetScheduleQueryKey = (params?: MGetScheduleParams) => {
+  return [`/api/m/schedule`, ...(params ? [params] : [])] as const;
+};
+
+export const getMGetScheduleQueryOptions = <
+  TData = Awaited<ReturnType<typeof mGetSchedule>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: MGetScheduleParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof mGetSchedule>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMGetScheduleQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof mGetSchedule>>> = ({
+    signal,
+  }) => mGetSchedule(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof mGetSchedule>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type MGetScheduleQueryResult = NonNullable<
+  Awaited<ReturnType<typeof mGetSchedule>>
+>;
+export type MGetScheduleQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Caregiver's schedule (today + N days)
+ */
+
+export function useMGetSchedule<
+  TData = Awaited<ReturnType<typeof mGetSchedule>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: MGetScheduleParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof mGetSchedule>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getMGetScheduleQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Currently clocked-in visit, if any
+ */
+export const getMGetActiveVisitUrl = () => {
+  return `/api/m/visits/active`;
+};
+
+export const mGetActiveVisit = async (
+  options?: RequestInit,
+): Promise<MActiveVisit> => {
+  return customFetch<MActiveVisit>(getMGetActiveVisitUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMGetActiveVisitQueryKey = () => {
+  return [`/api/m/visits/active`] as const;
+};
+
+export const getMGetActiveVisitQueryOptions = <
+  TData = Awaited<ReturnType<typeof mGetActiveVisit>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof mGetActiveVisit>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMGetActiveVisitQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof mGetActiveVisit>>> = ({
+    signal,
+  }) => mGetActiveVisit({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof mGetActiveVisit>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type MGetActiveVisitQueryResult = NonNullable<
+  Awaited<ReturnType<typeof mGetActiveVisit>>
+>;
+export type MGetActiveVisitQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Currently clocked-in visit, if any
+ */
+
+export function useMGetActiveVisit<
+  TData = Awaited<ReturnType<typeof mGetActiveVisit>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof mGetActiveVisit>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getMGetActiveVisitQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getMClockInUrl = () => {
+  return `/api/m/visits/clock-in`;
+};
+
+export const mClockIn = async (
+  mClockInBody: MClockInBody,
+  options?: RequestInit,
+): Promise<MVisitDetail> => {
+  return customFetch<MVisitDetail>(getMClockInUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mClockInBody),
+  });
+};
+
+export const getMClockInMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mClockIn>>,
+    TError,
+    { data: BodyType<MClockInBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mClockIn>>,
+  TError,
+  { data: BodyType<MClockInBody> },
+  TContext
+> => {
+  const mutationKey = ["mClockIn"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mClockIn>>,
+    { data: BodyType<MClockInBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mClockIn(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MClockInMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mClockIn>>
+>;
+export type MClockInMutationBody = BodyType<MClockInBody>;
+export type MClockInMutationError = ErrorType<unknown>;
+
+export const useMClockIn = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mClockIn>>,
+    TError,
+    { data: BodyType<MClockInBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mClockIn>>,
+  TError,
+  { data: BodyType<MClockInBody> },
+  TContext
+> => {
+  return useMutation(getMClockInMutationOptions(options));
+};
+
+export const getMGetVisitUrl = (id: string) => {
+  return `/api/m/visits/${id}`;
+};
+
+export const mGetVisit = async (
+  id: string,
+  options?: RequestInit,
+): Promise<MVisitDetail> => {
+  return customFetch<MVisitDetail>(getMGetVisitUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getMGetVisitQueryKey = (id: string) => {
+  return [`/api/m/visits/${id}`] as const;
+};
+
+export const getMGetVisitQueryOptions = <
+  TData = Awaited<ReturnType<typeof mGetVisit>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof mGetVisit>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getMGetVisitQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof mGetVisit>>> = ({
+    signal,
+  }) => mGetVisit(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof mGetVisit>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type MGetVisitQueryResult = NonNullable<
+  Awaited<ReturnType<typeof mGetVisit>>
+>;
+export type MGetVisitQueryError = ErrorType<unknown>;
+
+export function useMGetVisit<
+  TData = Awaited<ReturnType<typeof mGetVisit>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof mGetVisit>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getMGetVisitQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getMClockOutUrl = (id: string) => {
+  return `/api/m/visits/${id}/clock-out`;
+};
+
+export const mClockOut = async (
+  id: string,
+  mClockOutBody: MClockOutBody,
+  options?: RequestInit,
+): Promise<MVisitDetail> => {
+  return customFetch<MVisitDetail>(getMClockOutUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mClockOutBody),
+  });
+};
+
+export const getMClockOutMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mClockOut>>,
+    TError,
+    { id: string; data: BodyType<MClockOutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mClockOut>>,
+  TError,
+  { id: string; data: BodyType<MClockOutBody> },
+  TContext
+> => {
+  const mutationKey = ["mClockOut"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mClockOut>>,
+    { id: string; data: BodyType<MClockOutBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return mClockOut(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MClockOutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mClockOut>>
+>;
+export type MClockOutMutationBody = BodyType<MClockOutBody>;
+export type MClockOutMutationError = ErrorType<unknown>;
+
+export const useMClockOut = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mClockOut>>,
+    TError,
+    { id: string; data: BodyType<MClockOutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mClockOut>>,
+  TError,
+  { id: string; data: BodyType<MClockOutBody> },
+  TContext
+> => {
+  return useMutation(getMClockOutMutationOptions(options));
+};
+
+export const getMSaveChecklistUrl = (id: string) => {
+  return `/api/m/visits/${id}/checklist`;
+};
+
+export const mSaveChecklist = async (
+  id: string,
+  mSaveChecklistBody: MSaveChecklistBody,
+  options?: RequestInit,
+): Promise<VisitChecklistInstance> => {
+  return customFetch<VisitChecklistInstance>(getMSaveChecklistUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mSaveChecklistBody),
+  });
+};
+
+export const getMSaveChecklistMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mSaveChecklist>>,
+    TError,
+    { id: string; data: BodyType<MSaveChecklistBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mSaveChecklist>>,
+  TError,
+  { id: string; data: BodyType<MSaveChecklistBody> },
+  TContext
+> => {
+  const mutationKey = ["mSaveChecklist"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mSaveChecklist>>,
+    { id: string; data: BodyType<MSaveChecklistBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return mSaveChecklist(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MSaveChecklistMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mSaveChecklist>>
+>;
+export type MSaveChecklistMutationBody = BodyType<MSaveChecklistBody>;
+export type MSaveChecklistMutationError = ErrorType<unknown>;
+
+export const useMSaveChecklist = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mSaveChecklist>>,
+    TError,
+    { id: string; data: BodyType<MSaveChecklistBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mSaveChecklist>>,
+  TError,
+  { id: string; data: BodyType<MSaveChecklistBody> },
+  TContext
+> => {
+  return useMutation(getMSaveChecklistMutationOptions(options));
+};
+
+export const getMAddVisitNoteUrl = (id: string) => {
+  return `/api/m/visits/${id}/notes`;
+};
+
+export const mAddVisitNote = async (
+  id: string,
+  mCreateNoteBody: MCreateNoteBody,
+  options?: RequestInit,
+): Promise<VisitNote> => {
+  return customFetch<VisitNote>(getMAddVisitNoteUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mCreateNoteBody),
+  });
+};
+
+export const getMAddVisitNoteMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mAddVisitNote>>,
+    TError,
+    { id: string; data: BodyType<MCreateNoteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mAddVisitNote>>,
+  TError,
+  { id: string; data: BodyType<MCreateNoteBody> },
+  TContext
+> => {
+  const mutationKey = ["mAddVisitNote"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mAddVisitNote>>,
+    { id: string; data: BodyType<MCreateNoteBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return mAddVisitNote(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MAddVisitNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mAddVisitNote>>
+>;
+export type MAddVisitNoteMutationBody = BodyType<MCreateNoteBody>;
+export type MAddVisitNoteMutationError = ErrorType<unknown>;
+
+export const useMAddVisitNote = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mAddVisitNote>>,
+    TError,
+    { id: string; data: BodyType<MCreateNoteBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mAddVisitNote>>,
+  TError,
+  { id: string; data: BodyType<MCreateNoteBody> },
+  TContext
+> => {
+  return useMutation(getMAddVisitNoteMutationOptions(options));
+};
+
+export const getMAddVisitIncidentUrl = (id: string) => {
+  return `/api/m/visits/${id}/incidents`;
+};
+
+export const mAddVisitIncident = async (
+  id: string,
+  mCreateIncidentBody: MCreateIncidentBody,
+  options?: RequestInit,
+): Promise<VisitIncident> => {
+  return customFetch<VisitIncident>(getMAddVisitIncidentUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mCreateIncidentBody),
+  });
+};
+
+export const getMAddVisitIncidentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mAddVisitIncident>>,
+    TError,
+    { id: string; data: BodyType<MCreateIncidentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mAddVisitIncident>>,
+  TError,
+  { id: string; data: BodyType<MCreateIncidentBody> },
+  TContext
+> => {
+  const mutationKey = ["mAddVisitIncident"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mAddVisitIncident>>,
+    { id: string; data: BodyType<MCreateIncidentBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return mAddVisitIncident(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MAddVisitIncidentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mAddVisitIncident>>
+>;
+export type MAddVisitIncidentMutationBody = BodyType<MCreateIncidentBody>;
+export type MAddVisitIncidentMutationError = ErrorType<unknown>;
+
+export const useMAddVisitIncident = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mAddVisitIncident>>,
+    TError,
+    { id: string; data: BodyType<MCreateIncidentBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mAddVisitIncident>>,
+  TError,
+  { id: string; data: BodyType<MCreateIncidentBody> },
+  TContext
+> => {
+  return useMutation(getMAddVisitIncidentMutationOptions(options));
+};
+
+export const getMAddVisitSignatureUrl = (id: string) => {
+  return `/api/m/visits/${id}/signature`;
+};
+
+export const mAddVisitSignature = async (
+  id: string,
+  mCreateSignatureBody: MCreateSignatureBody,
+  options?: RequestInit,
+): Promise<VisitSignature> => {
+  return customFetch<VisitSignature>(getMAddVisitSignatureUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mCreateSignatureBody),
+  });
+};
+
+export const getMAddVisitSignatureMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mAddVisitSignature>>,
+    TError,
+    { id: string; data: BodyType<MCreateSignatureBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mAddVisitSignature>>,
+  TError,
+  { id: string; data: BodyType<MCreateSignatureBody> },
+  TContext
+> => {
+  const mutationKey = ["mAddVisitSignature"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mAddVisitSignature>>,
+    { id: string; data: BodyType<MCreateSignatureBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return mAddVisitSignature(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MAddVisitSignatureMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mAddVisitSignature>>
+>;
+export type MAddVisitSignatureMutationBody = BodyType<MCreateSignatureBody>;
+export type MAddVisitSignatureMutationError = ErrorType<unknown>;
+
+export const useMAddVisitSignature = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mAddVisitSignature>>,
+    TError,
+    { id: string; data: BodyType<MCreateSignatureBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mAddVisitSignature>>,
+  TError,
+  { id: string; data: BodyType<MCreateSignatureBody> },
+  TContext
+> => {
+  return useMutation(getMAddVisitSignatureMutationOptions(options));
+};
+
+/**
+ * @summary Transcribe an audio clip (base64 encoded)
+ */
+export const getMTranscribeAudioUrl = () => {
+  return `/api/m/transcribe`;
+};
+
+export const mTranscribeAudio = async (
+  mTranscribeBody: MTranscribeBody,
+  options?: RequestInit,
+): Promise<MTranscribeResponse> => {
+  return customFetch<MTranscribeResponse>(getMTranscribeAudioUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(mTranscribeBody),
+  });
+};
+
+export const getMTranscribeAudioMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mTranscribeAudio>>,
+    TError,
+    { data: BodyType<MTranscribeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mTranscribeAudio>>,
+  TError,
+  { data: BodyType<MTranscribeBody> },
+  TContext
+> => {
+  const mutationKey = ["mTranscribeAudio"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mTranscribeAudio>>,
+    { data: BodyType<MTranscribeBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return mTranscribeAudio(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MTranscribeAudioMutationResult = NonNullable<
+  Awaited<ReturnType<typeof mTranscribeAudio>>
+>;
+export type MTranscribeAudioMutationBody = BodyType<MTranscribeBody>;
+export type MTranscribeAudioMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Transcribe an audio clip (base64 encoded)
+ */
+export const useMTranscribeAudio = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mTranscribeAudio>>,
+    TError,
+    { data: BodyType<MTranscribeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof mTranscribeAudio>>,
+  TError,
+  { data: BodyType<MTranscribeBody> },
+  TContext
+> => {
+  return useMutation(getMTranscribeAudioMutationOptions(options));
+};
+
+export const getListVisitSignaturesUrl = (id: string) => {
+  return `/api/visits/${id}/signatures-list`;
+};
+
+export const listVisitSignatures = async (
+  id: string,
+  options?: RequestInit,
+): Promise<VisitSignature[]> => {
+  return customFetch<VisitSignature[]>(getListVisitSignaturesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListVisitSignaturesQueryKey = (id: string) => {
+  return [`/api/visits/${id}/signatures-list`] as const;
+};
+
+export const getListVisitSignaturesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listVisitSignatures>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listVisitSignatures>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListVisitSignaturesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listVisitSignatures>>
+  > = ({ signal }) => listVisitSignatures(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listVisitSignatures>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListVisitSignaturesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listVisitSignatures>>
+>;
+export type ListVisitSignaturesQueryError = ErrorType<unknown>;
+
+export function useListVisitSignatures<
+  TData = Awaited<ReturnType<typeof listVisitSignatures>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listVisitSignatures>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListVisitSignaturesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
