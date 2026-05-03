@@ -14,6 +14,11 @@ import {
   notificationTypesTable,
   taskTemplatesTable,
   familyUsersTable,
+  visitNotesTable,
+  visitIncidentsTable,
+  messageThreadsTable,
+  messagesTable,
+  notificationPreferencesTable,
 } from "@workspace/db";
 import { AGENCY_ID } from "./agency";
 import { newId } from "./ids";
@@ -368,21 +373,6 @@ export async function seed(): Promise<void> {
     },
   ].map((a) => ({ ...a, agencyId: AGENCY_ID }));
   await db.insert(authorizationsTable).values(authorizations);
-
-  // Family users (one per client) for care plan acknowledgments
-  const familyUsers = clients.map((c, idx) => ({
-    id: `fam_${c.id}`,
-    agencyId: AGENCY_ID,
-    clientId: c.id,
-    email: `family.${c.id}@example.com`,
-    phone: c.emergencyContactPhone,
-    firstName: (c.emergencyContactName || "Family Contact").split(" ")[0],
-    lastName: (c.emergencyContactName || "Family Contact").split(" ")[1] ?? "Contact",
-    relationship: idx % 2 === 0 ? "Spouse" : "Child",
-    accessLevel: "VIEWER",
-    isActive: true,
-  }));
-  await db.insert(familyUsersTable).values(familyUsers);
 
   // Caregivers
   const caregivers = [
@@ -868,6 +858,189 @@ export async function seed(): Promise<void> {
       summary: "Active labor rule set to California Domestic Worker (CA)",
     },
   ]);
+
+  // Family portal: invited + already-accepted family members per client
+  const familyUsers = [
+    {
+      id: "fam_001",
+      clientId: "clt_001",
+      email: "daniel.park@example.com",
+      phone: "(415) 555-0142",
+      firstName: "Daniel",
+      lastName: "Park",
+      relationship: "Son",
+    },
+    {
+      id: "fam_002",
+      clientId: "clt_002",
+      email: "maria.velasquez@example.com",
+      phone: "(510) 555-0238",
+      firstName: "Maria",
+      lastName: "Velasquez",
+      relationship: "Daughter",
+    },
+    {
+      id: "fam_003",
+      clientId: "clt_003",
+      email: "adaeze.okafor@example.com",
+      phone: "(650) 555-0287",
+      firstName: "Adaeze",
+      lastName: "Okafor",
+      relationship: "Daughter",
+    },
+  ].map((f) => ({
+    ...f,
+    agencyId: AGENCY_ID,
+    accessLevel: "VIEWER" as const,
+    invitedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    invitedBy: "user_admin",
+    acceptedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    isActive: true,
+    inviteToken: null,
+    inviteTokenExpiresAt: null,
+  }));
+  await db.insert(familyUsersTable).values(familyUsers);
+
+  // Family-visible visit notes + an incident
+  await db.insert(visitNotesTable).values([
+    {
+      id: newId("note"),
+      agencyId: AGENCY_ID,
+      visitId: "vis_pending_002", // clt_001 (Eleanor Park)
+      authorId: "cg_001",
+      authorRole: "CAREGIVER",
+      body: "Eleanor enjoyed her morning walk and ate a full breakfast. Took medications on schedule.",
+      voiceClipUrl: null,
+      aiSummary: "Routine morning visit. Good appetite, all meds taken.",
+    },
+    {
+      id: newId("note"),
+      agencyId: AGENCY_ID,
+      visitId: "vis_pending_001", // clt_002 (Robert Velasquez)
+      authorId: "cg_002",
+      authorRole: "CAREGIVER",
+      body: "Robert refused breakfast this morning but accepted a smoothie at 10am. Mobility transfer went well with the gait belt.",
+      voiceClipUrl: null,
+      aiSummary: null,
+    },
+  ]);
+  await db.insert(visitIncidentsTable).values([
+    {
+      id: newId("inc"),
+      agencyId: AGENCY_ID,
+      visitId: "vis_exception_001", // clt_003 (Margaret Okafor)
+      reportedBy: "cg_003",
+      severity: "LOW",
+      category: "BEHAVIOR",
+      description: "Margaret was confused returning from the library outing. Calmed within 10 minutes after orientation cues.",
+      photoUrls: [],
+    },
+  ]);
+
+  // Message threads — family ↔ agency
+  const threadEleanor = {
+    id: "thr_001",
+    agencyId: AGENCY_ID,
+    clientId: "clt_001",
+    caregiverId: null,
+    topic: "GENERAL",
+    subject: "Mom's morning routine",
+    participants: [
+      { userId: "fam_001", role: "FAMILY", name: "Daniel Park" },
+      { userId: "user_admin", role: "AGENCY", name: "Casey Admin" },
+    ],
+    lastMessageAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+  };
+  const threadRobert = {
+    id: "thr_002",
+    agencyId: AGENCY_ID,
+    clientId: "clt_002",
+    caregiverId: null,
+    topic: "GENERAL",
+    subject: "Dad's appetite this week",
+    participants: [
+      { userId: "fam_002", role: "FAMILY", name: "Maria Velasquez" },
+      { userId: "user_admin", role: "AGENCY", name: "Casey Admin" },
+    ],
+    lastMessageAt: new Date(Date.now() - 26 * 60 * 60 * 1000),
+  };
+  await db.insert(messageThreadsTable).values([threadEleanor, threadRobert]);
+  await db.insert(messagesTable).values([
+    {
+      id: newId("msg"),
+      agencyId: AGENCY_ID,
+      threadId: "thr_001",
+      authorId: "fam_001",
+      authorRole: "FAMILY",
+      authorName: "Daniel Park",
+      body: "Hi — wanted to check that Aisha is still arriving at 7am. Mom mentioned she felt rushed yesterday.",
+      attachments: [],
+      readBy: ["fam_001"],
+    },
+    {
+      id: newId("msg"),
+      agencyId: AGENCY_ID,
+      threadId: "thr_001",
+      authorId: "user_admin",
+      authorRole: "AGENCY",
+      authorName: "Casey Admin",
+      body: "Hi Daniel — yes, 7am is the standard start. I'll pass along the feedback so Aisha can pace the morning more gently. Thanks for letting us know.",
+      attachments: [],
+      readBy: ["user_admin", "fam_001"],
+    },
+    {
+      id: newId("msg"),
+      agencyId: AGENCY_ID,
+      threadId: "thr_002",
+      authorId: "fam_002",
+      authorRole: "FAMILY",
+      authorName: "Maria Velasquez",
+      body: "Dad has been refusing breakfast lately. Should we ask the doctor?",
+      attachments: [],
+      readBy: ["fam_002"],
+    },
+  ]);
+
+  // Default notification preferences for family users
+  const familyPrefs = familyUsers.flatMap((f) => [
+    {
+      id: newId("npref"),
+      agencyId: AGENCY_ID,
+      userId: f.id,
+      userRole: "FAMILY",
+      notificationTypeId: "visit.incident_reported",
+      channels: ["EMAIL", "IN_APP"],
+      quietHoursStart: null,
+      quietHoursEnd: null,
+      timezone: null,
+      enabled: true,
+    },
+    {
+      id: newId("npref"),
+      agencyId: AGENCY_ID,
+      userId: f.id,
+      userRole: "FAMILY",
+      notificationTypeId: "family.visit_summary",
+      channels: ["EMAIL"],
+      quietHoursStart: null,
+      quietHoursEnd: null,
+      timezone: null,
+      enabled: true,
+    },
+    {
+      id: newId("npref"),
+      agencyId: AGENCY_ID,
+      userId: f.id,
+      userRole: "FAMILY",
+      notificationTypeId: "messaging.new_message",
+      channels: ["IN_APP"],
+      quietHoursStart: null,
+      quietHoursEnd: null,
+      timezone: null,
+      enabled: true,
+    },
+  ]);
+  await db.insert(notificationPreferencesTable).values(familyPrefs);
 
   logger.info("Seed complete.");
 }

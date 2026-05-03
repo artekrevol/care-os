@@ -938,6 +938,53 @@ export interface InviteFamilyUserBody {
   accessLevel?: FamilyAccessLevel;
 }
 
+export interface AcceptFamilyInviteBody {
+  token: string;
+}
+
+export interface FamilyVisitSummary {
+  id: string;
+  clockInTime?: string | null;
+  clockOutTime?: string | null;
+  durationMinutes?: number | null;
+  caregiverName: string;
+  verificationStatus: VisitVerificationStatus;
+  tasksCompleted: string[];
+  caregiverNotes?: string | null;
+  notes: VisitNote[];
+  incidents: VisitIncident[];
+}
+
+export interface FamilyClientSummary {
+  clientId: string;
+  clientName: string;
+  nextScheduledVisit?: string | null;
+  recentVisits: FamilyVisitSummary[];
+  openIncidentCount: number;
+}
+
+export type CreateMessageThreadBodyParticipantsItem = {
+  userId: string;
+  role: string;
+  name: string;
+};
+
+export type CreateMessageThreadBodyInitialMessage = {
+  authorId: string;
+  authorRole: string;
+  authorName: string;
+  body: string;
+};
+
+export interface CreateMessageThreadBody {
+  clientId?: string;
+  caregiverId?: string;
+  topic?: string;
+  subject?: string;
+  participants: CreateMessageThreadBodyParticipantsItem[];
+  initialMessage?: CreateMessageThreadBodyInitialMessage;
+}
+
 export type MessageThreadParticipantsItem = {
   userId: string;
   role: string;
@@ -1366,6 +1413,10 @@ export type ListCarePlansParams = {
 
 export type ListPendingFamilyAcknowledgmentsParams = {
   familyUserId?: string;
+};
+
+export type GetFamilyMeParams = {
+  email: string;
 };
 
 export type ListFamilyUsersParams = {

@@ -21,6 +21,10 @@ import AuditLog from "@/pages/AuditLog";
 import Intake from "@/pages/Intake";
 import ReferralReview from "@/pages/ReferralReview";
 import AgentRuns from "@/pages/AgentRuns";
+import FamilyLogin from "@/pages/family/FamilyLogin";
+import FamilyHome from "@/pages/family/FamilyHome";
+import FamilyMessages from "@/pages/family/FamilyMessages";
+import FamilyPreferences from "@/pages/family/FamilyPreferences";
 import NotFound from "@/pages/not-found";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
@@ -47,6 +51,10 @@ function Router() {
       <Route path="/reports" component={Reports} />
       <Route path="/agent-runs" component={AgentRuns} />
       <Route path="/audit-log" component={AuditLog} />
+      <Route path="/family/login" component={FamilyLogin} />
+      <Route path="/family/home" component={FamilyHome} />
+      <Route path="/family/messages" component={FamilyMessages} />
+      <Route path="/family/preferences" component={FamilyPreferences} />
       <Route component={NotFound} />
     </Switch>
   );

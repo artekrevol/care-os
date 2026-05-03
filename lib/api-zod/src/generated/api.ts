@@ -1956,6 +1956,25 @@ export const CreateVisitNoteBody = zod.object({
   voiceClipUrl: zod.string().optional(),
 });
 
+export const ListVisitIncidentsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ListVisitIncidentsResponseItem = zod.object({
+  id: zod.string(),
+  visitId: zod.string(),
+  reportedBy: zod.string(),
+  severity: zod.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+  category: zod.string(),
+  description: zod.string(),
+  photoUrls: zod.array(zod.string()),
+  resolvedAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListVisitIncidentsResponse = zod.array(
+  ListVisitIncidentsResponseItem,
+);
+
 export const CreateVisitIncidentParams = zod.object({
   id: zod.coerce.string(),
 });
@@ -1978,6 +1997,106 @@ export const CreateVisitSignatureBody = zod.object({
   signatureImageUrl: zod.string().optional(),
   declined: zod.boolean().optional(),
   declinedReason: zod.string().optional(),
+});
+
+/**
+ * @summary Resolve the authenticated family member by email (demo login)
+ */
+export const GetFamilyMeQueryParams = zod.object({
+  email: zod.coerce.string(),
+});
+
+export const GetFamilyMeResponse = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  email: zod.string(),
+  phone: zod.string().nullish(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  relationship: zod.string(),
+  accessLevel: zod.enum(["VIEWER", "COMMENTER", "MANAGER"]),
+  invitedAt: zod.coerce.date().nullish(),
+  acceptedAt: zod.coerce.date().nullish(),
+  isActive: zod.boolean(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Accept a family invite using the issued token
+ */
+export const AcceptFamilyInviteBody = zod.object({
+  token: zod.string(),
+});
+
+export const AcceptFamilyInviteResponse = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  email: zod.string(),
+  phone: zod.string().nullish(),
+  firstName: zod.string(),
+  lastName: zod.string(),
+  relationship: zod.string(),
+  accessLevel: zod.enum(["VIEWER", "COMMENTER", "MANAGER"]),
+  invitedAt: zod.coerce.date().nullish(),
+  acceptedAt: zod.coerce.date().nullish(),
+  isActive: zod.boolean(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Visits, notes, and incidents visible to a family member
+ */
+export const GetFamilyClientSummaryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetFamilyClientSummaryResponse = zod.object({
+  clientId: zod.string(),
+  clientName: zod.string(),
+  nextScheduledVisit: zod.coerce.date().nullish(),
+  recentVisits: zod.array(
+    zod.object({
+      id: zod.string(),
+      clockInTime: zod.coerce.date().nullish(),
+      clockOutTime: zod.coerce.date().nullish(),
+      durationMinutes: zod.number().nullish(),
+      caregiverName: zod.string(),
+      verificationStatus: zod.enum([
+        "PENDING",
+        "VERIFIED",
+        "EXCEPTION",
+        "REJECTED",
+      ]),
+      tasksCompleted: zod.array(zod.string()),
+      caregiverNotes: zod.string().nullish(),
+      notes: zod.array(
+        zod.object({
+          id: zod.string(),
+          visitId: zod.string(),
+          authorId: zod.string(),
+          authorRole: zod.string(),
+          body: zod.string(),
+          voiceClipUrl: zod.string().nullish(),
+          aiSummary: zod.string().nullish(),
+          createdAt: zod.coerce.date(),
+        }),
+      ),
+      incidents: zod.array(
+        zod.object({
+          id: zod.string(),
+          visitId: zod.string(),
+          reportedBy: zod.string(),
+          severity: zod.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+          category: zod.string(),
+          description: zod.string(),
+          photoUrls: zod.array(zod.string()),
+          resolvedAt: zod.coerce.date().nullish(),
+          createdAt: zod.coerce.date(),
+        }),
+      ),
+    }),
+  ),
+  openIncidentCount: zod.number(),
 });
 
 export const ListFamilyUsersQueryParams = zod.object({
@@ -2035,6 +2154,28 @@ export const ListMessageThreadsResponseItem = zod.object({
 export const ListMessageThreadsResponse = zod.array(
   ListMessageThreadsResponseItem,
 );
+
+export const CreateMessageThreadBody = zod.object({
+  clientId: zod.string().optional(),
+  caregiverId: zod.string().optional(),
+  topic: zod.string().optional(),
+  subject: zod.string().optional(),
+  participants: zod.array(
+    zod.object({
+      userId: zod.string(),
+      role: zod.string(),
+      name: zod.string(),
+    }),
+  ),
+  initialMessage: zod
+    .object({
+      authorId: zod.string(),
+      authorRole: zod.string(),
+      authorName: zod.string(),
+      body: zod.string(),
+    })
+    .optional(),
+});
 
 export const ListThreadMessagesParams = zod.object({
   id: zod.coerce.string(),

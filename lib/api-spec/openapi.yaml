@@ -1097,6 +1097,24 @@ paths:
                 $ref: "#/components/schemas/VisitNote"
 
   /visits/{id}/incidents:
+    get:
+      operationId: listVisitIncidents
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VisitIncident"
     post:
       operationId: createVisitIncident
       tags: [visit-artifacts]
@@ -1143,6 +1161,65 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VisitSignature"
+
+  /family/me:
+    get:
+      operationId: getFamilyMe
+      tags: [family]
+      summary: Resolve the authenticated family member by email (demo login)
+      parameters:
+        - in: query
+          name: email
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilyUser"
+        "404":
+          description: Not found
+
+  /family/me/accept:
+    post:
+      operationId: acceptFamilyInvite
+      tags: [family]
+      summary: Accept a family invite using the issued token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptFamilyInviteBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilyUser"
+
+  /family/clients/{id}/summary:
+    get:
+      operationId: getFamilyClientSummary
+      tags: [family]
+      summary: Visits, notes, and incidents visible to a family member
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FamilyClientSummary"
 
   /family-users:
     get:
@@ -1201,6 +1278,22 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/MessageThread"
+    post:
+      operationId: createMessageThread
+      tags: [messaging]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMessageThreadBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageThread"
 
   /message-threads/{id}/messages:
     get:
@@ -3192,6 +3285,78 @@ components:
         accessLevel:
           $ref: "#/components/schemas/FamilyAccessLevel"
       required: [clientId, email, firstName, lastName, relationship]
+
+    AcceptFamilyInviteBody:
+      type: object
+      properties:
+        token: { type: string }
+      required: [token]
+
+    FamilyVisitSummary:
+      type: object
+      properties:
+        id: { type: string }
+        clockInTime: { type: string, format: date-time, nullable: true }
+        clockOutTime: { type: string, format: date-time, nullable: true }
+        durationMinutes: { type: integer, nullable: true }
+        caregiverName: { type: string }
+        verificationStatus:
+          $ref: "#/components/schemas/VisitVerificationStatus"
+        tasksCompleted:
+          type: array
+          items: { type: string }
+        caregiverNotes: { type: string, nullable: true }
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisitNote"
+        incidents:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisitIncident"
+      required:
+        [id, caregiverName, verificationStatus, tasksCompleted, notes, incidents]
+
+    FamilyClientSummary:
+      type: object
+      properties:
+        clientId: { type: string }
+        clientName: { type: string }
+        nextScheduledVisit:
+          { type: string, format: date-time, nullable: true }
+        recentVisits:
+          type: array
+          items:
+            $ref: "#/components/schemas/FamilyVisitSummary"
+        openIncidentCount: { type: integer }
+      required:
+        [clientId, clientName, recentVisits, openIncidentCount]
+
+    CreateMessageThreadBody:
+      type: object
+      properties:
+        clientId: { type: string }
+        caregiverId: { type: string }
+        topic: { type: string }
+        subject: { type: string }
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              userId: { type: string }
+              role: { type: string }
+              name: { type: string }
+            required: [userId, role, name]
+        initialMessage:
+          type: object
+          properties:
+            authorId: { type: string }
+            authorRole: { type: string }
+            authorName: { type: string }
+            body: { type: string }
+          required: [authorId, authorRole, authorName, body]
+      required: [participants]
 
     MessageThread:
       type: object

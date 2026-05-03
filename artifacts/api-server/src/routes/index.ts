@@ -15,6 +15,9 @@ import telephonyRouter from "./telephony";
 import carePlansRouter from "./carePlans";
 import referralsRouter from "./referrals";
 import agentRunsRouter from "./agentRuns";
+import familyRouter from "./family";
+import messagingRouter from "./messaging";
+import visitArtifactsRouter from "./visitArtifacts";
 
 const router: IRouter = Router();
 
@@ -34,5 +37,8 @@ router.use(telephonyRouter);
 router.use(carePlansRouter);
 router.use(referralsRouter);
 router.use(agentRunsRouter);
+router.use(familyRouter);
+router.use(messagingRouter);
+router.use(visitArtifactsRouter);
 
 export default router;
