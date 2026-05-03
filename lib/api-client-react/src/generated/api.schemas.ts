@@ -1158,6 +1158,18 @@ export interface RetryAgentRunResponse {
   message: string;
 }
 
+/**
+ * Full input/output artifacts for a single agent run.
+ */
+export interface AgentRunOutputResponse {
+  runId: string;
+  inputRef?: string | null;
+  outputRef?: string | null;
+  inputContent?: string | null;
+  outputContent?: string | null;
+  truncated: boolean;
+}
+
 export type SystemHealthModuleStatusRecentErrorsItem = {
   at: string;
   message: string;

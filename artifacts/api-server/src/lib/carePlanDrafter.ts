@@ -159,6 +159,13 @@ export async function draftCarePlanFromAuthorization(input: {
       triggerReason: `auth ${input.authorization.id}`,
       inputSummary: `Draft plan for ${input.client.firstName} ${input.client.lastName}`,
       inputBytes: prompt,
+      // Retry uses the source authorization id to redraft.
+      metadata: {
+        inputPayload: {
+          authorizationId: input.authorization.id,
+          clientId: input.client.id,
+        },
+      },
     },
     async () => {
       const completion = await ai.complete({

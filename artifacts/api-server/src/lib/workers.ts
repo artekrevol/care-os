@@ -136,4 +136,11 @@ export const AGENT_RUNNERS: Record<
   auth_renewal_predictor: (t) => runAuthRenewalPredictor(t),
   compliance_scan: (t) => runDailyComplianceScan(t),
   pay_period_auto_close: (t) => autoClosePayPeriods(t),
+  // Hyphenated aliases for the same cron-batch agents — the agent_runs
+  // table records both legacy underscore and current hyphen names; the
+  // retry route resolves either.
+  "anomaly-detector": (t) => runAnomalyDetector(t),
+  "auth-renewal-predictor": (t) => runAuthRenewalPredictor(t),
+  "compliance-scan": (t) => runDailyComplianceScan(t),
+  "pay-period-auto-close": (t) => autoClosePayPeriods(t),
 };

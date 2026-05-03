@@ -2485,6 +2485,24 @@ export const RetryAgentRunResponse = zod.object({
   message: zod.string(),
 });
 
+/**
+ * @summary Fetch the full model output artifact for an agent run.
+ */
+export const GetAgentRunOutputParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetAgentRunOutputResponse = zod
+  .object({
+    runId: zod.string(),
+    inputRef: zod.string().nullish(),
+    outputRef: zod.string().nullish(),
+    inputContent: zod.string().nullish(),
+    outputContent: zod.string().nullish(),
+    truncated: zod.boolean(),
+  })
+  .describe("Full input\/output artifacts for a single agent run.");
+
 export const GetSystemHealthResponse = zod.object({
   modules: zod.array(
     zod.object({

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql, count } from "drizzle-orm";
 import { db, agentRunsTable, anomalyEventsTable } from "@workspace/db";
-import { queue } from "@workspace/services";
+import { queue, storage } from "@workspace/services";
 import {
   ListAgentRunsQueryParams,
   ListAgentRunsResponse,
@@ -9,6 +9,8 @@ import {
   GetAgentRunCostSummaryResponse,
   GetAgentRunParams,
   GetAgentRunResponse,
+  GetAgentRunOutputParams,
+  GetAgentRunOutputResponse,
   RetryAgentRunParams,
   RetryAgentRunResponse,
   ListAnomalyEventsQueryParams,
@@ -191,6 +193,71 @@ router.get("/agent-runs/cost-summary", ownerGuard, async (req, res): Promise<voi
   );
 });
 
+/**
+ * Fetch the full input/output artifacts for an agent run. Bytes are pulled
+ * from object storage (where startAgentRun/completeAgentRun upload them) and
+ * truncated to 256KB to avoid giant transfers when something logs a 10MB
+ * blob. The drawer in /admin/jobs/agent-runs uses this to show the full
+ * model response, not just the summary.
+ */
+router.get(
+  "/agent-runs/:id/output",
+  ownerGuard,
+  async (req, res): Promise<void> => {
+    const params = GetAgentRunOutputParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const [row] = await db
+      .select()
+      .from(agentRunsTable)
+      .where(
+        and(
+          eq(agentRunsTable.agencyId, AGENCY_ID),
+          eq(agentRunsTable.id, params.data.id),
+        ),
+      );
+    if (!row) {
+      res.status(404).json({ error: "Agent run not found" });
+      return;
+    }
+    const MAX = 256 * 1024;
+    let truncated = false;
+    let inputContent: string | null = null;
+    let outputContent: string | null = null;
+    const fetchOne = async (key: string | null): Promise<string | null> => {
+      if (!key) return null;
+      try {
+        const buf = await storage.downloadBytes(key);
+        if (!buf) return null;
+        if (buf.length > MAX) {
+          truncated = true;
+          return buf.subarray(0, MAX).toString("utf8") + "\n…[truncated]";
+        }
+        return buf.toString("utf8");
+      } catch (err) {
+        logger.warn({ err, key }, "failed to fetch agent run artifact");
+        return null;
+      }
+    };
+    [inputContent, outputContent] = await Promise.all([
+      fetchOne(row.inputRef),
+      fetchOne(row.outputRef),
+    ]);
+    res.json(
+      GetAgentRunOutputResponse.parse({
+        runId: row.id,
+        inputRef: row.inputRef,
+        outputRef: row.outputRef,
+        inputContent,
+        outputContent,
+        truncated,
+      }),
+    );
+  },
+);
+
 router.get("/agent-runs/:id", ownerGuard, async (req, res): Promise<void> => {
   const params = GetAgentRunParams.safeParse(req.params);
   if (!params.success) {
@@ -247,56 +314,69 @@ router.post(
     }
 
     const agentName = row.agentName;
-    const runner = AGENT_RUNNERS[agentName];
     const triggeredBy = `retry-of-${row.id}`;
 
-    if (!runner) {
-      // Queue-driven agents store their original job payload in
-      // metadata.inputPayload (set by the worker via recordAgentRun's
-      // metadata field). When present, re-enqueue a fresh BullMQ job with
-      // that payload — this is a true retry, not a hint.
-      const queueByAgent: Record<string, queue.QueueName | undefined> = {
-        "referral-parser": "ai.intake-referral",
-        "document-classifier": "ocr.extract-document",
-        "anomaly-scan": "anomaly.scan-visit",
-        "schedule-optimizer": "schedule.optimize",
-        "care-plan-drafter": "care-plan.generate",
-      };
-      const qName = queueByAgent[agentName];
-      const meta = (row.metadata ?? {}) as Record<string, unknown>;
-      const inputPayload = meta["inputPayload"] as
-        | Record<string, unknown>
-        | undefined;
+    // Retry resolution order:
+    //   1. If the agent name maps to a BullMQ queue AND we have a stored
+    //      inputPayload (or can synthesize one), re-enqueue a fresh job —
+    //      this is the true retry path for queue-driven runs.
+    //   2. Else, if there is an in-process AGENT_RUNNERS entry (cron-batch
+    //      agents like compliance_scan), invoke it directly.
+    //   3. Else, return a "no original payload" message.
+    //
+    // Queue lookup MUST come first: some agents (e.g. auth-renewal-predictor)
+    // appear in BOTH maps because hyphenated names exist as runtime aliases
+    // for cron-batch convenience. Calling the in-process runner there would
+    // execute the wrong code path against the wrong row identity.
+    const queueByAgent: Record<string, queue.QueueName | undefined> = {
+      "referral-parser": "ai.intake-referral",
+      "document-classifier": "ocr.extract-document",
+      "anomaly-scan": "anomaly.scan-visit",
+      "schedule-optimizer": "schedule.suggest-caregivers",
+      "care-plan-drafter": "care-plan.generate",
+      "auth-renewal-predictor": "auth.predict-renewal",
+    };
+    const qName = queueByAgent[agentName];
+    const meta = (row.metadata ?? {}) as Record<string, unknown>;
+    // schedule-optimizer's queue worker takes only the existing run id
+    // (it reasons over compatibility scores already linked to that run),
+    // so we can always reconstruct its payload from the row itself.
+    const inputPayload =
+      agentName === "schedule-optimizer"
+        ? { agentRunId: row.id }
+        : (meta["inputPayload"] as Record<string, unknown> | undefined);
 
-      if (qName && inputPayload && typeof inputPayload === "object") {
-        try {
-          const enq = await queue.enqueue(
-            qName,
-            inputPayload as queue.CareOSJobMap[typeof qName],
-          );
-          await recordAudit(req.user, {
-            action: "AGENT_RUN_RETRY",
-            entityType: "agent_run",
-            entityId: row.id,
-            summary: `${req.user.name} re-enqueued agent ${agentName} via queue ${qName} (job ${enq.jobId ?? "n/a"})`,
-          });
-          res.json(
-            RetryAgentRunResponse.parse({
-              ok: enq.enqueued,
-              originalRunId: row.id,
-              newRunId: null,
-              agentName,
-              message: enq.enqueued
-                ? `Re-enqueued on queue "${qName}" (job ${enq.jobId ?? "n/a"})`
-                : `Queue "${qName}" not configured; could not re-enqueue`,
-            }),
-          );
-          return;
-        } catch (err) {
-          logger.warn({ err, qName }, "queue retry failed");
-        }
+    if (qName && inputPayload && typeof inputPayload === "object") {
+      try {
+        const enq = await queue.enqueue(
+          qName,
+          inputPayload as queue.CareOSJobMap[typeof qName],
+        );
+        await recordAudit(req.user, {
+          action: "AGENT_RUN_RETRY",
+          entityType: "agent_run",
+          entityId: row.id,
+          summary: `${req.user.name} re-enqueued agent ${agentName} via queue ${qName} (job ${enq.jobId ?? "n/a"})`,
+        });
+        res.json(
+          RetryAgentRunResponse.parse({
+            ok: enq.enqueued,
+            originalRunId: row.id,
+            newRunId: null,
+            agentName,
+            message: enq.enqueued
+              ? `Re-enqueued on queue "${qName}" (job ${enq.jobId ?? "n/a"})`
+              : `Queue "${qName}" not configured; could not re-enqueue`,
+          }),
+        );
+        return;
+      } catch (err) {
+        logger.warn({ err, qName }, "queue retry failed");
       }
+    }
 
+    const runner = AGENT_RUNNERS[agentName];
+    if (!runner) {
       await recordAudit(req.user, {
         action: "AGENT_RUN_RETRY",
         entityType: "agent_run",

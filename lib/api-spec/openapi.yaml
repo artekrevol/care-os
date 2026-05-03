@@ -1568,6 +1568,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/RetryAgentRunResponse"
 
+  /agent-runs/{id}/output:
+    get:
+      operationId: getAgentRunOutput
+      tags: [agent-runs]
+      summary: Fetch the full model output artifact for an agent run.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunOutputResponse"
+
   /admin/system-health:
     get:
       operationId: getSystemHealth
@@ -4125,6 +4144,18 @@ components:
         agentName: { type: string }
         message: { type: string }
       required: [ok, originalRunId, agentName, message]
+
+    AgentRunOutputResponse:
+      type: object
+      description: Full input/output artifacts for a single agent run.
+      properties:
+        runId: { type: string }
+        inputRef: { type: string, nullable: true }
+        outputRef: { type: string, nullable: true }
+        inputContent: { type: string, nullable: true }
+        outputContent: { type: string, nullable: true }
+        truncated: { type: boolean }
+      required: [runId, truncated]
 
     SystemHealthModuleStatus:
       type: object

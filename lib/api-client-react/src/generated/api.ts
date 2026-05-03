@@ -22,6 +22,7 @@ import type {
   ActivityItem,
   AgentRun,
   AgentRunCostSummary,
+  AgentRunOutputResponse,
   AnomalyEvent,
   ApproveCarePlanBody,
   ApproveReferralBody,
@@ -6541,6 +6542,93 @@ export const useRetryAgentRun = <
 > => {
   return useMutation(getRetryAgentRunMutationOptions(options));
 };
+
+/**
+ * @summary Fetch the full model output artifact for an agent run.
+ */
+export const getGetAgentRunOutputUrl = (id: string) => {
+  return `/api/agent-runs/${id}/output`;
+};
+
+export const getAgentRunOutput = async (
+  id: string,
+  options?: RequestInit,
+): Promise<AgentRunOutputResponse> => {
+  return customFetch<AgentRunOutputResponse>(getGetAgentRunOutputUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAgentRunOutputQueryKey = (id: string) => {
+  return [`/api/agent-runs/${id}/output`] as const;
+};
+
+export const getGetAgentRunOutputQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAgentRunOutput>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgentRunOutput>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAgentRunOutputQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAgentRunOutput>>
+  > = ({ signal }) => getAgentRunOutput(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAgentRunOutput>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAgentRunOutputQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAgentRunOutput>>
+>;
+export type GetAgentRunOutputQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Fetch the full model output artifact for an agent run.
+ */
+
+export function useGetAgentRunOutput<
+  TData = Awaited<ReturnType<typeof getAgentRunOutput>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgentRunOutput>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAgentRunOutputQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 export const getGetSystemHealthUrl = () => {
   return `/api/admin/system-health`;

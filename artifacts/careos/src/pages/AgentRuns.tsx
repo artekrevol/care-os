@@ -22,7 +22,9 @@ import {
   useListAgentRuns,
   useGetAgentRunCostSummary,
   useRetryAgentRun,
+  useGetAgentRunOutput,
   getListAgentRunsQueryKey,
+  getGetAgentRunOutputQueryKey,
 } from "@workspace/api-client-react";
 import {
   Bot,
@@ -101,6 +103,15 @@ export default function AgentRuns() {
 
   const items = data?.items ?? [];
   const selected = items.find((r) => r.id === selectedId) ?? null;
+
+  // Lazy-load the full input/output artifact bytes when a row is opened.
+  const output = useGetAgentRunOutput(selectedId ?? "", {
+    request: { headers: adminHeaders },
+    query: {
+      queryKey: getGetAgentRunOutputQueryKey(selectedId ?? ""),
+      enabled: !!selectedId,
+    },
+  });
 
   const toggleStatus = (s: StatusFilter) => {
     setStatuses((prev) => {
@@ -532,6 +543,30 @@ export default function AgentRuns() {
                       <p className="whitespace-pre-wrap text-xs bg-muted p-2 rounded break-all">
                         {selected.outputSummary}
                       </p>
+                    </Field>
+                  )}
+                  <Field label="Full model response" stacked>
+                    {output.isLoading && (
+                      <p className="text-xs text-muted-foreground">
+                        Loading full content…
+                      </p>
+                    )}
+                    {output.data?.outputContent ? (
+                      <pre className="whitespace-pre-wrap text-xs bg-muted p-2 rounded break-all max-h-96 overflow-auto">
+                        {output.data.outputContent}
+                        {output.data.truncated ? "\n…[truncated]" : ""}
+                      </pre>
+                    ) : output.data && !output.isLoading ? (
+                      <p className="text-xs text-muted-foreground italic">
+                        No stored output artifact for this run.
+                      </p>
+                    ) : null}
+                  </Field>
+                  {output.data?.inputContent && (
+                    <Field label="Full input artifact" stacked>
+                      <pre className="whitespace-pre-wrap text-xs bg-muted p-2 rounded break-all max-h-64 overflow-auto">
+                        {output.data.inputContent}
+                      </pre>
                     </Field>
                   )}
                   {selected.error && (

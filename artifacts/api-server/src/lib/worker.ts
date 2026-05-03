@@ -124,7 +124,13 @@ async function runAuthRenewalPrediction(seedAuthId: string) {
       promptVersion: "v1",
       triggerReason: "recurring",
       inputSummary: summary,
-      metadata: { count: auths.length, seedAuthId },
+      // Stash original queue payload so a retry from
+      // /admin/jobs/agent-runs can re-enqueue the same job.
+      metadata: {
+        count: auths.length,
+        seedAuthId,
+        inputPayload: { authorizationId: seedAuthId },
+      },
     },
     async () => {
       const prompt = `You are a home-care operations analyst. Given the following authorizations (JSON), identify which are at risk of lapsing in the next 14 days and recommend a renewal action for each. Respond with a short bulleted list.\n\n${JSON.stringify(
@@ -174,7 +180,13 @@ async function runAnomalyScan(seedVisitId: string) {
       promptVersion: "v1",
       triggerReason: "recurring",
       inputSummary: summary,
-      metadata: { count: visits.length, seedVisitId },
+      // Stash original queue payload so a retry from
+      // /admin/jobs/agent-runs can re-enqueue the same job.
+      metadata: {
+        count: visits.length,
+        seedVisitId,
+        inputPayload: { visitId: seedVisitId },
+      },
     },
     async () => {
       const prompt = `Identify possible visit anomalies (short duration, missing geofence, late start) in this JSON array. Reply with a short JSON array of {visitId, reason}.\n\n${JSON.stringify(
