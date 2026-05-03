@@ -29,10 +29,24 @@ export type QueueName = keyof CareOSJobMap;
 let connection: Redis | null = null;
 const queues = new Map<QueueName, Queue>();
 
+function extractRedisUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (/^rediss?:\/\//.test(trimmed)) return trimmed;
+  const match = trimmed.match(/rediss?:\/\/[^\s"'`<>]+/);
+  return match ? match[0] : null;
+}
+
 function getConnection(): Redis | null {
   if (!isModuleConfigured("queue")) return null;
   if (connection) return connection;
-  const url = process.env["UPSTASH_REDIS_URL"]!;
+  const url = extractRedisUrl(process.env["UPSTASH_REDIS_URL"]);
+  if (!url) {
+    serviceLogger.warn(
+      "UPSTASH_REDIS_URL is set but does not contain a valid rediss?:// URL",
+    );
+    return null;
+  }
   connection = new IORedis(url, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
@@ -62,6 +76,18 @@ export function getQueue<N extends QueueName>(name: N): Queue | null {
 
 export function listQueues(): Queue[] {
   return Array.from(queues.values());
+}
+
+export async function pingConnection(): Promise<boolean> {
+  const conn = getConnection();
+  if (!conn) return false;
+  try {
+    const reply = await conn.ping();
+    return reply === "PONG";
+  } catch (err) {
+    serviceLogger.error({ err }, "redis ping failed");
+    return false;
+  }
 }
 
 export async function enqueue<N extends QueueName>(
@@ -105,6 +131,8 @@ export function registerWorker<N extends QueueName>(
   worker.on("failed", (job, err) =>
     serviceLogger.error({ queue: name, jobId: job?.id, err }, "job failed"),
   );
+  // Without an `error` listener, BullMQ's redis errors become uncaught
+  // exceptions and crash the process. Log them instead.
   worker.on("error", (err) =>
     serviceLogger.warn({ queue: name, err }, "worker error (suppressed)"),
   );

@@ -190,6 +190,9 @@ importers:
       '@workspace/services':
         specifier: workspace:*
         version: link:../../lib/services
+      bullmq:
+        specifier: ^5.76.4
+        version: 5.76.4
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -202,6 +205,9 @@ importers:
       express:
         specifier: ^5
         version: 5.2.1
+      ioredis:
+        specifier: ^5.10.1
+        version: 5.10.1
       pdfkit:
         specifier: ^0.18.0
         version: 0.18.0

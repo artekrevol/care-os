@@ -5,6 +5,12 @@ type EnvSpec = {
   unlocks: string;
   required: string[];
   optional?: string[];
+  /**
+   * Alternative groups of variables that can satisfy the module. If any group
+   * is fully present, the module is considered configured. Falls back to
+   * `required` when omitted.
+   */
+  anyOfGroups?: string[][];
 };
 
 const SPECS: EnvSpec[] = [
@@ -17,6 +23,10 @@ const SPECS: EnvSpec[] = [
     module: "ai",
     unlocks: "Claude / Anthropic agent runs (intake, care plan, anomaly, etc.)",
     required: ["ANTHROPIC_API_KEY"],
+    anyOfGroups: [
+      ["ANTHROPIC_API_KEY"],
+      ["AI_INTEGRATIONS_ANTHROPIC_API_KEY", "AI_INTEGRATIONS_ANTHROPIC_BASE_URL"],
+    ],
   },
   {
     module: "ocr",
@@ -57,16 +67,28 @@ const SPECS: EnvSpec[] = [
   },
 ];
 
+function groupSatisfied(group: string[]): boolean {
+  return group.every((k) => Boolean(process.env[k]));
+}
+
+function specSatisfied(spec: EnvSpec): boolean {
+  if (spec.anyOfGroups && spec.anyOfGroups.length > 0) {
+    return spec.anyOfGroups.some(groupSatisfied);
+  }
+  return groupSatisfied(spec.required);
+}
+
 export function isModuleConfigured(module: string): boolean {
   const spec = SPECS.find((s) => s.module === module);
   if (!spec) return false;
-  return spec.required.every((k) => Boolean(process.env[k]));
+  return specSatisfied(spec);
 }
 
 export function logServiceStartupReport(): void {
   for (const spec of SPECS) {
+    const ok = specSatisfied(spec);
     const missing = spec.required.filter((k) => !process.env[k]);
-    if (missing.length === 0) {
+    if (ok) {
       serviceLogger.info(
         { module: spec.module },
         `service module ready: ${spec.module}`,

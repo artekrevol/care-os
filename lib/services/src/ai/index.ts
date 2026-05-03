@@ -7,7 +7,16 @@ let client: Anthropic | null = null;
 export function getAnthropicClient(): Anthropic | null {
   if (!isModuleConfigured("ai")) return null;
   if (!client) {
-    client = new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"]! });
+    const integrationKey = process.env["AI_INTEGRATIONS_ANTHROPIC_API_KEY"];
+    const integrationBase = process.env["AI_INTEGRATIONS_ANTHROPIC_BASE_URL"];
+    if (integrationKey && integrationBase) {
+      client = new Anthropic({
+        apiKey: integrationKey,
+        baseURL: integrationBase,
+      });
+    } else {
+      client = new Anthropic({ apiKey: process.env["ANTHROPIC_API_KEY"]! });
+    }
   }
   return client;
 }

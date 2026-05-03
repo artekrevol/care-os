@@ -106,6 +106,8 @@ async function buildAll() {
       "@bull-board/ui",
       "@bull-board/api",
       "@bull-board/express",
+      "bullmq",
+      "ioredis",
     ],
     sourcemap: "linked",
     plugins: [
