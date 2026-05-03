@@ -57,52 +57,155 @@ function getSession(callSid: string): Session | null {
   return s;
 }
 
-// PIN-attempt throttling. Track failed attempts per CallSid (max 3) AND per
-// caregiver across a 15-minute rolling window (max 5) to make brute force
-// across multiple calls infeasible. Successful PIN entry resets both
-// counters.
-const MAX_CALL_PIN_ATTEMPTS = 3;
-const MAX_CAREGIVER_PIN_ATTEMPTS = 5;
-const CAREGIVER_LOCKOUT_MS = 15 * 60 * 1000;
+// PIN-attempt throttling. Track failed attempts across three dimensions to
+// make brute force infeasible regardless of how the attacker dials in:
+//   * per CallSid           — stops in-call retry spam
+//   * per caregiver id      — stops attackers cycling CallSids/From numbers
+//                             against a single victim
+//   * per caller-id (From)  — stops one phone from probing many caregiver
+//                             codes/PINs
+// Successful PIN entry resets the call + caregiver counters; the From
+// counter persists until its rolling window expires so a single rogue
+// number can't reset itself by occasionally guessing right.
+//
+// All thresholds are env-tunable so operators can tighten policy without
+// a redeploy.
+function intEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+const MAX_CALL_PIN_ATTEMPTS = intEnv("TELEPHONY_MAX_CALL_PIN_ATTEMPTS", 3);
+const MAX_CAREGIVER_PIN_ATTEMPTS = intEnv(
+  "TELEPHONY_MAX_CAREGIVER_PIN_ATTEMPTS",
+  5,
+);
+const MAX_CALLER_PIN_ATTEMPTS = intEnv("TELEPHONY_MAX_CALLER_PIN_ATTEMPTS", 8);
+const CAREGIVER_LOCKOUT_MS =
+  intEnv("TELEPHONY_CAREGIVER_LOCKOUT_MINUTES", 15) * 60 * 1000;
+const CALLER_LOCKOUT_MS =
+  intEnv("TELEPHONY_CALLER_LOCKOUT_MINUTES", 15) * 60 * 1000;
+// After this many failed unrecognized-code attempts from the same From
+// within the caller window, drop the call early (defense-in-depth on the
+// code-entry step, before we ever reach a PIN prompt).
+const MAX_CALLER_CODE_ATTEMPTS = intEnv(
+  "TELEPHONY_MAX_CALLER_CODE_ATTEMPTS",
+  10,
+);
 
 const CALL_PIN_ATTEMPTS = new Map<string, number>();
-const CAREGIVER_PIN_ATTEMPTS = new Map<string, { count: number; firstAt: number }>();
+const CAREGIVER_PIN_ATTEMPTS = new Map<
+  string,
+  { count: number; firstAt: number }
+>();
+const CALLER_PIN_ATTEMPTS = new Map<
+  string,
+  { count: number; firstAt: number }
+>();
+const CALLER_CODE_ATTEMPTS = new Map<
+  string,
+  { count: number; firstAt: number }
+>();
 
-function recordPinFailure(callSid: string, cgid: string): {
+function bumpWindowed(
+  map: Map<string, { count: number; firstAt: number }>,
+  key: string,
+  windowMs: number,
+): number {
+  if (!key) return 0;
+  const now = Date.now();
+  const cur = map.get(key);
+  if (!cur || now - cur.firstAt > windowMs) {
+    map.set(key, { count: 1, firstAt: now });
+    return 1;
+  }
+  cur.count += 1;
+  return cur.count;
+}
+
+function isWindowedLocked(
+  map: Map<string, { count: number; firstAt: number }>,
+  key: string,
+  windowMs: number,
+  threshold: number,
+): boolean {
+  if (!key) return false;
+  const cur = map.get(key);
+  if (!cur) return false;
+  if (Date.now() - cur.firstAt > windowMs) {
+    map.delete(key);
+    return false;
+  }
+  return cur.count >= threshold;
+}
+
+function recordPinFailure(
+  callSid: string,
+  cgid: string,
+  fromKey: string,
+): {
   callExceeded: boolean;
   caregiverLocked: boolean;
+  callerLocked: boolean;
 } {
   if (callSid) {
     CALL_PIN_ATTEMPTS.set(callSid, (CALL_PIN_ATTEMPTS.get(callSid) ?? 0) + 1);
   }
-  const now = Date.now();
-  const cur = CAREGIVER_PIN_ATTEMPTS.get(cgid);
-  if (!cur || now - cur.firstAt > CAREGIVER_LOCKOUT_MS) {
-    CAREGIVER_PIN_ATTEMPTS.set(cgid, { count: 1, firstAt: now });
-  } else {
-    cur.count += 1;
-  }
-  const callExceeded =
-    (CALL_PIN_ATTEMPTS.get(callSid) ?? 0) >= MAX_CALL_PIN_ATTEMPTS;
-  const caregiverLocked =
-    (CAREGIVER_PIN_ATTEMPTS.get(cgid)?.count ?? 0) >=
-    MAX_CAREGIVER_PIN_ATTEMPTS;
-  return { callExceeded, caregiverLocked };
+  const cgCount = bumpWindowed(
+    CAREGIVER_PIN_ATTEMPTS,
+    cgid,
+    CAREGIVER_LOCKOUT_MS,
+  );
+  const callerCount = bumpWindowed(
+    CALLER_PIN_ATTEMPTS,
+    fromKey,
+    CALLER_LOCKOUT_MS,
+  );
+  return {
+    callExceeded:
+      (CALL_PIN_ATTEMPTS.get(callSid) ?? 0) >= MAX_CALL_PIN_ATTEMPTS,
+    caregiverLocked: cgCount >= MAX_CAREGIVER_PIN_ATTEMPTS,
+    callerLocked: callerCount >= MAX_CALLER_PIN_ATTEMPTS,
+  };
 }
 
 function isCaregiverLocked(cgid: string): boolean {
-  const cur = CAREGIVER_PIN_ATTEMPTS.get(cgid);
-  if (!cur) return false;
-  if (Date.now() - cur.firstAt > CAREGIVER_LOCKOUT_MS) {
-    CAREGIVER_PIN_ATTEMPTS.delete(cgid);
-    return false;
-  }
-  return cur.count >= MAX_CAREGIVER_PIN_ATTEMPTS;
+  return isWindowedLocked(
+    CAREGIVER_PIN_ATTEMPTS,
+    cgid,
+    CAREGIVER_LOCKOUT_MS,
+    MAX_CAREGIVER_PIN_ATTEMPTS,
+  );
+}
+
+function isCallerLocked(fromKey: string): boolean {
+  return (
+    isWindowedLocked(
+      CALLER_PIN_ATTEMPTS,
+      fromKey,
+      CALLER_LOCKOUT_MS,
+      MAX_CALLER_PIN_ATTEMPTS,
+    ) ||
+    isWindowedLocked(
+      CALLER_CODE_ATTEMPTS,
+      fromKey,
+      CALLER_LOCKOUT_MS,
+      MAX_CALLER_CODE_ATTEMPTS,
+    )
+  );
+}
+
+function recordCodeFailure(fromKey: string): boolean {
+  const n = bumpWindowed(CALLER_CODE_ATTEMPTS, fromKey, CALLER_LOCKOUT_MS);
+  return n >= MAX_CALLER_CODE_ATTEMPTS;
 }
 
 function clearPinAttempts(callSid: string, cgid: string): void {
   CALL_PIN_ATTEMPTS.delete(callSid);
   CAREGIVER_PIN_ATTEMPTS.delete(cgid);
+  // Note: CALLER_PIN_ATTEMPTS and CALLER_CODE_ATTEMPTS are intentionally
+  // NOT cleared on success — a single successful guess should not reset
+  // the rolling brute-force budget for that From number.
 }
 
 // ---------------------------------------------------------------------------
@@ -147,19 +250,22 @@ function twilioSignatureGuard(
     res.status(403).type("text/plain").send("invalid Twilio signature");
     return;
   }
-  // Unconfigured: only allow when running outside production so local curl
-  // testing keeps working. In production this rejects the request.
-  if (process.env["NODE_ENV"] === "production") {
-    req.log?.error?.(
-      "TWILIO_AUTH_TOKEN not set — rejecting telephony webhook in production",
+  // Unconfigured: only allow when explicitly running in development so local
+  // curl testing keeps working. Any other environment (production, staging,
+  // test, preview, unset) MUST reject — we will not accept unsigned Twilio
+  // webhooks anywhere a real attacker could reach the URL.
+  if (process.env["NODE_ENV"] === "development") {
+    req.log?.warn?.(
+      "TWILIO_AUTH_TOKEN not set — skipping signature validation (development only)",
     );
-    res.status(503).type("text/plain").send("telephony not configured");
+    next();
     return;
   }
-  req.log?.warn?.(
-    "TWILIO_AUTH_TOKEN not set — skipping signature validation (dev only)",
+  req.log?.error?.(
+    { nodeEnv: process.env["NODE_ENV"] ?? null },
+    "TWILIO_AUTH_TOKEN not set — rejecting telephony webhook outside development",
   );
-  next();
+  res.status(503).type("text/plain").send("telephony not configured");
 }
 
 // ---------------------------------------------------------------------------
@@ -241,11 +347,31 @@ router.post(
     const step = String(req.query?.step ?? "");
     const digits = String(req.body?.Digits ?? "").trim();
     const callSid = String(req.body?.CallSid ?? "");
+    const fromKey = normalizePhone(String(req.body?.From ?? ""));
+
+    // Per-caller (From) lockout — short-circuit any step before we do work
+    // when this number is currently locked out from prior failures.
+    if (fromKey && isCallerLocked(fromKey)) {
+      req.log?.warn?.(
+        { callSid, fromKey, step },
+        "telephony request rejected — caller temporarily locked",
+      );
+      xml(
+        res,
+        `<Response><Say>Too many recent failed attempts from this number. Please try again later. Goodbye.</Say><Hangup/></Response>`,
+      );
+      return;
+    }
 
     // Caregiver-ID code entry (no caller-ID match path)
     if (step === "code") {
       const cg = await findCaregiverByCode(digits);
       if (!cg) {
+        const callerExceeded = recordCodeFailure(fromKey);
+        req.log?.warn?.(
+          { callSid, fromKey, callerExceeded },
+          "telephony unrecognized caregiver code",
+        );
         xml(
           res,
           `<Response><Say>That caregiver I.D. was not found. Goodbye.</Say><Hangup/></Response>`,
@@ -281,15 +407,20 @@ router.post(
       }
       if (!cg || cg.phonePin !== digits) {
         const targetId = cg?.id ?? cgid;
-        const { callExceeded, caregiverLocked } = recordPinFailure(
-          callSid,
-          targetId,
-        );
+        const { callExceeded, caregiverLocked, callerLocked } =
+          recordPinFailure(callSid, targetId, fromKey);
         req.log?.warn?.(
-          { callSid, cgid: targetId, callExceeded, caregiverLocked },
+          {
+            callSid,
+            cgid: targetId,
+            fromKey,
+            callExceeded,
+            caregiverLocked,
+            callerLocked,
+          },
           "telephony PIN attempt failed",
         );
-        if (callExceeded || caregiverLocked) {
+        if (callExceeded || caregiverLocked || callerLocked) {
           xml(
             res,
             `<Response><Say>Too many incorrect attempts. Goodbye.</Say><Hangup/></Response>`,
