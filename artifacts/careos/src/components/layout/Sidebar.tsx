@@ -36,8 +36,9 @@ export function Sidebar() {
   return (
     <div className="flex h-screen w-64 flex-col bg-sidebar border-r border-sidebar-border">
       <div className="p-6">
-        <h2 className="text-xl font-bold tracking-tight text-sidebar-foreground">CareOS</h2>
-        <p className="text-sm text-sidebar-foreground/70">Command Center</p>
+        <h2 className="text-xl font-bold tracking-tight text-sidebar-foreground">Chajinel Home Care</h2>
+        <p className="text-xs text-sidebar-foreground/70 mt-0.5">CareOS Command Center</p>
+        <p className="text-[11px] text-sidebar-foreground/50 mt-0.5">California — VA & IHSS</p>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems.map((item) => {

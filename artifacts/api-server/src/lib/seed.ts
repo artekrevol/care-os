@@ -24,6 +24,10 @@ import {
 import { AGENCY_ID } from "./agency";
 import { newId } from "./ids";
 import { logger } from "./logger";
+import {
+  seedChajinelExpansion,
+  truncateAgencyDemoData,
+} from "./seed-chajinel";
 
 function isoDateNDaysFromNow(n: number): string {
   const d = new Date();
@@ -173,7 +177,10 @@ export async function seed(): Promise<void> {
     travelTimeBillable: false,
     isActive: false,
   };
-  await db.insert(laborRuleSetsTable).values([ruleCA, ruleFLSA, ruleNY, ruleTX]);
+  await db
+    .insert(laborRuleSetsTable)
+    .values([ruleCA, ruleFLSA, ruleNY, ruleTX])
+    .onConflictDoNothing();
 
   // Clients
   const clients = [
@@ -707,6 +714,12 @@ export async function seed(): Promise<void> {
   // first run after seed/boot.
   await refreshAnomalyDemoVisit();
 
+  // Phase 2.5 — Chajinel expansion: scale to 32 caregivers, 24 clients,
+  // 4 weeks of visit history, fall incident, LOW renewal prediction, and
+  // referral PDF intake pointer. Anchors above carry every original magic
+  // moment; this layer adds breadth.
+  await seedChajinelExpansion();
+
   // Pay periods — one CLOSED last period, one OPEN current
   const lastPeriodEnd = new Date(lastPeriodStart);
   lastPeriodEnd.setUTCDate(lastPeriodEnd.getUTCDate() + 13);
@@ -1123,6 +1136,23 @@ export async function seed(): Promise<void> {
   await db.insert(notificationPreferencesTable).values(familyPrefs);
 
   logger.info("Seed complete.");
+}
+
+/**
+ * Wipe every demo record for the configured agency and rebuild the seed
+ * from scratch. Used by the `pnpm demo:reset` command. Idempotent reference
+ * rows (notification types, task templates, labor rules) survive because
+ * the truncate helper only deletes per-agency demo records and the seed
+ * helpers re-insert them with ON CONFLICT DO NOTHING.
+ *
+ * Boot-time `seed()` short-circuits when client rows exist; this entry
+ * point bypasses that guard by truncating first.
+ */
+export async function seedDemoFresh(): Promise<void> {
+  logger.info("Resetting CareOS demo data (truncate + reseed)…");
+  await truncateAgencyDemoData();
+  await seed();
+  logger.info("Demo reset complete.");
 }
 
 /**
