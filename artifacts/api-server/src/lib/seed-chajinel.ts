@@ -36,27 +36,12 @@ import {
   complianceAlertsTable,
   visitIncidentsTable,
   agentRunsTable,
+  carePlansTable,
 } from "@workspace/db";
 import { AGENCY_ID } from "./agency";
 import { newId } from "./ids";
 import { logger } from "./logger";
 
-// 4-digit numeric IVR PIN, avoiding trivially-guessable values. Mirrors the
-// generator in seed.ts so the expansion caregivers also receive non-trivial
-// PINs for IVR clock-in.
-function genIvrPin(): string {
-  const blocked = new Set([
-    "0000", "1111", "2222", "3333", "4444",
-    "5555", "6666", "7777", "8888", "9999",
-    "1234", "4321", "0123", "1212", "1010",
-    "2580", "0852",
-  ]);
-  for (let i = 0; i < 100; i++) {
-    const pin = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-    if (!blocked.has(pin)) return pin;
-  }
-  return "8350";
-}
 
 function isoDate(daysFromNow: number): string {
   const d = new Date();
@@ -237,9 +222,9 @@ export async function seedChajinelExpansion(): Promise<void> {
     lastName: cg.lastName,
     email: `${cg.firstName.toLowerCase()}.${cg.lastName.toLowerCase()}@chajinel.demo`,
     phone: `(${[323, 562, 626, 657, 714, 909, 949][i % 7]}) 555-${String(2000 + i).padStart(4, "0")}`,
-    employmentType: i % 5 === 0 ? "1099" : "W2",
+    employmentType: "W2",
     hireDate: isoDate(-cg.hireDaysAgo),
-    status: "ACTIVE",
+    status: "APPROVED",
     languages: cg.languages,
     skills: cg.certs.length > 0 ? ["Personal care", "Meal prep"] : ["Companion care"],
     payRate: cg.payRate,
@@ -250,7 +235,7 @@ export async function seedChajinelExpansion(): Promise<void> {
     homeLng: String(cg.lng),
     pwaInstalled: i % 3 !== 0,
     phoneCode: String(200001 + i),
-    phonePin: genIvrPin(),
+    phonePin: String(2001 + i).padStart(4, "0"),
     compatibilityTags: cg.languages.includes("Spanish") ? ["spanish-speaking"] : cg.languages.includes("Tagalog") ? ["tagalog-speaking"] : cg.languages.includes("Vietnamese") ? ["vietnamese-speaking"] : [],
     certifications: cg.certs,
     preferredRadiusMiles: "15.0",
@@ -319,7 +304,7 @@ export async function seedChajinelExpansion(): Promise<void> {
     firstName: c.firstName,
     lastName: c.lastName,
     dob: c.dob,
-    phone: `(${["310", "562", "626", "657", "714", "909", "949"][Math.floor(Math.random() * 7)]}) 555-${String(3000 + EXPANSION_CLIENTS.indexOf(c)).padStart(4, "0")}`,
+    phone: `(${["310", "562", "626", "657", "714", "909", "949"][EXPANSION_CLIENTS.indexOf(c) % 7]}) 555-${String(3000 + EXPANSION_CLIENTS.indexOf(c)).padStart(4, "0")}`,
     email: null,
     addressLine1: `${100 + EXPANSION_CLIENTS.indexOf(c) * 7} Main St`,
     city: c.city,
@@ -364,6 +349,76 @@ export async function seedChajinelExpansion(): Promise<void> {
     documentUrl: null,
   }));
   await db.insert(authorizationsTable).values(authRows);
+
+  // 4b) Approved care plans — one per expansion client. ADL/IADL task lists
+  // vary by payer profile so VA Community Care veterans get personal-care
+  // heavy plans and IHSS / private pay get a leaner mix. Authored & approved
+  // ~30 days before each auth issued so the timeline reads naturally.
+  const carePlanRows = EXPANSION_CLIENTS.map((c, i) => {
+    const isVeteran = c.payer === "VA_CCN";
+    const tasks = isVeteran
+      ? [
+          { id: "t1", title: "Bathing & grooming assist", category: "ADL", frequency: "Daily", defaultMinutes: 25 },
+          { id: "t2", title: "Mobility & transfer support", category: "ADL", frequency: "Daily", defaultMinutes: 15 },
+          { id: "t3", title: "Medication reminders", category: "MEDICATION", frequency: "Daily 8:00 & 18:00", defaultMinutes: 5 },
+          { id: "t4", title: "Meal prep (heart-healthy)", category: "MEAL", frequency: "Daily", defaultMinutes: 30 },
+          { id: "t5", title: "Light housekeeping", category: "HOUSEKEEPING", frequency: "Mon/Wed/Fri", defaultMinutes: 30 },
+          { id: "t6", title: "Companionship & wellness check", category: "COMPANIONSHIP", frequency: "Daily", defaultMinutes: 30 },
+        ]
+      : c.payer === "PRIVATE"
+        ? [
+            { id: "t1", title: "Personal care assist", category: "ADL", frequency: "Daily", defaultMinutes: 20 },
+            { id: "t2", title: "Errands & transportation", category: "IADL", frequency: "Tue/Thu", defaultMinutes: 60 },
+            { id: "t3", title: "Light housekeeping", category: "HOUSEKEEPING", frequency: "Weekly", defaultMinutes: 45 },
+            { id: "t4", title: "Companionship", category: "COMPANIONSHIP", frequency: "Daily", defaultMinutes: 45 },
+          ]
+        : [
+            { id: "t1", title: "Bathing assist", category: "ADL", frequency: "Mon/Wed/Fri", defaultMinutes: 25 },
+            { id: "t2", title: "Meal prep", category: "MEAL", frequency: "Daily", defaultMinutes: 25 },
+            { id: "t3", title: "Light housekeeping", category: "HOUSEKEEPING", frequency: "Weekly", defaultMinutes: 45 },
+            { id: "t4", title: "Companion check-in", category: "COMPANIONSHIP", frequency: "Daily", defaultMinutes: 20 },
+          ];
+    const goals = isVeteran
+      ? [
+          { id: "g1", title: "Maintain independence in home" },
+          { id: "g2", title: "Avoid hospital readmission" },
+          { id: "g3", title: "Stay socially engaged" },
+        ]
+      : [
+          { id: "g1", title: "Support safe daily living at home" },
+          { id: "g2", title: "Maintain personal hygiene & nutrition" },
+        ];
+    const riskFactors: string[] = [];
+    if (c.notes?.toLowerCase().includes("copd")) riskFactors.push("COPD — monitor breathing");
+    if (c.notes?.toLowerCase().includes("chf")) riskFactors.push("CHF — track weight/swelling");
+    if (c.notes?.toLowerCase().includes("diabet")) riskFactors.push("Diabetes — BG checks");
+    if (c.notes?.toLowerCase().includes("fall")) riskFactors.push("Recent fall — high fall risk");
+    if (c.notes?.toLowerCase().includes("hearing")) riskFactors.push("Hard of hearing");
+    const preferences: Record<string, string> = {};
+    if (c.languages.includes("Spanish") && !c.languages.includes("English")) {
+      preferences.languagePreference = "Spanish-only";
+    } else if (c.languages.includes("Spanish")) {
+      preferences.languagePreference = "Spanish-preferred";
+    }
+    const issuedDaysAgo = c.authIssuedDaysAgo + 30;
+    return {
+      id: `cp_chajinel_${String(i + 1).padStart(3, "0")}`,
+      agencyId: AGENCY_ID,
+      clientId: c.id,
+      version: 1,
+      status: "APPROVED",
+      title: `${c.firstName} ${c.lastName} — Care Plan`,
+      goals: goals as never,
+      tasks: tasks as never,
+      riskFactors: riskFactors as never,
+      preferences: preferences as never,
+      effectiveStart: new Date(Date.now() - issuedDaysAgo * 24 * 60 * 60 * 1000),
+      authoredBy: "user_admin",
+      approvedBy: "user_admin",
+      approvedAt: new Date(Date.now() - (issuedDaysAgo - 2) * 24 * 60 * 60 * 1000),
+    };
+  });
+  await db.insert(carePlansTable).values(carePlanRows);
 
   // 5) Schedules — current week, primary caregiver per client. Skip 5
   // clients to leave 70%+ assigned coverage with realistic open shifts.

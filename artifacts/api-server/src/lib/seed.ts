@@ -439,7 +439,7 @@ export async function seed(): Promise<void> {
       lastName: "Okonkwo",
       email: "daniel.o@careos.demo",
       phone: "(925) 555-1104",
-      employmentType: "1099",
+      employmentType: "W2",
       hireDate: isoDateNDaysFromNow(-90),
       status: "APPROVED",
       languages: ["English"],
@@ -473,7 +473,7 @@ export async function seed(): Promise<void> {
       phone: "(408) 555-1106",
       employmentType: "W2",
       hireDate: isoDateNDaysFromNow(-540),
-      status: "INACTIVE",
+      status: "APPROVED",
       languages: ["English", "Hindi", "Gujarati"],
       skills: ["Companion care", "Medication reminders"],
       payRate: "22.50",
@@ -485,7 +485,10 @@ export async function seed(): Promise<void> {
     ...c,
     agencyId: AGENCY_ID,
     phoneCode: String(100001 + i),
-    phonePin: generateIvrPin(),
+    // Deterministic demo PINs (anchor positions). Reset flow still requires
+    // supervisor action before first real use; this just keeps demo state
+    // reproducible and screenshot-stable across `pnpm demo:reset` runs.
+    phonePin: String(1001 + i).padStart(4, "0"),
   }));
   await db.insert(caregiversTable).values(caregivers);
   // PIN is auth secret material; never log it. Phone codes are logged so a
@@ -991,6 +994,31 @@ export async function seed(): Promise<void> {
       authoredBy: "user_admin",
       approvedBy: "fam_003",
       approvedAt: new Date(Date.now() - 408 * 24 * 60 * 60 * 1000),
+    },
+    {
+      id: "cp_004",
+      agencyId: AGENCY_ID,
+      clientId: "clt_004",
+      version: 1,
+      status: "APPROVED",
+      title: "Aiyana Crow — Daily Living & Diabetes Support",
+      goals: [
+        { id: "g1", title: "Maintain stable blood glucose" },
+        { id: "g2", title: "Support safe mobility around the home" },
+      ] as never,
+      tasks: [
+        { id: "t1", title: "Bathing assistance", category: "ADL", frequency: "Daily 7:30", defaultMinutes: 20 },
+        { id: "t2", title: "Blood glucose check & log", category: "MEDICATION", frequency: "Daily 7:00 & 18:00", defaultMinutes: 5 },
+        { id: "t3", title: "Diabetes-friendly meal prep", category: "MEAL", frequency: "Daily", defaultMinutes: 30 },
+        { id: "t4", title: "Light housekeeping", category: "HOUSEKEEPING", frequency: "Mon/Wed/Fri", defaultMinutes: 30 },
+        { id: "t5", title: "Companionship", category: "COMPANIONSHIP", frequency: "Daily", defaultMinutes: 30 },
+      ] as never,
+      riskFactors: ["Type 2 diabetes — monitor BG"] as never,
+      preferences: {} as never,
+      effectiveStart: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      authoredBy: "user_admin",
+      approvedBy: "user_admin",
+      approvedAt: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000),
     },
   ]);
 
