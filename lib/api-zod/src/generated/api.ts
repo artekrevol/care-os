@@ -1922,6 +1922,69 @@ export const GetVisitChecklistResponse = zod.object({
     zod.object({
       taskId: zod.string(),
       title: zod.string(),
+      category: zod.string(),
+      instructions: zod.string().nullish(),
+      requiresPhoto: zod.boolean(),
+      completed: zod.boolean(),
+      completedAt: zod.coerce.date().nullish(),
+      photoUrl: zod.string().nullish(),
+      skippedReason: zod.string().nullish(),
+    }),
+  ),
+  completedAt: zod.coerce.date().nullish(),
+});
+
+export const CompleteVisitChecklistTaskParams = zod.object({
+  id: zod.coerce.string(),
+  taskId: zod.coerce.string(),
+});
+
+export const CompleteVisitChecklistTaskBody = zod.object({
+  photoUrl: zod.string().nullish(),
+});
+
+export const CompleteVisitChecklistTaskResponse = zod.object({
+  id: zod.string(),
+  visitId: zod.string(),
+  carePlanId: zod.string().nullish(),
+  carePlanVersion: zod.number().nullish(),
+  tasks: zod.array(
+    zod.object({
+      taskId: zod.string(),
+      title: zod.string(),
+      category: zod.string(),
+      instructions: zod.string().nullish(),
+      requiresPhoto: zod.boolean(),
+      completed: zod.boolean(),
+      completedAt: zod.coerce.date().nullish(),
+      photoUrl: zod.string().nullish(),
+      skippedReason: zod.string().nullish(),
+    }),
+  ),
+  completedAt: zod.coerce.date().nullish(),
+});
+
+export const SkipVisitChecklistTaskParams = zod.object({
+  id: zod.coerce.string(),
+  taskId: zod.coerce.string(),
+});
+
+export const SkipVisitChecklistTaskBody = zod.object({
+  reason: zod.string(),
+});
+
+export const SkipVisitChecklistTaskResponse = zod.object({
+  id: zod.string(),
+  visitId: zod.string(),
+  carePlanId: zod.string().nullish(),
+  carePlanVersion: zod.number().nullish(),
+  tasks: zod.array(
+    zod.object({
+      taskId: zod.string(),
+      title: zod.string(),
+      category: zod.string(),
+      instructions: zod.string().nullish(),
+      requiresPhoto: zod.boolean(),
       completed: zod.boolean(),
       completedAt: zod.coerce.date().nullish(),
       photoUrl: zod.string().nullish(),

@@ -41,6 +41,7 @@ import type {
   ClientHoursReport,
   ClockInBody,
   ClockOutBody,
+  CompleteVisitChecklistTaskBody,
   ComplianceAlert,
   CreateAuthorizationBody,
   CreateCarePlanBody,
@@ -109,6 +110,7 @@ import type {
   ScheduleDryRunBody,
   ScheduleDryRunResult,
   SetActiveLaborRuleBody,
+  SkipVisitChecklistTaskBody,
   SubmitCarePlanBody,
   SuggestCaregiversBody,
   TaskTemplate,
@@ -4415,6 +4417,201 @@ export function useGetVisitChecklist<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+export const getCompleteVisitChecklistTaskUrl = (
+  id: string,
+  taskId: string,
+) => {
+  return `/api/visits/${id}/checklist/tasks/${taskId}/complete`;
+};
+
+export const completeVisitChecklistTask = async (
+  id: string,
+  taskId: string,
+  completeVisitChecklistTaskBody?: CompleteVisitChecklistTaskBody,
+  options?: RequestInit,
+): Promise<VisitChecklistInstance> => {
+  return customFetch<VisitChecklistInstance>(
+    getCompleteVisitChecklistTaskUrl(id, taskId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(completeVisitChecklistTaskBody),
+    },
+  );
+};
+
+export const getCompleteVisitChecklistTaskMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeVisitChecklistTask>>,
+    TError,
+    {
+      id: string;
+      taskId: string;
+      data: BodyType<CompleteVisitChecklistTaskBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof completeVisitChecklistTask>>,
+  TError,
+  {
+    id: string;
+    taskId: string;
+    data: BodyType<CompleteVisitChecklistTaskBody>;
+  },
+  TContext
+> => {
+  const mutationKey = ["completeVisitChecklistTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof completeVisitChecklistTask>>,
+    {
+      id: string;
+      taskId: string;
+      data: BodyType<CompleteVisitChecklistTaskBody>;
+    }
+  > = (props) => {
+    const { id, taskId, data } = props ?? {};
+
+    return completeVisitChecklistTask(id, taskId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CompleteVisitChecklistTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof completeVisitChecklistTask>>
+>;
+export type CompleteVisitChecklistTaskMutationBody =
+  BodyType<CompleteVisitChecklistTaskBody>;
+export type CompleteVisitChecklistTaskMutationError = ErrorType<unknown>;
+
+export const useCompleteVisitChecklistTask = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof completeVisitChecklistTask>>,
+    TError,
+    {
+      id: string;
+      taskId: string;
+      data: BodyType<CompleteVisitChecklistTaskBody>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof completeVisitChecklistTask>>,
+  TError,
+  {
+    id: string;
+    taskId: string;
+    data: BodyType<CompleteVisitChecklistTaskBody>;
+  },
+  TContext
+> => {
+  return useMutation(getCompleteVisitChecklistTaskMutationOptions(options));
+};
+
+export const getSkipVisitChecklistTaskUrl = (id: string, taskId: string) => {
+  return `/api/visits/${id}/checklist/tasks/${taskId}/skip`;
+};
+
+export const skipVisitChecklistTask = async (
+  id: string,
+  taskId: string,
+  skipVisitChecklistTaskBody: SkipVisitChecklistTaskBody,
+  options?: RequestInit,
+): Promise<VisitChecklistInstance> => {
+  return customFetch<VisitChecklistInstance>(
+    getSkipVisitChecklistTaskUrl(id, taskId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(skipVisitChecklistTaskBody),
+    },
+  );
+};
+
+export const getSkipVisitChecklistTaskMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof skipVisitChecklistTask>>,
+    TError,
+    { id: string; taskId: string; data: BodyType<SkipVisitChecklistTaskBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof skipVisitChecklistTask>>,
+  TError,
+  { id: string; taskId: string; data: BodyType<SkipVisitChecklistTaskBody> },
+  TContext
+> => {
+  const mutationKey = ["skipVisitChecklistTask"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof skipVisitChecklistTask>>,
+    { id: string; taskId: string; data: BodyType<SkipVisitChecklistTaskBody> }
+  > = (props) => {
+    const { id, taskId, data } = props ?? {};
+
+    return skipVisitChecklistTask(id, taskId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SkipVisitChecklistTaskMutationResult = NonNullable<
+  Awaited<ReturnType<typeof skipVisitChecklistTask>>
+>;
+export type SkipVisitChecklistTaskMutationBody =
+  BodyType<SkipVisitChecklistTaskBody>;
+export type SkipVisitChecklistTaskMutationError = ErrorType<unknown>;
+
+export const useSkipVisitChecklistTask = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof skipVisitChecklistTask>>,
+    TError,
+    { id: string; taskId: string; data: BodyType<SkipVisitChecklistTaskBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof skipVisitChecklistTask>>,
+  TError,
+  { id: string; taskId: string; data: BodyType<SkipVisitChecklistTaskBody> },
+  TContext
+> => {
+  return useMutation(getSkipVisitChecklistTaskMutationOptions(options));
+};
 
 export const getListVisitNotesUrl = (id: string) => {
   return `/api/visits/${id}/notes`;

@@ -12,6 +12,13 @@ import {
 } from "@workspace/db";
 import {
   GetVisitChecklistParams,
+  GetVisitChecklistResponse,
+  CompleteVisitChecklistTaskParams,
+  CompleteVisitChecklistTaskBody,
+  CompleteVisitChecklistTaskResponse,
+  SkipVisitChecklistTaskParams,
+  SkipVisitChecklistTaskBody,
+  SkipVisitChecklistTaskResponse,
   ListVisitNotesParams,
   ListVisitNotesResponse,
   CreateVisitNoteParams,
@@ -30,34 +37,187 @@ import { dispatchNotificationToUsers } from "../lib/notify";
 
 const router: IRouter = Router();
 
-router.get("/visits/:id/checklist", async (req, res): Promise<void> => {
-  const params = GetVisitChecklistParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
+type ChecklistTask = {
+  taskId: string;
+  title: string;
+  category: string;
+  instructions: string | null;
+  requiresPhoto: boolean;
+  completed: boolean;
+  completedAt: string | null;
+  photoUrl: string | null;
+  skippedReason: string | null;
+};
+
+function formatChecklist(
+  row: typeof visitChecklistInstancesTable.$inferSelect,
+) {
+  return {
+    id: row.id,
+    visitId: row.visitId,
+    carePlanId: row.carePlanId,
+    carePlanVersion: row.carePlanVersion,
+    tasks: (row.tasks as ChecklistTask[]) ?? [],
+    completedAt: row.completedAt,
+  };
+}
+
+async function loadInstance(visitId: string) {
   const [row] = await db
     .select()
     .from(visitChecklistInstancesTable)
     .where(
       and(
         eq(visitChecklistInstancesTable.agencyId, AGENCY_ID),
-        eq(visitChecklistInstancesTable.visitId, params.data.id),
+        eq(visitChecklistInstancesTable.visitId, visitId),
       ),
     );
-  if (!row) {
-    res.status(404).json({ error: "Checklist not found" });
+  return row;
+}
+
+async function ensureVisit(id: string) {
+  const [v] = await db
+    .select()
+    .from(visitsTable)
+    .where(and(eq(visitsTable.agencyId, AGENCY_ID), eq(visitsTable.id, id)));
+  return v;
+}
+
+router.get("/visits/:id/checklist", async (req, res): Promise<void> => {
+  const params = GetVisitChecklistParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
     return;
   }
-  res.json({
-    id: row.id,
-    visitId: row.visitId,
-    carePlanId: row.carePlanId,
-    carePlanVersion: row.carePlanVersion,
-    tasks: row.tasks ?? [],
-    completedAt: row.completedAt,
-  });
+  const visit = await ensureVisit(params.data.id);
+  if (!visit) {
+    res.status(404).json({ error: "Visit not found" });
+    return;
+  }
+  const row = await loadInstance(visit.id);
+  if (!row) {
+    res.status(404).json({ error: "No checklist for this visit" });
+    return;
+  }
+  res.json(GetVisitChecklistResponse.parse(formatChecklist(row)));
 });
+
+router.post(
+  "/visits/:id/checklist/tasks/:taskId/complete",
+  async (req, res): Promise<void> => {
+    const params = CompleteVisitChecklistTaskParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    const parsed = CompleteVisitChecklistTaskBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const row = await loadInstance(params.data.id);
+    if (!row) {
+      res.status(404).json({ error: "Checklist not found" });
+      return;
+    }
+    const tasks = (row.tasks as ChecklistTask[]) ?? [];
+    const idx = tasks.findIndex((t) => t.taskId === params.data.taskId);
+    if (idx === -1) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+    const target = tasks[idx];
+    const photoUrl = parsed.data.photoUrl ?? target.photoUrl ?? null;
+    if (target.requiresPhoto && !photoUrl) {
+      res
+        .status(400)
+        .json({ error: "A photo is required to complete this task" });
+      return;
+    }
+    const updated: ChecklistTask = {
+      ...target,
+      completed: true,
+      completedAt: new Date().toISOString(),
+      photoUrl,
+      skippedReason: null,
+    };
+    const newTasks = [...tasks];
+    newTasks[idx] = updated;
+    const allDone = newTasks.every(
+      (t) => t.completed || t.skippedReason !== null,
+    );
+    const [next] = await db
+      .update(visitChecklistInstancesTable)
+      .set({
+        tasks: newTasks,
+        completedAt: allDone ? new Date() : null,
+      })
+      .where(eq(visitChecklistInstancesTable.id, row.id))
+      .returning();
+    await recordAudit({
+      action: "COMPLETE_VISIT_TASK",
+      entityType: "Visit",
+      entityId: row.visitId,
+      summary: `Task "${target.title}" completed`,
+      afterState: updated,
+    });
+    res.json(CompleteVisitChecklistTaskResponse.parse(formatChecklist(next)));
+  },
+);
+
+router.post(
+  "/visits/:id/checklist/tasks/:taskId/skip",
+  async (req, res): Promise<void> => {
+    const params = SkipVisitChecklistTaskParams.safeParse(req.params);
+    const parsed = SkipVisitChecklistTaskBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success ? params.error.message : parsed.error!.message,
+      });
+      return;
+    }
+    const row = await loadInstance(params.data.id);
+    if (!row) {
+      res.status(404).json({ error: "Checklist not found" });
+      return;
+    }
+    const tasks = (row.tasks as ChecklistTask[]) ?? [];
+    const idx = tasks.findIndex((t) => t.taskId === params.data.taskId);
+    if (idx === -1) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+    const target = tasks[idx];
+    const updated: ChecklistTask = {
+      ...target,
+      completed: false,
+      completedAt: null,
+      photoUrl: null,
+      skippedReason: parsed.data.reason,
+    };
+    const newTasks = [...tasks];
+    newTasks[idx] = updated;
+    const allDone = newTasks.every(
+      (t) => t.completed || t.skippedReason !== null,
+    );
+    const [next] = await db
+      .update(visitChecklistInstancesTable)
+      .set({
+        tasks: newTasks,
+        completedAt: allDone ? new Date() : null,
+      })
+      .where(eq(visitChecklistInstancesTable.id, row.id))
+      .returning();
+    await recordAudit({
+      action: "SKIP_VISIT_TASK",
+      entityType: "Visit",
+      entityId: row.visitId,
+      summary: `Task "${target.title}" skipped: ${parsed.data.reason}`,
+      afterState: updated,
+    });
+    res.json(SkipVisitChecklistTaskResponse.parse(formatChecklist(next)));
+  },
+);
 
 router.get("/visits/:id/notes", async (req, res): Promise<void> => {
   const params = ListVisitNotesParams.safeParse(req.params);
@@ -188,7 +348,6 @@ router.post("/visits/:id/incidents", async (req, res): Promise<void> => {
       photoUrls: parsed.data.photoUrls ?? [],
     })
     .returning();
-  // Compliance alert + family-visible incident notification trigger point
   await db.insert(complianceAlertsTable).values({
     id: newId("alert"),
     agencyId: AGENCY_ID,
@@ -210,7 +369,6 @@ router.post("/visits/:id/incidents", async (req, res): Promise<void> => {
     summary: `Incident logged (${row.severity}) — ${row.category}`,
     afterState: row,
   });
-  // Fan out notification to all family users linked to this visit's client
   const [visit] = await db
     .select()
     .from(visitsTable)

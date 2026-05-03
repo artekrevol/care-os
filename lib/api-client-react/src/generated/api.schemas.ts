@@ -823,10 +823,21 @@ export interface PendingFamilyAcknowledgment {
 export interface VisitChecklistTask {
   taskId: string;
   title: string;
+  category: string;
+  instructions?: string | null;
+  requiresPhoto: boolean;
   completed: boolean;
   completedAt?: string | null;
   photoUrl?: string | null;
   skippedReason?: string | null;
+}
+
+export interface CompleteVisitChecklistTaskBody {
+  photoUrl?: string | null;
+}
+
+export interface SkipVisitChecklistTaskBody {
+  reason: string;
 }
 
 export interface VisitChecklistInstance {

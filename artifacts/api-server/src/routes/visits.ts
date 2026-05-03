@@ -8,6 +8,7 @@ import {
   caregiversTable,
   complianceAlertsTable,
   carePlansTable,
+  visitChecklistInstancesTable,
 } from "@workspace/db";
 import {
   ListVisitsQueryParams,
@@ -113,6 +114,7 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
     .where(eq(clientsTable.id, parsed.data.clientId));
   let carePlanId: string | null = null;
   let carePlanVersion: number | null = null;
+  let snapshotPlanTasks: Array<Record<string, unknown>> = [];
   if (client?.activeCarePlanId) {
     const [plan] = await db
       .select()
@@ -121,6 +123,7 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
     if (plan) {
       carePlanId = plan.id;
       carePlanVersion = plan.version;
+      snapshotPlanTasks = (plan.tasks as Array<Record<string, unknown>>) ?? [];
     }
   }
   const id = newId("vis");
@@ -150,6 +153,38 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
       carePlanVersion,
     })
     .returning();
+  // Snapshot the active care plan tasks into a checklist instance the
+  // caregiver will tick off bedside. Mid-shift care plan edits won't change
+  // what was already snapshotted.
+  if (snapshotPlanTasks.length > 0) {
+    const snapshotTasks = snapshotPlanTasks
+      .slice()
+      .sort((a, b) => {
+        const ao = typeof a.ordering === "number" ? a.ordering : 0;
+        const bo = typeof b.ordering === "number" ? b.ordering : 0;
+        return ao - bo;
+      })
+      .map((t) => ({
+        taskId: typeof t.id === "string" ? t.id : newId("vct"),
+        title: typeof t.title === "string" ? t.title : "Task",
+        category: typeof t.category === "string" ? t.category : "OTHER",
+        instructions:
+          typeof t.instructions === "string" ? t.instructions : null,
+        requiresPhoto: Boolean(t.requiresPhoto),
+        completed: false,
+        completedAt: null,
+        photoUrl: null,
+        skippedReason: null,
+      }));
+    await db.insert(visitChecklistInstancesTable).values({
+      id: newId("vci"),
+      agencyId: AGENCY_ID,
+      visitId: id,
+      carePlanId,
+      carePlanVersion,
+      tasks: snapshotTasks,
+    });
+  }
   await recordAudit({
     action: "CLOCK_IN",
     entityType: "Visit",

@@ -1054,6 +1054,64 @@ paths:
               schema:
                 $ref: "#/components/schemas/VisitChecklistInstance"
 
+  /visits/{id}/checklist/tasks/{taskId}/complete:
+    post:
+      operationId: completeVisitChecklistTask
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteVisitChecklistTaskBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitChecklistInstance"
+
+  /visits/{id}/checklist/tasks/{taskId}/skip:
+    post:
+      operationId: skipVisitChecklistTask
+      tags: [visit-artifacts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: taskId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkipVisitChecklistTaskBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VisitChecklistInstance"
+
   /visits/{id}/notes:
     get:
       operationId: listVisitNotes
@@ -3146,12 +3204,26 @@ components:
       properties:
         taskId: { type: string }
         title: { type: string }
+        category: { type: string }
+        instructions: { type: string, nullable: true }
+        requiresPhoto: { type: boolean }
         completed: { type: boolean }
         completedAt:
           { type: string, format: date-time, nullable: true }
         photoUrl: { type: string, nullable: true }
         skippedReason: { type: string, nullable: true }
-      required: [taskId, title, completed]
+      required: [taskId, title, category, requiresPhoto, completed]
+
+    CompleteVisitChecklistTaskBody:
+      type: object
+      properties:
+        photoUrl: { type: string, nullable: true }
+
+    SkipVisitChecklistTaskBody:
+      type: object
+      properties:
+        reason: { type: string }
+      required: [reason]
 
     VisitChecklistInstance:
       type: object
