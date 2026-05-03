@@ -781,10 +781,148 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarePlan"
+    patch:
+      operationId: updateCarePlan
+      tags: [care-plans]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCarePlanBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlan"
+
+  /care-plans/{id}/submit:
+    post:
+      operationId: submitCarePlan
+      tags: [care-plans]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitCarePlanBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlan"
 
   /care-plans/{id}/approve:
     post:
       operationId: approveCarePlan
+      tags: [care-plans]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveCarePlanBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlan"
+
+  /care-plans/{id}/reject:
+    post:
+      operationId: rejectCarePlan
+      tags: [care-plans]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectCarePlanBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlan"
+
+  /care-plans/{id}/acknowledge:
+    post:
+      operationId: acknowledgeCarePlan
+      tags: [care-plans, family]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcknowledgeCarePlanBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlanAcknowledgment"
+
+  /clients/{id}/care-plans:
+    get:
+      operationId: listClientCarePlans
+      tags: [care-plans]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CarePlan"
+
+  /clients/{id}/care-plan/active:
+    get:
+      operationId: getActiveCarePlan
       tags: [care-plans]
       parameters:
         - in: path
@@ -799,6 +937,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CarePlan"
+        "404":
+          description: No active care plan
+
+  /clients/{id}/care-plans/generate:
+    post:
+      operationId: generateCarePlanFromAuthorization
+      tags: [care-plans]
+      summary: AI drafter — propose a starter plan from authorization scope
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateCarePlanFromAuthorizationBody"
+      responses:
+        "201":
+          description: Drafted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarePlan"
+
+  /task-templates:
+    get:
+      operationId: listTaskTemplates
+      tags: [care-plans]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaskTemplate"
+
+  /family/pending-acknowledgments:
+    get:
+      operationId: listPendingFamilyAcknowledgments
+      tags: [care-plans, family]
+      parameters:
+        - in: query
+          name: familyUserId
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PendingFamilyAcknowledgment"
 
   /visits/{id}/checklist:
     get:
@@ -2329,7 +2527,11 @@ components:
 
     CarePlanStatus:
       type: string
-      enum: [DRAFT, PENDING_APPROVAL, ACTIVE, ARCHIVED]
+      enum: [DRAFT, SUBMITTED, APPROVED, REJECTED, ARCHIVED]
+
+    CarePlanTaskFrequency:
+      type: string
+      enum: [DAILY, WEEKLY, PER_VISIT, PRN]
 
     CarePlanGoal:
       type: object
@@ -2344,13 +2546,39 @@ components:
       type: object
       properties:
         id: { type: string }
-        templateId: { type: string }
+        templateId: { type: string, nullable: true }
         category: { type: string }
         title: { type: string }
-        instructions: { type: string }
-        frequency: { type: string }
+        instructions: { type: string, nullable: true }
+        frequency:
+          $ref: "#/components/schemas/CarePlanTaskFrequency"
+        ordering: { type: integer }
         requiresPhoto: { type: boolean }
-      required: [id, category, title]
+      required: [id, category, title, frequency, ordering, requiresPhoto]
+
+    TaskTemplate:
+      type: object
+      properties:
+        id: { type: string }
+        category: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        defaultMinutes: { type: integer, nullable: true }
+        defaultFrequency:
+          $ref: "#/components/schemas/CarePlanTaskFrequency"
+        requiresPhoto: { type: boolean }
+      required: [id, category, title, defaultFrequency, requiresPhoto]
+
+    CarePlanAcknowledgment:
+      type: object
+      properties:
+        id: { type: string }
+        carePlanId: { type: string }
+        familyUserId: { type: string }
+        familyUserName: { type: string }
+        acknowledgedAt: { type: string, format: date-time }
+        notes: { type: string, nullable: true }
+      required: [id, carePlanId, familyUserId, familyUserName, acknowledgedAt]
 
     CarePlan:
       type: object
@@ -2379,13 +2607,25 @@ components:
           { type: string, format: date-time, nullable: true }
         effectiveEnd:
           { type: string, format: date-time, nullable: true }
+        submittedBy: { type: string, nullable: true }
+        submittedAt:
+          { type: string, format: date-time, nullable: true }
         approvedBy: { type: string, nullable: true }
         approvedAt:
           { type: string, format: date-time, nullable: true }
+        rejectedBy: { type: string, nullable: true }
+        rejectedAt:
+          { type: string, format: date-time, nullable: true }
+        rejectionReason: { type: string, nullable: true }
+        isActive: { type: boolean }
         sourceAgentRunId: { type: string, nullable: true }
+        acknowledgments:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarePlanAcknowledgment"
         createdAt: { type: string, format: date-time }
       required:
-        [id, clientId, version, status, title, goals, tasks, riskFactors, createdAt]
+        [id, clientId, version, status, title, goals, tasks, riskFactors, isActive, acknowledgments, createdAt]
 
     CreateCarePlanBody:
       type: object
@@ -2408,6 +2648,66 @@ components:
           additionalProperties: true
         sourceAgentRunId: { type: string }
       required: [clientId, title]
+
+    UpdateCarePlanBody:
+      type: object
+      properties:
+        title: { type: string }
+        goals:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarePlanGoal"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CarePlanTask"
+        riskFactors:
+          type: array
+          items: { type: string }
+        preferences:
+          type: object
+          additionalProperties: true
+
+    SubmitCarePlanBody:
+      type: object
+      properties:
+        notes: { type: string }
+
+    ApproveCarePlanBody:
+      type: object
+      properties:
+        notes: { type: string }
+        effectiveStart: { type: string, format: date-time }
+
+    RejectCarePlanBody:
+      type: object
+      properties:
+        reason: { type: string }
+      required: [reason]
+
+    AcknowledgeCarePlanBody:
+      type: object
+      properties:
+        familyUserId: { type: string }
+        notes: { type: string }
+      required: [familyUserId]
+
+    GenerateCarePlanFromAuthorizationBody:
+      type: object
+      properties:
+        authorizationId: { type: string }
+      required: [authorizationId]
+
+    PendingFamilyAcknowledgment:
+      type: object
+      properties:
+        carePlanId: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        version: { type: integer }
+        title: { type: string }
+        approvedAt: { type: string, format: date-time }
+      required: [carePlanId, clientId, clientName, version, title, approvedAt]
 
     VisitChecklistTask:
       type: object

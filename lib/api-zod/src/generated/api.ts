@@ -1082,7 +1082,7 @@ export const ListAuditLogResponse = zod.array(ListAuditLogResponseItem);
 export const ListCarePlansQueryParams = zod.object({
   clientId: zod.coerce.string().optional(),
   status: zod
-    .enum(["DRAFT", "PENDING_APPROVAL", "ACTIVE", "ARCHIVED"])
+    .enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"])
     .optional(),
 });
 
@@ -1090,7 +1090,7 @@ export const ListCarePlansResponseItem = zod.object({
   id: zod.string(),
   clientId: zod.string(),
   version: zod.number(),
-  status: zod.enum(["DRAFT", "PENDING_APPROVAL", "ACTIVE", "ARCHIVED"]),
+  status: zod.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"]),
   title: zod.string(),
   goals: zod.array(
     zod.object({
@@ -1103,21 +1103,38 @@ export const ListCarePlansResponseItem = zod.object({
   tasks: zod.array(
     zod.object({
       id: zod.string(),
-      templateId: zod.string().optional(),
+      templateId: zod.string().nullish(),
       category: zod.string(),
       title: zod.string(),
-      instructions: zod.string().optional(),
-      frequency: zod.string().optional(),
-      requiresPhoto: zod.boolean().optional(),
+      instructions: zod.string().nullish(),
+      frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+      ordering: zod.number(),
+      requiresPhoto: zod.boolean(),
     }),
   ),
   riskFactors: zod.array(zod.string()),
   preferences: zod.record(zod.string(), zod.unknown()).optional(),
   effectiveStart: zod.coerce.date().nullish(),
   effectiveEnd: zod.coerce.date().nullish(),
+  submittedBy: zod.string().nullish(),
+  submittedAt: zod.coerce.date().nullish(),
   approvedBy: zod.string().nullish(),
   approvedAt: zod.coerce.date().nullish(),
+  rejectedBy: zod.string().nullish(),
+  rejectedAt: zod.coerce.date().nullish(),
+  rejectionReason: zod.string().nullish(),
+  isActive: zod.boolean(),
   sourceAgentRunId: zod.string().nullish(),
+  acknowledgments: zod.array(
+    zod.object({
+      id: zod.string(),
+      carePlanId: zod.string(),
+      familyUserId: zod.string(),
+      familyUserName: zod.string(),
+      acknowledgedAt: zod.coerce.date(),
+      notes: zod.string().nullish(),
+    }),
+  ),
   createdAt: zod.coerce.date(),
 });
 export const ListCarePlansResponse = zod.array(ListCarePlansResponseItem);
@@ -1139,12 +1156,13 @@ export const CreateCarePlanBody = zod.object({
     .array(
       zod.object({
         id: zod.string(),
-        templateId: zod.string().optional(),
+        templateId: zod.string().nullish(),
         category: zod.string(),
         title: zod.string(),
-        instructions: zod.string().optional(),
-        frequency: zod.string().optional(),
-        requiresPhoto: zod.boolean().optional(),
+        instructions: zod.string().nullish(),
+        frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+        ordering: zod.number(),
+        requiresPhoto: zod.boolean(),
       }),
     )
     .optional(),
@@ -1161,7 +1179,7 @@ export const GetCarePlanResponse = zod.object({
   id: zod.string(),
   clientId: zod.string(),
   version: zod.number(),
-  status: zod.enum(["DRAFT", "PENDING_APPROVAL", "ACTIVE", "ARCHIVED"]),
+  status: zod.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"]),
   title: zod.string(),
   goals: zod.array(
     zod.object({
@@ -1174,21 +1192,184 @@ export const GetCarePlanResponse = zod.object({
   tasks: zod.array(
     zod.object({
       id: zod.string(),
-      templateId: zod.string().optional(),
+      templateId: zod.string().nullish(),
       category: zod.string(),
       title: zod.string(),
-      instructions: zod.string().optional(),
-      frequency: zod.string().optional(),
-      requiresPhoto: zod.boolean().optional(),
+      instructions: zod.string().nullish(),
+      frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+      ordering: zod.number(),
+      requiresPhoto: zod.boolean(),
     }),
   ),
   riskFactors: zod.array(zod.string()),
   preferences: zod.record(zod.string(), zod.unknown()).optional(),
   effectiveStart: zod.coerce.date().nullish(),
   effectiveEnd: zod.coerce.date().nullish(),
+  submittedBy: zod.string().nullish(),
+  submittedAt: zod.coerce.date().nullish(),
   approvedBy: zod.string().nullish(),
   approvedAt: zod.coerce.date().nullish(),
+  rejectedBy: zod.string().nullish(),
+  rejectedAt: zod.coerce.date().nullish(),
+  rejectionReason: zod.string().nullish(),
+  isActive: zod.boolean(),
   sourceAgentRunId: zod.string().nullish(),
+  acknowledgments: zod.array(
+    zod.object({
+      id: zod.string(),
+      carePlanId: zod.string(),
+      familyUserId: zod.string(),
+      familyUserName: zod.string(),
+      acknowledgedAt: zod.coerce.date(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+  createdAt: zod.coerce.date(),
+});
+
+export const UpdateCarePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateCarePlanBody = zod.object({
+  title: zod.string().optional(),
+  goals: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        title: zod.string(),
+        description: zod.string().optional(),
+        targetMetric: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  tasks: zod
+    .array(
+      zod.object({
+        id: zod.string(),
+        templateId: zod.string().nullish(),
+        category: zod.string(),
+        title: zod.string(),
+        instructions: zod.string().nullish(),
+        frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+        ordering: zod.number(),
+        requiresPhoto: zod.boolean(),
+      }),
+    )
+    .optional(),
+  riskFactors: zod.array(zod.string()).optional(),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+});
+
+export const UpdateCarePlanResponse = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  version: zod.number(),
+  status: zod.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"]),
+  title: zod.string(),
+  goals: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().optional(),
+      targetMetric: zod.string().optional(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      templateId: zod.string().nullish(),
+      category: zod.string(),
+      title: zod.string(),
+      instructions: zod.string().nullish(),
+      frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+      ordering: zod.number(),
+      requiresPhoto: zod.boolean(),
+    }),
+  ),
+  riskFactors: zod.array(zod.string()),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  effectiveStart: zod.coerce.date().nullish(),
+  effectiveEnd: zod.coerce.date().nullish(),
+  submittedBy: zod.string().nullish(),
+  submittedAt: zod.coerce.date().nullish(),
+  approvedBy: zod.string().nullish(),
+  approvedAt: zod.coerce.date().nullish(),
+  rejectedBy: zod.string().nullish(),
+  rejectedAt: zod.coerce.date().nullish(),
+  rejectionReason: zod.string().nullish(),
+  isActive: zod.boolean(),
+  sourceAgentRunId: zod.string().nullish(),
+  acknowledgments: zod.array(
+    zod.object({
+      id: zod.string(),
+      carePlanId: zod.string(),
+      familyUserId: zod.string(),
+      familyUserName: zod.string(),
+      acknowledgedAt: zod.coerce.date(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+  createdAt: zod.coerce.date(),
+});
+
+export const SubmitCarePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const SubmitCarePlanBody = zod.object({
+  notes: zod.string().optional(),
+});
+
+export const SubmitCarePlanResponse = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  version: zod.number(),
+  status: zod.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"]),
+  title: zod.string(),
+  goals: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().optional(),
+      targetMetric: zod.string().optional(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      templateId: zod.string().nullish(),
+      category: zod.string(),
+      title: zod.string(),
+      instructions: zod.string().nullish(),
+      frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+      ordering: zod.number(),
+      requiresPhoto: zod.boolean(),
+    }),
+  ),
+  riskFactors: zod.array(zod.string()),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  effectiveStart: zod.coerce.date().nullish(),
+  effectiveEnd: zod.coerce.date().nullish(),
+  submittedBy: zod.string().nullish(),
+  submittedAt: zod.coerce.date().nullish(),
+  approvedBy: zod.string().nullish(),
+  approvedAt: zod.coerce.date().nullish(),
+  rejectedBy: zod.string().nullish(),
+  rejectedAt: zod.coerce.date().nullish(),
+  rejectionReason: zod.string().nullish(),
+  isActive: zod.boolean(),
+  sourceAgentRunId: zod.string().nullish(),
+  acknowledgments: zod.array(
+    zod.object({
+      id: zod.string(),
+      carePlanId: zod.string(),
+      familyUserId: zod.string(),
+      familyUserName: zod.string(),
+      acknowledgedAt: zod.coerce.date(),
+      notes: zod.string().nullish(),
+    }),
+  ),
   createdAt: zod.coerce.date(),
 });
 
@@ -1196,11 +1377,16 @@ export const ApproveCarePlanParams = zod.object({
   id: zod.coerce.string(),
 });
 
+export const ApproveCarePlanBody = zod.object({
+  notes: zod.string().optional(),
+  effectiveStart: zod.coerce.date().optional(),
+});
+
 export const ApproveCarePlanResponse = zod.object({
   id: zod.string(),
   clientId: zod.string(),
   version: zod.number(),
-  status: zod.enum(["DRAFT", "PENDING_APPROVAL", "ACTIVE", "ARCHIVED"]),
+  status: zod.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"]),
   title: zod.string(),
   goals: zod.array(
     zod.object({
@@ -1213,23 +1399,273 @@ export const ApproveCarePlanResponse = zod.object({
   tasks: zod.array(
     zod.object({
       id: zod.string(),
-      templateId: zod.string().optional(),
+      templateId: zod.string().nullish(),
       category: zod.string(),
       title: zod.string(),
-      instructions: zod.string().optional(),
-      frequency: zod.string().optional(),
-      requiresPhoto: zod.boolean().optional(),
+      instructions: zod.string().nullish(),
+      frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+      ordering: zod.number(),
+      requiresPhoto: zod.boolean(),
     }),
   ),
   riskFactors: zod.array(zod.string()),
   preferences: zod.record(zod.string(), zod.unknown()).optional(),
   effectiveStart: zod.coerce.date().nullish(),
   effectiveEnd: zod.coerce.date().nullish(),
+  submittedBy: zod.string().nullish(),
+  submittedAt: zod.coerce.date().nullish(),
   approvedBy: zod.string().nullish(),
   approvedAt: zod.coerce.date().nullish(),
+  rejectedBy: zod.string().nullish(),
+  rejectedAt: zod.coerce.date().nullish(),
+  rejectionReason: zod.string().nullish(),
+  isActive: zod.boolean(),
   sourceAgentRunId: zod.string().nullish(),
+  acknowledgments: zod.array(
+    zod.object({
+      id: zod.string(),
+      carePlanId: zod.string(),
+      familyUserId: zod.string(),
+      familyUserName: zod.string(),
+      acknowledgedAt: zod.coerce.date(),
+      notes: zod.string().nullish(),
+    }),
+  ),
   createdAt: zod.coerce.date(),
 });
+
+export const RejectCarePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RejectCarePlanBody = zod.object({
+  reason: zod.string(),
+});
+
+export const RejectCarePlanResponse = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  version: zod.number(),
+  status: zod.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"]),
+  title: zod.string(),
+  goals: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().optional(),
+      targetMetric: zod.string().optional(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      templateId: zod.string().nullish(),
+      category: zod.string(),
+      title: zod.string(),
+      instructions: zod.string().nullish(),
+      frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+      ordering: zod.number(),
+      requiresPhoto: zod.boolean(),
+    }),
+  ),
+  riskFactors: zod.array(zod.string()),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  effectiveStart: zod.coerce.date().nullish(),
+  effectiveEnd: zod.coerce.date().nullish(),
+  submittedBy: zod.string().nullish(),
+  submittedAt: zod.coerce.date().nullish(),
+  approvedBy: zod.string().nullish(),
+  approvedAt: zod.coerce.date().nullish(),
+  rejectedBy: zod.string().nullish(),
+  rejectedAt: zod.coerce.date().nullish(),
+  rejectionReason: zod.string().nullish(),
+  isActive: zod.boolean(),
+  sourceAgentRunId: zod.string().nullish(),
+  acknowledgments: zod.array(
+    zod.object({
+      id: zod.string(),
+      carePlanId: zod.string(),
+      familyUserId: zod.string(),
+      familyUserName: zod.string(),
+      acknowledgedAt: zod.coerce.date(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+  createdAt: zod.coerce.date(),
+});
+
+export const AcknowledgeCarePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const AcknowledgeCarePlanBody = zod.object({
+  familyUserId: zod.string(),
+  notes: zod.string().optional(),
+});
+
+export const AcknowledgeCarePlanResponse = zod.object({
+  id: zod.string(),
+  carePlanId: zod.string(),
+  familyUserId: zod.string(),
+  familyUserName: zod.string(),
+  acknowledgedAt: zod.coerce.date(),
+  notes: zod.string().nullish(),
+});
+
+export const ListClientCarePlansParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ListClientCarePlansResponseItem = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  version: zod.number(),
+  status: zod.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"]),
+  title: zod.string(),
+  goals: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().optional(),
+      targetMetric: zod.string().optional(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      templateId: zod.string().nullish(),
+      category: zod.string(),
+      title: zod.string(),
+      instructions: zod.string().nullish(),
+      frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+      ordering: zod.number(),
+      requiresPhoto: zod.boolean(),
+    }),
+  ),
+  riskFactors: zod.array(zod.string()),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  effectiveStart: zod.coerce.date().nullish(),
+  effectiveEnd: zod.coerce.date().nullish(),
+  submittedBy: zod.string().nullish(),
+  submittedAt: zod.coerce.date().nullish(),
+  approvedBy: zod.string().nullish(),
+  approvedAt: zod.coerce.date().nullish(),
+  rejectedBy: zod.string().nullish(),
+  rejectedAt: zod.coerce.date().nullish(),
+  rejectionReason: zod.string().nullish(),
+  isActive: zod.boolean(),
+  sourceAgentRunId: zod.string().nullish(),
+  acknowledgments: zod.array(
+    zod.object({
+      id: zod.string(),
+      carePlanId: zod.string(),
+      familyUserId: zod.string(),
+      familyUserName: zod.string(),
+      acknowledgedAt: zod.coerce.date(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+  createdAt: zod.coerce.date(),
+});
+export const ListClientCarePlansResponse = zod.array(
+  ListClientCarePlansResponseItem,
+);
+
+export const GetActiveCarePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetActiveCarePlanResponse = zod.object({
+  id: zod.string(),
+  clientId: zod.string(),
+  version: zod.number(),
+  status: zod.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"]),
+  title: zod.string(),
+  goals: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      description: zod.string().optional(),
+      targetMetric: zod.string().optional(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      templateId: zod.string().nullish(),
+      category: zod.string(),
+      title: zod.string(),
+      instructions: zod.string().nullish(),
+      frequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+      ordering: zod.number(),
+      requiresPhoto: zod.boolean(),
+    }),
+  ),
+  riskFactors: zod.array(zod.string()),
+  preferences: zod.record(zod.string(), zod.unknown()).optional(),
+  effectiveStart: zod.coerce.date().nullish(),
+  effectiveEnd: zod.coerce.date().nullish(),
+  submittedBy: zod.string().nullish(),
+  submittedAt: zod.coerce.date().nullish(),
+  approvedBy: zod.string().nullish(),
+  approvedAt: zod.coerce.date().nullish(),
+  rejectedBy: zod.string().nullish(),
+  rejectedAt: zod.coerce.date().nullish(),
+  rejectionReason: zod.string().nullish(),
+  isActive: zod.boolean(),
+  sourceAgentRunId: zod.string().nullish(),
+  acknowledgments: zod.array(
+    zod.object({
+      id: zod.string(),
+      carePlanId: zod.string(),
+      familyUserId: zod.string(),
+      familyUserName: zod.string(),
+      acknowledgedAt: zod.coerce.date(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary AI drafter — propose a starter plan from authorization scope
+ */
+export const GenerateCarePlanFromAuthorizationParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GenerateCarePlanFromAuthorizationBody = zod.object({
+  authorizationId: zod.string(),
+});
+
+export const ListTaskTemplatesResponseItem = zod.object({
+  id: zod.string(),
+  category: zod.string(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  defaultMinutes: zod.number().nullish(),
+  defaultFrequency: zod.enum(["DAILY", "WEEKLY", "PER_VISIT", "PRN"]),
+  requiresPhoto: zod.boolean(),
+});
+export const ListTaskTemplatesResponse = zod.array(
+  ListTaskTemplatesResponseItem,
+);
+
+export const ListPendingFamilyAcknowledgmentsQueryParams = zod.object({
+  familyUserId: zod.coerce.string().optional(),
+});
+
+export const ListPendingFamilyAcknowledgmentsResponseItem = zod.object({
+  carePlanId: zod.string(),
+  clientId: zod.string(),
+  clientName: zod.string(),
+  version: zod.number(),
+  title: zod.string(),
+  approvedAt: zod.coerce.date(),
+});
+export const ListPendingFamilyAcknowledgmentsResponse = zod.array(
+  ListPendingFamilyAcknowledgmentsResponseItem,
+);
 
 export const GetVisitChecklistParams = zod.object({
   id: zod.coerce.string(),

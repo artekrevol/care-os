@@ -5,6 +5,7 @@
  * CareOS API — home care operating system foundation.
  * OpenAPI spec version: 0.1.0
  */
+import type { CarePlanAcknowledgment } from "./carePlanAcknowledgment";
 import type { CarePlanGoal } from "./carePlanGoal";
 import type { CarePlanPreferences } from "./carePlanPreferences";
 import type { CarePlanStatus } from "./carePlanStatus";
@@ -22,8 +23,15 @@ export interface CarePlan {
   preferences?: CarePlanPreferences;
   effectiveStart?: Date | null;
   effectiveEnd?: Date | null;
+  submittedBy?: string | null;
+  submittedAt?: Date | null;
   approvedBy?: string | null;
   approvedAt?: Date | null;
+  rejectedBy?: string | null;
+  rejectedAt?: Date | null;
+  rejectionReason?: string | null;
+  isActive: boolean;
   sourceAgentRunId?: string | null;
+  acknowledgments: CarePlanAcknowledgment[];
   createdAt: Date;
 }

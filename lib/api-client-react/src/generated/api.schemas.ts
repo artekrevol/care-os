@@ -590,9 +590,20 @@ export type CarePlanStatus =
 
 export const CarePlanStatus = {
   DRAFT: "DRAFT",
-  PENDING_APPROVAL: "PENDING_APPROVAL",
-  ACTIVE: "ACTIVE",
+  SUBMITTED: "SUBMITTED",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
   ARCHIVED: "ARCHIVED",
+} as const;
+
+export type CarePlanTaskFrequency =
+  (typeof CarePlanTaskFrequency)[keyof typeof CarePlanTaskFrequency];
+
+export const CarePlanTaskFrequency = {
+  DAILY: "DAILY",
+  WEEKLY: "WEEKLY",
+  PER_VISIT: "PER_VISIT",
+  PRN: "PRN",
 } as const;
 
 export interface CarePlanGoal {
@@ -604,12 +615,32 @@ export interface CarePlanGoal {
 
 export interface CarePlanTask {
   id: string;
-  templateId?: string;
+  templateId?: string | null;
   category: string;
   title: string;
-  instructions?: string;
-  frequency?: string;
-  requiresPhoto?: boolean;
+  instructions?: string | null;
+  frequency: CarePlanTaskFrequency;
+  ordering: number;
+  requiresPhoto: boolean;
+}
+
+export interface TaskTemplate {
+  id: string;
+  category: string;
+  title: string;
+  description?: string | null;
+  defaultMinutes?: number | null;
+  defaultFrequency: CarePlanTaskFrequency;
+  requiresPhoto: boolean;
+}
+
+export interface CarePlanAcknowledgment {
+  id: string;
+  carePlanId: string;
+  familyUserId: string;
+  familyUserName: string;
+  acknowledgedAt: string;
+  notes?: string | null;
 }
 
 export type CarePlanPreferences = { [key: string]: unknown };
@@ -626,9 +657,16 @@ export interface CarePlan {
   preferences?: CarePlanPreferences;
   effectiveStart?: string | null;
   effectiveEnd?: string | null;
+  submittedBy?: string | null;
+  submittedAt?: string | null;
   approvedBy?: string | null;
   approvedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  isActive: boolean;
   sourceAgentRunId?: string | null;
+  acknowledgments: CarePlanAcknowledgment[];
   createdAt: string;
 }
 
@@ -642,6 +680,47 @@ export interface CreateCarePlanBody {
   riskFactors?: string[];
   preferences?: CreateCarePlanBodyPreferences;
   sourceAgentRunId?: string;
+}
+
+export type UpdateCarePlanBodyPreferences = { [key: string]: unknown };
+
+export interface UpdateCarePlanBody {
+  title?: string;
+  goals?: CarePlanGoal[];
+  tasks?: CarePlanTask[];
+  riskFactors?: string[];
+  preferences?: UpdateCarePlanBodyPreferences;
+}
+
+export interface SubmitCarePlanBody {
+  notes?: string;
+}
+
+export interface ApproveCarePlanBody {
+  notes?: string;
+  effectiveStart?: string;
+}
+
+export interface RejectCarePlanBody {
+  reason: string;
+}
+
+export interface AcknowledgeCarePlanBody {
+  familyUserId: string;
+  notes?: string;
+}
+
+export interface GenerateCarePlanFromAuthorizationBody {
+  authorizationId: string;
+}
+
+export interface PendingFamilyAcknowledgment {
+  carePlanId: string;
+  clientId: string;
+  clientName: string;
+  version: number;
+  title: string;
+  approvedAt: string;
 }
 
 export interface VisitChecklistTask {
@@ -1137,6 +1216,10 @@ export type ListAuditLogParams = {
 export type ListCarePlansParams = {
   clientId?: string;
   status?: CarePlanStatus;
+};
+
+export type ListPendingFamilyAcknowledgmentsParams = {
+  familyUserId?: string;
 };
 
 export type ListFamilyUsersParams = {

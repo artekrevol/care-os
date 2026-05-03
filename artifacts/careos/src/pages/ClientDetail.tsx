@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { User, HeartPulse, FileText, Phone, Activity, Plus } from "lucide-react";
+import { CarePlanSection } from "@/components/CarePlanSection";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -217,6 +218,15 @@ export default function ClientDetail() {
             </CardContent>
           </Card>
         </div>
+
+        <CarePlanSection
+          clientId={client.id}
+          authorizations={(client.authorizations ?? []).map((a) => ({
+            id: a.id,
+            authNumber: a.authNumber,
+            status: a.status,
+          }))}
+        />
 
         <Card>
           <CardHeader>

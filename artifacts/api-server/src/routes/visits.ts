@@ -7,6 +7,7 @@ import {
   clientsTable,
   caregiversTable,
   complianceAlertsTable,
+  carePlansTable,
 } from "@workspace/db";
 import {
   ListVisitsQueryParams,
@@ -104,6 +105,24 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
       .set({ status: "IN_PROGRESS" })
       .where(eq(schedulesTable.id, sch.id));
   }
+  // Snapshot the client's active care plan onto the visit so a mid-shift
+  // edit doesn't change what the caregiver was supposed to do.
+  const [client] = await db
+    .select()
+    .from(clientsTable)
+    .where(eq(clientsTable.id, parsed.data.clientId));
+  let carePlanId: string | null = null;
+  let carePlanVersion: number | null = null;
+  if (client?.activeCarePlanId) {
+    const [plan] = await db
+      .select()
+      .from(carePlansTable)
+      .where(eq(carePlansTable.id, client.activeCarePlanId));
+    if (plan) {
+      carePlanId = plan.id;
+      carePlanVersion = plan.version;
+    }
+  }
   const id = newId("vis");
   const now = new Date();
   const occurredAt = parsed.data.occurredAt
@@ -127,6 +146,8 @@ router.post("/visits/clock-in", async (req, res): Promise<void> => {
       verificationStatus: "PENDING",
       geoFenceMatch: true,
       offlineSyncedAt: wasOffline ? now : null,
+      carePlanId,
+      carePlanVersion,
     })
     .returning();
   await recordAudit({

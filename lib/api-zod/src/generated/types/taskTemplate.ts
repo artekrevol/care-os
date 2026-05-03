@@ -7,13 +7,12 @@
  */
 import type { CarePlanTaskFrequency } from "./carePlanTaskFrequency";
 
-export interface CarePlanTask {
+export interface TaskTemplate {
   id: string;
-  templateId?: string | null;
   category: string;
   title: string;
-  instructions?: string | null;
-  frequency: CarePlanTaskFrequency;
-  ordering: number;
+  description?: string | null;
+  defaultMinutes?: number | null;
+  defaultFrequency: CarePlanTaskFrequency;
   requiresPhoto: boolean;
 }

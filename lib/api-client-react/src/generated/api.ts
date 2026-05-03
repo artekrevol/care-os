@@ -17,13 +17,16 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AcknowledgeCarePlanBody,
   ActivityItem,
   AgentRun,
   AnomalyEvent,
+  ApproveCarePlanBody,
   AuditLogEntry,
   Authorization,
   AuthorizationPipelineReport,
   CarePlan,
+  CarePlanAcknowledgment,
   Caregiver,
   CaregiverDetail,
   CaregiverDocument,
@@ -58,6 +61,7 @@ import type {
   ExportVisitVerificationCsvParams,
   ExportVisitVerificationPdfParams,
   FamilyUser,
+  GenerateCarePlanFromAuthorizationBody,
   GetAuthorizationPipelineReportParams,
   GetCaregiverUtilizationReportParams,
   GetClientHoursReportParams,
@@ -76,6 +80,7 @@ import type {
   ListComplianceAlertsParams,
   ListFamilyUsersParams,
   ListMessageThreadsParams,
+  ListPendingFamilyAcknowledgmentsParams,
   ListSchedulesParams,
   ListVisitsParams,
   Message,
@@ -86,12 +91,17 @@ import type {
   OvertimeProjection,
   PayPeriod,
   PayPeriodDetail,
+  PendingFamilyAcknowledgment,
   PostMessageBody,
   ReferralDraft,
   RegisterPushSubscriptionBody,
+  RejectCarePlanBody,
   Schedule,
   ScheduleCreateResult,
   SetActiveLaborRuleBody,
+  SubmitCarePlanBody,
+  TaskTemplate,
+  UpdateCarePlanBody,
   UpdateCaregiverBody,
   UpdateClientBody,
   UpdateNotificationPreferenceBody,
@@ -3314,17 +3324,182 @@ export function useGetCarePlan<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
+export const getUpdateCarePlanUrl = (id: string) => {
+  return `/api/care-plans/${id}`;
+};
+
+export const updateCarePlan = async (
+  id: string,
+  updateCarePlanBody: UpdateCarePlanBody,
+  options?: RequestInit,
+): Promise<CarePlan> => {
+  return customFetch<CarePlan>(getUpdateCarePlanUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateCarePlanBody),
+  });
+};
+
+export const getUpdateCarePlanMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCarePlan>>,
+    TError,
+    { id: string; data: BodyType<UpdateCarePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCarePlan>>,
+  TError,
+  { id: string; data: BodyType<UpdateCarePlanBody> },
+  TContext
+> => {
+  const mutationKey = ["updateCarePlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCarePlan>>,
+    { id: string; data: BodyType<UpdateCarePlanBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateCarePlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCarePlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCarePlan>>
+>;
+export type UpdateCarePlanMutationBody = BodyType<UpdateCarePlanBody>;
+export type UpdateCarePlanMutationError = ErrorType<unknown>;
+
+export const useUpdateCarePlan = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCarePlan>>,
+    TError,
+    { id: string; data: BodyType<UpdateCarePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCarePlan>>,
+  TError,
+  { id: string; data: BodyType<UpdateCarePlanBody> },
+  TContext
+> => {
+  return useMutation(getUpdateCarePlanMutationOptions(options));
+};
+
+export const getSubmitCarePlanUrl = (id: string) => {
+  return `/api/care-plans/${id}/submit`;
+};
+
+export const submitCarePlan = async (
+  id: string,
+  submitCarePlanBody?: SubmitCarePlanBody,
+  options?: RequestInit,
+): Promise<CarePlan> => {
+  return customFetch<CarePlan>(getSubmitCarePlanUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(submitCarePlanBody),
+  });
+};
+
+export const getSubmitCarePlanMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitCarePlan>>,
+    TError,
+    { id: string; data: BodyType<SubmitCarePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitCarePlan>>,
+  TError,
+  { id: string; data: BodyType<SubmitCarePlanBody> },
+  TContext
+> => {
+  const mutationKey = ["submitCarePlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitCarePlan>>,
+    { id: string; data: BodyType<SubmitCarePlanBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return submitCarePlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitCarePlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitCarePlan>>
+>;
+export type SubmitCarePlanMutationBody = BodyType<SubmitCarePlanBody>;
+export type SubmitCarePlanMutationError = ErrorType<unknown>;
+
+export const useSubmitCarePlan = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitCarePlan>>,
+    TError,
+    { id: string; data: BodyType<SubmitCarePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitCarePlan>>,
+  TError,
+  { id: string; data: BodyType<SubmitCarePlanBody> },
+  TContext
+> => {
+  return useMutation(getSubmitCarePlanMutationOptions(options));
+};
+
 export const getApproveCarePlanUrl = (id: string) => {
   return `/api/care-plans/${id}/approve`;
 };
 
 export const approveCarePlan = async (
   id: string,
+  approveCarePlanBody?: ApproveCarePlanBody,
   options?: RequestInit,
 ): Promise<CarePlan> => {
   return customFetch<CarePlan>(getApproveCarePlanUrl(id), {
     ...options,
     method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(approveCarePlanBody),
   });
 };
 
@@ -3335,14 +3510,14 @@ export const getApproveCarePlanMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof approveCarePlan>>,
     TError,
-    { id: string },
+    { id: string; data: BodyType<ApproveCarePlanBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof approveCarePlan>>,
   TError,
-  { id: string },
+  { id: string; data: BodyType<ApproveCarePlanBody> },
   TContext
 > => {
   const mutationKey = ["approveCarePlan"];
@@ -3356,11 +3531,11 @@ export const getApproveCarePlanMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof approveCarePlan>>,
-    { id: string }
+    { id: string; data: BodyType<ApproveCarePlanBody> }
   > = (props) => {
-    const { id } = props ?? {};
+    const { id, data } = props ?? {};
 
-    return approveCarePlan(id, requestOptions);
+    return approveCarePlan(id, data, requestOptions);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -3369,7 +3544,7 @@ export const getApproveCarePlanMutationOptions = <
 export type ApproveCarePlanMutationResult = NonNullable<
   Awaited<ReturnType<typeof approveCarePlan>>
 >;
-
+export type ApproveCarePlanMutationBody = BodyType<ApproveCarePlanBody>;
 export type ApproveCarePlanMutationError = ErrorType<unknown>;
 
 export const useApproveCarePlan = <
@@ -3379,18 +3554,601 @@ export const useApproveCarePlan = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof approveCarePlan>>,
     TError,
-    { id: string },
+    { id: string; data: BodyType<ApproveCarePlanBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof approveCarePlan>>,
   TError,
-  { id: string },
+  { id: string; data: BodyType<ApproveCarePlanBody> },
   TContext
 > => {
   return useMutation(getApproveCarePlanMutationOptions(options));
 };
+
+export const getRejectCarePlanUrl = (id: string) => {
+  return `/api/care-plans/${id}/reject`;
+};
+
+export const rejectCarePlan = async (
+  id: string,
+  rejectCarePlanBody: RejectCarePlanBody,
+  options?: RequestInit,
+): Promise<CarePlan> => {
+  return customFetch<CarePlan>(getRejectCarePlanUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(rejectCarePlanBody),
+  });
+};
+
+export const getRejectCarePlanMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectCarePlan>>,
+    TError,
+    { id: string; data: BodyType<RejectCarePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectCarePlan>>,
+  TError,
+  { id: string; data: BodyType<RejectCarePlanBody> },
+  TContext
+> => {
+  const mutationKey = ["rejectCarePlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectCarePlan>>,
+    { id: string; data: BodyType<RejectCarePlanBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return rejectCarePlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectCarePlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectCarePlan>>
+>;
+export type RejectCarePlanMutationBody = BodyType<RejectCarePlanBody>;
+export type RejectCarePlanMutationError = ErrorType<unknown>;
+
+export const useRejectCarePlan = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectCarePlan>>,
+    TError,
+    { id: string; data: BodyType<RejectCarePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rejectCarePlan>>,
+  TError,
+  { id: string; data: BodyType<RejectCarePlanBody> },
+  TContext
+> => {
+  return useMutation(getRejectCarePlanMutationOptions(options));
+};
+
+export const getAcknowledgeCarePlanUrl = (id: string) => {
+  return `/api/care-plans/${id}/acknowledge`;
+};
+
+export const acknowledgeCarePlan = async (
+  id: string,
+  acknowledgeCarePlanBody: AcknowledgeCarePlanBody,
+  options?: RequestInit,
+): Promise<CarePlanAcknowledgment> => {
+  return customFetch<CarePlanAcknowledgment>(getAcknowledgeCarePlanUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(acknowledgeCarePlanBody),
+  });
+};
+
+export const getAcknowledgeCarePlanMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acknowledgeCarePlan>>,
+    TError,
+    { id: string; data: BodyType<AcknowledgeCarePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acknowledgeCarePlan>>,
+  TError,
+  { id: string; data: BodyType<AcknowledgeCarePlanBody> },
+  TContext
+> => {
+  const mutationKey = ["acknowledgeCarePlan"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acknowledgeCarePlan>>,
+    { id: string; data: BodyType<AcknowledgeCarePlanBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return acknowledgeCarePlan(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcknowledgeCarePlanMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acknowledgeCarePlan>>
+>;
+export type AcknowledgeCarePlanMutationBody = BodyType<AcknowledgeCarePlanBody>;
+export type AcknowledgeCarePlanMutationError = ErrorType<unknown>;
+
+export const useAcknowledgeCarePlan = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acknowledgeCarePlan>>,
+    TError,
+    { id: string; data: BodyType<AcknowledgeCarePlanBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof acknowledgeCarePlan>>,
+  TError,
+  { id: string; data: BodyType<AcknowledgeCarePlanBody> },
+  TContext
+> => {
+  return useMutation(getAcknowledgeCarePlanMutationOptions(options));
+};
+
+export const getListClientCarePlansUrl = (id: string) => {
+  return `/api/clients/${id}/care-plans`;
+};
+
+export const listClientCarePlans = async (
+  id: string,
+  options?: RequestInit,
+): Promise<CarePlan[]> => {
+  return customFetch<CarePlan[]>(getListClientCarePlansUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListClientCarePlansQueryKey = (id: string) => {
+  return [`/api/clients/${id}/care-plans`] as const;
+};
+
+export const getListClientCarePlansQueryOptions = <
+  TData = Awaited<ReturnType<typeof listClientCarePlans>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listClientCarePlans>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListClientCarePlansQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listClientCarePlans>>
+  > = ({ signal }) => listClientCarePlans(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listClientCarePlans>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListClientCarePlansQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listClientCarePlans>>
+>;
+export type ListClientCarePlansQueryError = ErrorType<unknown>;
+
+export function useListClientCarePlans<
+  TData = Awaited<ReturnType<typeof listClientCarePlans>>,
+  TError = ErrorType<unknown>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listClientCarePlans>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListClientCarePlansQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetActiveCarePlanUrl = (id: string) => {
+  return `/api/clients/${id}/care-plan/active`;
+};
+
+export const getActiveCarePlan = async (
+  id: string,
+  options?: RequestInit,
+): Promise<CarePlan> => {
+  return customFetch<CarePlan>(getGetActiveCarePlanUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetActiveCarePlanQueryKey = (id: string) => {
+  return [`/api/clients/${id}/care-plan/active`] as const;
+};
+
+export const getGetActiveCarePlanQueryOptions = <
+  TData = Awaited<ReturnType<typeof getActiveCarePlan>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getActiveCarePlan>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetActiveCarePlanQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getActiveCarePlan>>
+  > = ({ signal }) => getActiveCarePlan(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getActiveCarePlan>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetActiveCarePlanQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getActiveCarePlan>>
+>;
+export type GetActiveCarePlanQueryError = ErrorType<void>;
+
+export function useGetActiveCarePlan<
+  TData = Awaited<ReturnType<typeof getActiveCarePlan>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getActiveCarePlan>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetActiveCarePlanQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary AI drafter — propose a starter plan from authorization scope
+ */
+export const getGenerateCarePlanFromAuthorizationUrl = (id: string) => {
+  return `/api/clients/${id}/care-plans/generate`;
+};
+
+export const generateCarePlanFromAuthorization = async (
+  id: string,
+  generateCarePlanFromAuthorizationBody: GenerateCarePlanFromAuthorizationBody,
+  options?: RequestInit,
+): Promise<CarePlan> => {
+  return customFetch<CarePlan>(getGenerateCarePlanFromAuthorizationUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(generateCarePlanFromAuthorizationBody),
+  });
+};
+
+export const getGenerateCarePlanFromAuthorizationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
+    TError,
+    { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
+  TError,
+  { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> },
+  TContext
+> => {
+  const mutationKey = ["generateCarePlanFromAuthorization"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
+    { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return generateCarePlanFromAuthorization(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateCarePlanFromAuthorizationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>
+>;
+export type GenerateCarePlanFromAuthorizationMutationBody =
+  BodyType<GenerateCarePlanFromAuthorizationBody>;
+export type GenerateCarePlanFromAuthorizationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary AI drafter — propose a starter plan from authorization scope
+ */
+export const useGenerateCarePlanFromAuthorization = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
+    TError,
+    { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateCarePlanFromAuthorization>>,
+  TError,
+  { id: string; data: BodyType<GenerateCarePlanFromAuthorizationBody> },
+  TContext
+> => {
+  return useMutation(
+    getGenerateCarePlanFromAuthorizationMutationOptions(options),
+  );
+};
+
+export const getListTaskTemplatesUrl = () => {
+  return `/api/task-templates`;
+};
+
+export const listTaskTemplates = async (
+  options?: RequestInit,
+): Promise<TaskTemplate[]> => {
+  return customFetch<TaskTemplate[]>(getListTaskTemplatesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListTaskTemplatesQueryKey = () => {
+  return [`/api/task-templates`] as const;
+};
+
+export const getListTaskTemplatesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTaskTemplates>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskTemplates>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTaskTemplatesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listTaskTemplates>>
+  > = ({ signal }) => listTaskTemplates({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskTemplates>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListTaskTemplatesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTaskTemplates>>
+>;
+export type ListTaskTemplatesQueryError = ErrorType<unknown>;
+
+export function useListTaskTemplates<
+  TData = Awaited<ReturnType<typeof listTaskTemplates>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listTaskTemplates>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListTaskTemplatesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getListPendingFamilyAcknowledgmentsUrl = (
+  params?: ListPendingFamilyAcknowledgmentsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/family/pending-acknowledgments?${stringifiedParams}`
+    : `/api/family/pending-acknowledgments`;
+};
+
+export const listPendingFamilyAcknowledgments = async (
+  params?: ListPendingFamilyAcknowledgmentsParams,
+  options?: RequestInit,
+): Promise<PendingFamilyAcknowledgment[]> => {
+  return customFetch<PendingFamilyAcknowledgment[]>(
+    getListPendingFamilyAcknowledgmentsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListPendingFamilyAcknowledgmentsQueryKey = (
+  params?: ListPendingFamilyAcknowledgmentsParams,
+) => {
+  return [
+    `/api/family/pending-acknowledgments`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListPendingFamilyAcknowledgmentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListPendingFamilyAcknowledgmentsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListPendingFamilyAcknowledgmentsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>
+  > = ({ signal }) =>
+    listPendingFamilyAcknowledgments(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListPendingFamilyAcknowledgmentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>
+>;
+export type ListPendingFamilyAcknowledgmentsQueryError = ErrorType<unknown>;
+
+export function useListPendingFamilyAcknowledgments<
+  TData = Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListPendingFamilyAcknowledgmentsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listPendingFamilyAcknowledgments>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListPendingFamilyAcknowledgmentsQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 export const getGetVisitChecklistUrl = (id: string) => {
   return `/api/visits/${id}/checklist`;

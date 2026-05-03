@@ -11,7 +11,8 @@ export type CarePlanStatus =
 
 export const CarePlanStatus = {
   DRAFT: "DRAFT",
-  PENDING_APPROVAL: "PENDING_APPROVAL",
-  ACTIVE: "ACTIVE",
+  SUBMITTED: "SUBMITTED",
+  APPROVED: "APPROVED",
+  REJECTED: "REJECTED",
   ARCHIVED: "ARCHIVED",
 } as const;

@@ -13,6 +13,7 @@ import {
   auditLogTable,
   notificationTypesTable,
   taskTemplatesTable,
+  familyUsersTable,
 } from "@workspace/db";
 import { AGENCY_ID } from "./agency";
 import { newId } from "./ids";
@@ -319,6 +320,21 @@ export async function seed(): Promise<void> {
     },
   ].map((a) => ({ ...a, agencyId: AGENCY_ID }));
   await db.insert(authorizationsTable).values(authorizations);
+
+  // Family users (one per client) for care plan acknowledgments
+  const familyUsers = clients.map((c, idx) => ({
+    id: `fam_${c.id}`,
+    agencyId: AGENCY_ID,
+    clientId: c.id,
+    email: `family.${c.id}@example.com`,
+    phone: c.emergencyContactPhone,
+    firstName: (c.emergencyContactName || "Family Contact").split(" ")[0],
+    lastName: (c.emergencyContactName || "Family Contact").split(" ")[1] ?? "Contact",
+    relationship: idx % 2 === 0 ? "Spouse" : "Child",
+    accessLevel: "VIEWER",
+    isActive: true,
+  }));
+  await db.insert(familyUsersTable).values(familyUsers);
 
   // Caregivers
   const caregivers = [
@@ -886,22 +902,59 @@ async function seedNotificationTypes(): Promise<void> {
  * have something to pick from.
  */
 async function seedTaskTemplates(): Promise<void> {
-  const rows = [
-    { category: "ADL", title: "Assist with bathing", defaultMinutes: 20, requiresPhoto: 0 },
-    { category: "ADL", title: "Assist with dressing", defaultMinutes: 15, requiresPhoto: 0 },
-    { category: "ADL", title: "Toileting & incontinence care", defaultMinutes: 10, requiresPhoto: 0 },
-    { category: "ADL", title: "Mobility & transfer assist", defaultMinutes: 15, requiresPhoto: 0 },
-    { category: "MEAL", title: "Prepare meal", defaultMinutes: 30, requiresPhoto: 1 },
-    { category: "MEAL", title: "Feeding assistance", defaultMinutes: 20, requiresPhoto: 0 },
-    { category: "MEAL", title: "Hydration check", defaultMinutes: 5, requiresPhoto: 0 },
-    { category: "MEDICATION", title: "Medication reminder", defaultMinutes: 5, requiresPhoto: 0 },
-    { category: "MEDICATION", title: "Vital signs check", defaultMinutes: 10, requiresPhoto: 0 },
-    { category: "HOUSEKEEPING", title: "Light housekeeping", defaultMinutes: 30, requiresPhoto: 0 },
-    { category: "HOUSEKEEPING", title: "Laundry", defaultMinutes: 45, requiresPhoto: 0 },
-    { category: "COMPANIONSHIP", title: "Companionship & conversation", defaultMinutes: 30, requiresPhoto: 0 },
-    { category: "COMPANIONSHIP", title: "Cognitive engagement activity", defaultMinutes: 20, requiresPhoto: 0 },
-    { category: "EXERCISE", title: "Range-of-motion exercises", defaultMinutes: 15, requiresPhoto: 0 },
-    { category: "EXERCISE", title: "Walk / outdoor activity", defaultMinutes: 30, requiresPhoto: 1 },
+  const rows: Array<{
+    category: string;
+    title: string;
+    description?: string;
+    defaultMinutes: number;
+    defaultFrequency: "DAILY" | "WEEKLY" | "PER_VISIT" | "PRN";
+    requiresPhoto: number;
+  }> = [
+    // ADLs
+    { category: "ADL", title: "Assist with bathing/showering", description: "Stand-by assist, ensure safety bars used, monitor skin condition.", defaultMinutes: 20, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "ADL", title: "Assist with dressing", description: "Help select weather-appropriate clothing; assist with fasteners.", defaultMinutes: 15, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "ADL", title: "Toileting & incontinence care", description: "Provide privacy, change briefs as needed, perform peri-care.", defaultMinutes: 10, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
+    { category: "ADL", title: "Mobility & transfer assist", description: "Use gait belt; follow PT-recommended transfer technique.", defaultMinutes: 15, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
+    { category: "ADL", title: "Oral hygiene & denture care", defaultMinutes: 10, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "ADL", title: "Hair care & grooming", defaultMinutes: 10, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "ADL", title: "Skin inspection & repositioning", description: "Check pressure points; reposition every 2 hours if bedbound.", defaultMinutes: 10, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
+
+    // IADLs
+    { category: "IADL", title: "Light housekeeping", defaultMinutes: 30, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "IADL", title: "Laundry", defaultMinutes: 45, defaultFrequency: "WEEKLY", requiresPhoto: 0 },
+    { category: "IADL", title: "Linen change", defaultMinutes: 20, defaultFrequency: "WEEKLY", requiresPhoto: 0 },
+    { category: "IADL", title: "Grocery shopping & errands", defaultMinutes: 60, defaultFrequency: "WEEKLY", requiresPhoto: 0 },
+    { category: "IADL", title: "Mail & bill organization", defaultMinutes: 15, defaultFrequency: "WEEKLY", requiresPhoto: 0 },
+    { category: "IADL", title: "Pet care assistance", defaultMinutes: 15, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "IADL", title: "Transportation to appointments", defaultMinutes: 90, defaultFrequency: "PRN", requiresPhoto: 0 },
+
+    // Meals & hydration
+    { category: "MEAL", title: "Prepare breakfast", defaultMinutes: 25, defaultFrequency: "DAILY", requiresPhoto: 1 },
+    { category: "MEAL", title: "Prepare lunch", defaultMinutes: 30, defaultFrequency: "DAILY", requiresPhoto: 1 },
+    { category: "MEAL", title: "Prepare dinner", defaultMinutes: 35, defaultFrequency: "DAILY", requiresPhoto: 1 },
+    { category: "MEAL", title: "Feeding assistance", description: "Pace bites; monitor for swallowing difficulty.", defaultMinutes: 20, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
+    { category: "MEAL", title: "Hydration check & encouragement", description: "Offer fluids every 1-2h; log intake if requested.", defaultMinutes: 5, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
+
+    // Medication oversight (non-clinical)
+    { category: "MEDICATION", title: "Medication reminder (AM)", description: "Remind client to take pre-poured medications. Do not administer.", defaultMinutes: 5, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "MEDICATION", title: "Medication reminder (PM)", defaultMinutes: 5, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "MEDICATION", title: "Vital signs check (BP/HR)", defaultMinutes: 10, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "MEDICATION", title: "Blood glucose log assist", defaultMinutes: 10, defaultFrequency: "DAILY", requiresPhoto: 0 },
+
+    // Ambulation / exercise
+    { category: "AMBULATION", title: "Range-of-motion exercises", defaultMinutes: 15, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "AMBULATION", title: "Walk / outdoor activity", description: "Short supervised walk for endurance; bring walker if prescribed.", defaultMinutes: 30, defaultFrequency: "DAILY", requiresPhoto: 1 },
+    { category: "AMBULATION", title: "PT exercise follow-through", defaultMinutes: 20, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
+
+    // Companionship & cognitive
+    { category: "COMPANIONSHIP", title: "Companionship & conversation", defaultMinutes: 30, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
+    { category: "COMPANIONSHIP", title: "Cognitive engagement activity", description: "Puzzle, reading, reminiscence — pick what client enjoys.", defaultMinutes: 20, defaultFrequency: "DAILY", requiresPhoto: 0 },
+    { category: "COMPANIONSHIP", title: "Music or video time", defaultMinutes: 20, defaultFrequency: "DAILY", requiresPhoto: 0 },
+
+    // Safety
+    { category: "SAFETY", title: "Fall risk environment check", description: "Clear walkways, secure rugs, confirm lighting.", defaultMinutes: 10, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
+    { category: "SAFETY", title: "Emergency call button verification", defaultMinutes: 5, defaultFrequency: "WEEKLY", requiresPhoto: 0 },
+    { category: "SAFETY", title: "Wandering precautions check", defaultMinutes: 5, defaultFrequency: "PER_VISIT", requiresPhoto: 0 },
   ];
   for (const r of rows) {
     // Deterministic id: <agency>_<category>_<slug(title)>. Combined with the
@@ -922,7 +975,9 @@ async function seedTaskTemplates(): Promise<void> {
         agencyId: AGENCY_ID,
         category: r.category,
         title: r.title,
+        description: r.description ?? null,
         defaultMinutes: r.defaultMinutes,
+        defaultFrequency: r.defaultFrequency,
         requiresPhoto: r.requiresPhoto,
       })
       .onConflictDoNothing({ target: taskTemplatesTable.id });

@@ -166,6 +166,7 @@ router.get("/clients/:id", async (req, res): Promise<void> => {
     GetClientResponse.parse({
       ...client,
       authorizations: auths.map((a) => formatAuth(a, clientName(client))),
+      recentVisits: [],
     }),
   );
 });

@@ -103,6 +103,9 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      "@bull-board/ui",
+      "@bull-board/api",
+      "@bull-board/express",
     ],
     sourcemap: "linked",
     plugins: [
