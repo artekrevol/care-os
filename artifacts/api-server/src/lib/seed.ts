@@ -460,6 +460,7 @@ export async function seed(): Promise<void> {
       status: "APPROVED",
       languages: ["English", "Spanish"],
       skills: ["Hoyer lift", "Wound care", "Insulin support"],
+      certifications: ["CNA"],
       payRate: "25.50",
       hasVehicle: true,
       addressCity: "Redwood City",
@@ -496,7 +497,7 @@ export async function seed(): Promise<void> {
   // reset by a supervisor through the normal reset flow before first use.
   logger.info(
     { count: caregivers.length },
-    "Seeded caregivers with random IVR PINs (must be reset via supervisor flow before use)",
+    "Seeded caregivers with deterministic IVR PINs (must be reset via supervisor flow before first real use)",
   );
 
   // Caregiver documents
