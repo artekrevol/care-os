@@ -40,7 +40,7 @@ export default function SignIn() {
           <div className="bg-primary/10 p-4 rounded-full mb-4">
             <Heart className="w-8 h-8 text-primary fill-primary" />
           </div>
-          <h1 className="text-3xl font-serif text-foreground font-medium mb-2">CareOS Family</h1>
+          <h1 className="text-3xl font-serif text-foreground font-medium mb-2">Chajinel Family</h1>
           <p className="text-muted-foreground text-center text-sm max-w-xs">
             A calm window into your loved one's daily care.
           </p>

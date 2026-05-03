@@ -40,7 +40,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="md:hidden flex items-center justify-between p-4 border-b bg-card">
         <div className="flex items-center gap-2 text-primary font-serif italic">
           <Heart className="w-5 h-5 fill-primary text-primary" />
-          <span className="font-semibold text-lg">CareOS</span>
+          <span className="font-semibold text-lg">Chajinel Family</span>
         </div>
         <Sheet>
           <SheetTrigger asChild>
@@ -83,7 +83,7 @@ function SidebarContent({ client, isLoading, onSignOut }: { client?: any, isLoad
     <div className="flex flex-col h-full py-6 px-4">
       <div className="flex items-center gap-2 text-primary font-serif italic mb-8 px-2">
         <Heart className="w-6 h-6 fill-primary text-primary" />
-        <span className="font-semibold text-xl">CareOS</span>
+        <span className="font-semibold text-xl">Chajinel Family</span>
       </div>
 
       <div className="mb-8 px-2">

@@ -365,7 +365,7 @@ export async function seedChajinelExpansion(): Promise<void> {
           { id: "t5", title: "Light housekeeping", category: "HOUSEKEEPING", frequency: "Mon/Wed/Fri", defaultMinutes: 30 },
           { id: "t6", title: "Companionship & wellness check", category: "COMPANIONSHIP", frequency: "Daily", defaultMinutes: 30 },
         ]
-      : c.payer === "PRIVATE"
+      : c.payer === "PRIVATE_PAY"
         ? [
             { id: "t1", title: "Personal care assist", category: "ADL", frequency: "Daily", defaultMinutes: 20 },
             { id: "t2", title: "Errands & transportation", category: "IADL", frequency: "Tue/Thu", defaultMinutes: 60 },

@@ -137,7 +137,7 @@ export default function Login({ onAuthed }: Props) {
               <path d="M96 44c-22 0-40 18-40 40 0 30 40 64 40 64s40-34 40-64c0-22-18-40-40-40zm0 56a16 16 0 1 1 0-32 16 16 0 0 1 0 32z" fill="#22d3ee" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold">CareOS Caregiver</h1>
+          <h1 className="text-2xl font-bold">Chajinel Caregiver</h1>
           <p className="text-sm text-[color:var(--color-muted)] mt-1">
             Sign in to start your visit
           </p>
