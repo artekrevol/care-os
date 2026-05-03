@@ -1096,6 +1096,7 @@ export const AgentRunStatus = {
   RUNNING: "RUNNING",
   SUCCEEDED: "SUCCEEDED",
   FAILED: "FAILED",
+  TIMEOUT: "TIMEOUT",
 } as const;
 
 export interface AgentRun {
@@ -1118,6 +1119,96 @@ export interface AgentRun {
   error?: string | null;
   startedAt: string;
   completedAt?: string | null;
+}
+
+export interface ListAgentRunsResult {
+  items: AgentRun[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export type AgentRunCostSummaryByAgentItem = {
+  agentName: string;
+  runs: number;
+  succeeded: number;
+  failed: number;
+  avgLatencyMs?: number | null;
+  avgConfidence?: number | null;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+};
+
+export interface AgentRunCostSummary {
+  range: string;
+  windowStart: string;
+  totalRuns: number;
+  totalCostUsd: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  byAgent: AgentRunCostSummaryByAgentItem[];
+}
+
+export interface RetryAgentRunResponse {
+  ok: boolean;
+  originalRunId: string;
+  newRunId?: string | null;
+  agentName: string;
+  message: string;
+}
+
+export type SystemHealthModuleStatusRecentErrorsItem = {
+  at: string;
+  message: string;
+};
+
+export interface SystemHealthModuleStatus {
+  module: string;
+  configured: boolean;
+  lastSuccessAt?: string | null;
+  errorCount24h: number;
+  recentErrors: SystemHealthModuleStatusRecentErrorsItem[];
+  lastProbeAt?: string | null;
+  lastProbeOk?: boolean | null;
+  lastProbeMessage?: string | null;
+}
+
+export interface QueueDepth {
+  name: string;
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
+  completed: number;
+}
+
+export interface SystemHealthResponse {
+  modules: SystemHealthModuleStatus[];
+  queues: QueueDepth[];
+}
+
+export interface ProbeResult {
+  module: string;
+  ok: boolean;
+  message: string;
+  at: string;
+}
+
+export type BulkJobActionResultAction =
+  (typeof BulkJobActionResultAction)[keyof typeof BulkJobActionResultAction];
+
+export const BulkJobActionResultAction = {
+  retry: "retry",
+  discard: "discard",
+} as const;
+
+export interface BulkJobActionResult {
+  queue: string;
+  action: BulkJobActionResultAction;
+  scanned: number;
+  affected: number;
+  errors: string[];
 }
 
 export type AnomalySeverity =
@@ -1650,7 +1741,56 @@ export type ListMessageThreadsParams = {
 
 export type ListAgentRunsParams = {
   agentName?: string;
-  status?: AgentRunStatus;
+  /**
+   * Repeatable. Accepts AgentRunStatus values plus the virtual filter "LOW_CONFIDENCE" (SUCCEEDED with confidence below the lowConfidence threshold).
+   */
+  status?: string[];
+  from?: string;
+  to?: string;
+  /**
+   * Confidence threshold (0-1). Used when status includes "LOW_CONFIDENCE".
+   * @minimum 0
+   * @maximum 1
+   */
+  lowConfidenceThreshold?: number;
+  /**
+   * @minimum 1
+   * @maximum 500
+   */
+  limit?: number;
+  /**
+   * @minimum 0
+   */
+  offset?: number;
+};
+
+export type GetAgentRunCostSummaryParams = {
+  range?: GetAgentRunCostSummaryRange;
+};
+
+export type GetAgentRunCostSummaryRange =
+  (typeof GetAgentRunCostSummaryRange)[keyof typeof GetAgentRunCostSummaryRange];
+
+export const GetAgentRunCostSummaryRange = {
+  "24h": "24h",
+  "7d": "7d",
+  "30d": "30d",
+} as const;
+
+export type RetryAllFailedJobsParams = {
+  /**
+   * @minimum 1
+   * @maximum 1000
+   */
+  limit?: number;
+};
+
+export type DiscardAllFailedJobsParams = {
+  /**
+   * @minimum 1
+   * @maximum 1000
+   */
+  limit?: number;
 };
 
 export type ListAnomalyEventsParams = {

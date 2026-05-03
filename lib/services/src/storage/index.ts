@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { Client } from "@replit/object-storage";
 import { serviceLogger } from "../logger";
 import { isModuleConfigured } from "../env";
+import { recordSuccess, recordError } from "../health/index";
 
 let client: Client | null = null;
 
@@ -49,9 +50,33 @@ export async function uploadBytes(
   const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
   const result = await c.uploadFromBytes(key, buf, { compress: false });
   if (!result.ok) {
+    recordError("storage", result.error);
     throw new Error(`object storage upload failed: ${result.error.message}`);
   }
+  recordSuccess("storage");
   return { key, bucketId: process.env["REPLIT_OBJECT_STORE_BUCKET_ID"]! };
+}
+
+/**
+ * Cheap probe: round-trip a tiny object under a `_probe/` prefix. Records
+ * success when both upload and read-back succeed.
+ */
+export async function probe(): Promise<{ ok: boolean; message: string }> {
+  const c = getClient();
+  if (!c) return { ok: false, message: "not configured" };
+  const key = `_probe/${Date.now()}-${crypto.randomBytes(4).toString("hex")}.txt`;
+  try {
+    const up = await c.uploadFromBytes(key, Buffer.from("ok"), { compress: false });
+    if (!up.ok) {
+      recordError("storage", up.error);
+      return { ok: false, message: up.error.message };
+    }
+    recordSuccess("storage");
+    return { ok: true, message: "ok" };
+  } catch (err) {
+    recordError("storage", err);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 export async function downloadBytes(key: string): Promise<Buffer | null> {

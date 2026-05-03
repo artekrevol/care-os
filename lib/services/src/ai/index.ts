@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { serviceLogger } from "../logger";
 import { isModuleConfigured } from "../env";
+import { recordSuccess, recordError } from "../health/index";
 
 let client: Anthropic | null = null;
 
@@ -58,24 +59,51 @@ export async function complete(
       rawId: "stub",
     };
   }
-  const resp = await c.messages.create({
-    model: input.model ?? DEFAULT_MODEL,
-    max_tokens: input.maxTokens ?? 1024,
-    temperature: input.temperature ?? 0.2,
-    system: input.system,
-    messages: [{ role: "user", content: input.prompt }],
-  });
-  const text = resp.content
-    .map((b) => (b.type === "text" ? b.text : ""))
-    .join("");
-  return {
-    text,
-    model: resp.model,
-    inputTokens: resp.usage.input_tokens,
-    outputTokens: resp.usage.output_tokens,
-    stopReason: resp.stop_reason ?? null,
-    rawId: resp.id,
-  };
+  try {
+    const resp = await c.messages.create({
+      model: input.model ?? DEFAULT_MODEL,
+      max_tokens: input.maxTokens ?? 1024,
+      temperature: input.temperature ?? 0.2,
+      system: input.system,
+      messages: [{ role: "user", content: input.prompt }],
+    });
+    const text = resp.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("");
+    recordSuccess("ai");
+    return {
+      text,
+      model: resp.model,
+      inputTokens: resp.usage.input_tokens,
+      outputTokens: resp.usage.output_tokens,
+      stopReason: resp.stop_reason ?? null,
+      rawId: resp.id,
+    };
+  } catch (err) {
+    recordError("ai", err);
+    throw err;
+  }
+}
+
+/**
+ * Cheap probe: a tiny completion request used by the system health page.
+ * Falls through to "configured: false" when the API key isn't present.
+ */
+export async function probe(): Promise<{ ok: boolean; message: string }> {
+  const c = getAnthropicClient();
+  if (!c) return { ok: false, message: "not configured" };
+  try {
+    const r = await c.messages.create({
+      model: DEFAULT_MODEL,
+      max_tokens: 8,
+      messages: [{ role: "user", content: "ping" }],
+    });
+    recordSuccess("ai");
+    return { ok: true, message: `ok · ${r.model}` };
+  } catch (err) {
+    recordError("ai", err);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 // Approximate per-million-token pricing for Sonnet-class models.

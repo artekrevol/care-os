@@ -2,6 +2,7 @@ import { Queue, Worker, type JobsOptions, type Processor } from "bullmq";
 import IORedis, { type Redis } from "ioredis";
 import { serviceLogger } from "../logger";
 import { isModuleConfigured } from "../env";
+import { recordSuccess, recordError } from "../health/index";
 
 export type CareOSJobMap = {
   "care-plan.generate": { clientId: string; triggeredBy: string };
@@ -84,10 +85,27 @@ export async function pingConnection(): Promise<boolean> {
   if (!conn) return false;
   try {
     const reply = await conn.ping();
-    return reply === "PONG";
+    const ok = reply === "PONG";
+    if (ok) recordSuccess("queue");
+    return ok;
   } catch (err) {
+    recordError("queue", err);
     serviceLogger.error({ err }, "redis ping failed");
     return false;
+  }
+}
+
+export async function probe(): Promise<{ ok: boolean; message: string }> {
+  const conn = getConnection();
+  if (!conn) return { ok: false, message: "not configured" };
+  try {
+    const reply = await conn.ping();
+    const ok = reply === "PONG";
+    if (ok) recordSuccess("queue");
+    return { ok, message: ok ? "PONG" : `unexpected reply: ${reply}` };
+  } catch (err) {
+    recordError("queue", err);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }
 }
 
@@ -104,14 +122,20 @@ export async function enqueue<N extends QueueName>(
     );
     return { enqueued: false };
   }
-  const job = await q.add(name, data, {
-    removeOnComplete: 1000,
-    removeOnFail: 5000,
-    attempts: 3,
-    backoff: { type: "exponential", delay: 5000 },
-    ...opts,
-  });
-  return { enqueued: true, jobId: job.id };
+  try {
+    const job = await q.add(name, data, {
+      removeOnComplete: 1000,
+      removeOnFail: 5000,
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+      ...opts,
+    });
+    recordSuccess("queue");
+    return { enqueued: true, jobId: job.id };
+  } catch (err) {
+    recordError("queue", err);
+    throw err;
+  }
 }
 
 export function registerWorker<N extends QueueName>(

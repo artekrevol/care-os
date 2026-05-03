@@ -7,8 +7,10 @@ import {
   autoClosePayPeriods,
   runVisitReminders,
 } from "./agents";
+import { runDlqCheck } from "./dlqWatch";
 
 let started = false;
+let dlqInterval: NodeJS.Timeout | null = null;
 
 const ANOMALY_REPEAT_KEY = "anomaly-hourly";
 const PREDICT_REPEAT_KEY = "predict-daily";
@@ -44,6 +46,20 @@ function safeAddRepeat(
 export async function startWorkers(): Promise<void> {
   if (started) return;
   started = true;
+
+  // DLQ depth watch: in-process setInterval (every 5 minutes). Started before
+  // the queue-availability gate so the alert is independent of Redis being
+  // healthy — when Redis recovers, the next tick will see the failed counts.
+  // runDlqCheck() itself is a no-op for queues whose getQueue() returns null.
+  if (!dlqInterval) {
+    const FIVE_MIN = 5 * 60 * 1000;
+    dlqInterval = setInterval(() => {
+      runDlqCheck().catch((err) =>
+        logger.warn({ err }, "dlqWatch tick failed (suppressed)"),
+      );
+    }, FIVE_MIN);
+    if (typeof dlqInterval.unref === "function") dlqInterval.unref();
+  }
 
   const anomalyW = queue.registerWorker("anomaly.scan-all", async (job) => {
     const r = await runAnomalyDetector(job.data.triggeredBy);

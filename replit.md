@@ -124,3 +124,38 @@ All of these are optional — missing values disable the corresponding service a
 | Web Push          | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` |
 | Maps              | `GOOGLE_MAPS_API_KEY` |
 | Admin             | `ADMIN_BEARER_TOKEN` (alternative to the `X-CareOS-Role: OWNER` header for `/admin/jobs`) |
+
+### Phase 2.5 hardening — System Health & AI Run Inspection (Task #36)
+
+In-process service-status tracker at `lib/services/src/health/index.ts`
+maintains a 24h ring buffer per module (ai, ocr, queue, realtime, storage,
+maps, notifications.email/sms/push) recording success timestamps and the
+last-50 errors. Each service module exports a `probe()` function (and the
+notifications module exports `probeEmail/probeSms/probePush`); probes call
+`recordSuccess`/`recordError` automatically.
+
+Owner-only routes (mounted in `routes/index.ts`):
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/admin/system-health` | per-service status + per-queue depths |
+| `POST /api/admin/system-health/:module/probe` | run a live probe (audited) |
+| `POST /api/admin/queues/:name/failed/retry-all?limit=200` | bulk retry DLQ (audited) |
+| `POST /api/admin/queues/:name/failed/discard-all?limit=200` | bulk discard DLQ (audited) |
+| `GET /api/agent-runs?status[]=…&from=&to=&agentName=&limit=&offset=` | filter + paginate; `LOW_CONFIDENCE` is a virtual status |
+| `GET /api/agent-runs/cost-summary?range=24h\|7d\|30d` | cost-by-agent rollup |
+| `POST /api/agent-runs/:id/retry` | re-trigger via `AGENT_RUNNERS`; queue-only agents return ok=false with a BullBoard hint |
+
+UI: new `/admin/system-health` page in careos with status cards, "Test
+connection" probe buttons, and per-queue Retry/Discard actions. The
+`/agent-runs` page gained filter chips (SUCCEEDED/FAILED/TIMEOUT/LOW_CONFIDENCE),
+agent + datetime filters, a cost-rollup card, a detail drawer, and per-row
+Retry. Both pages reuse the locally stored Admin token (same key as
+BullBoard).
+
+DLQ depth alert: `artifacts/api-server/src/lib/dlqWatch.ts` runs every 5
+minutes via `setInterval` in `startWorkers()`. When any known queue's
+failed-job count exceeds `DLQ_ALERT_THRESHOLD` (default 10), it emails each
+address in `OWNER_EMAILS` (comma-separated) using `notifications.sendDirectEmail`,
+debounced 1h per queue in-memory. Uses `setInterval` (not BullMQ repeat) so
+the alert still fires when Redis itself is the failing dependency.

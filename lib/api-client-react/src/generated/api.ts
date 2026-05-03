@@ -21,6 +21,7 @@ import type {
   AcknowledgeCarePlanBody,
   ActivityItem,
   AgentRun,
+  AgentRunCostSummary,
   AnomalyEvent,
   ApproveCarePlanBody,
   ApproveReferralBody,
@@ -28,6 +29,7 @@ import type {
   AuditLogEntry,
   Authorization,
   AuthorizationPipelineReport,
+  BulkJobActionResult,
   CarePlan,
   CarePlanAcknowledgment,
   Caregiver,
@@ -54,6 +56,7 @@ import type {
   CreateVisitNoteBody,
   CreateVisitSignatureBody,
   DashboardSummary,
+  DiscardAllFailedJobsParams,
   DocumentComplianceReport,
   ExportAuthorizationPipelineCsvParams,
   ExportAuthorizationPipelinePdfParams,
@@ -70,6 +73,7 @@ import type {
   FamilyClientSummary,
   FamilyUser,
   GenerateCarePlanFromAuthorizationBody,
+  GetAgentRunCostSummaryParams,
   GetAuthorizationPipelineReportParams,
   GetCaregiverUtilizationReportParams,
   GetClientHoursReportParams,
@@ -81,6 +85,7 @@ import type {
   InviteFamilyUserBody,
   LaborRuleSet,
   ListAgentRunsParams,
+  ListAgentRunsResult,
   ListAnomalyEventsParams,
   ListAuditLogParams,
   ListCarePlansParams,
@@ -125,9 +130,12 @@ import type {
   PayPeriodDetail,
   PendingFamilyAcknowledgment,
   PostMessageBody,
+  ProbeResult,
   ReferralDraft,
   RegisterPushSubscriptionBody,
   RejectCarePlanBody,
+  RetryAgentRunResponse,
+  RetryAllFailedJobsParams,
   Schedule,
   ScheduleCreateResult,
   ScheduleDryRunBody,
@@ -136,6 +144,7 @@ import type {
   SkipVisitChecklistTaskBody,
   SubmitCarePlanBody,
   SuggestCaregiversBody,
+  SystemHealthResponse,
   TaskTemplate,
   UpdateCarePlanBody,
   UpdateCaregiverBody,
@@ -6187,6 +6196,15 @@ export const getListAgentRunsUrl = (params?: ListAgentRunsParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ["status"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? "null" : v.toString());
+      });
+      return;
+    }
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? "null" : value.toString());
     }
@@ -6202,8 +6220,8 @@ export const getListAgentRunsUrl = (params?: ListAgentRunsParams) => {
 export const listAgentRuns = async (
   params?: ListAgentRunsParams,
   options?: RequestInit,
-): Promise<AgentRun[]> => {
-  return customFetch<AgentRun[]>(getListAgentRunsUrl(params), {
+): Promise<ListAgentRunsResult> => {
+  return customFetch<ListAgentRunsResult>(getListAgentRunsUrl(params), {
     ...options,
     method: "GET",
   });
@@ -6262,6 +6280,102 @@ export function useListAgentRuns<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getListAgentRunsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetAgentRunCostSummaryUrl = (
+  params?: GetAgentRunCostSummaryParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/agent-runs/cost-summary?${stringifiedParams}`
+    : `/api/agent-runs/cost-summary`;
+};
+
+export const getAgentRunCostSummary = async (
+  params?: GetAgentRunCostSummaryParams,
+  options?: RequestInit,
+): Promise<AgentRunCostSummary> => {
+  return customFetch<AgentRunCostSummary>(
+    getGetAgentRunCostSummaryUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAgentRunCostSummaryQueryKey = (
+  params?: GetAgentRunCostSummaryParams,
+) => {
+  return [`/api/agent-runs/cost-summary`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAgentRunCostSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAgentRunCostSummary>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAgentRunCostSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgentRunCostSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAgentRunCostSummaryQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAgentRunCostSummary>>
+  > = ({ signal }) =>
+    getAgentRunCostSummary(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAgentRunCostSummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAgentRunCostSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAgentRunCostSummary>>
+>;
+export type GetAgentRunCostSummaryQueryError = ErrorType<unknown>;
+
+export function useGetAgentRunCostSummary<
+  TData = Awaited<ReturnType<typeof getAgentRunCostSummary>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAgentRunCostSummaryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAgentRunCostSummary>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAgentRunCostSummaryQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -6349,6 +6463,424 @@ export function useGetAgentRun<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+export const getRetryAgentRunUrl = (id: string) => {
+  return `/api/agent-runs/${id}/retry`;
+};
+
+export const retryAgentRun = async (
+  id: string,
+  options?: RequestInit,
+): Promise<RetryAgentRunResponse> => {
+  return customFetch<RetryAgentRunResponse>(getRetryAgentRunUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRetryAgentRunMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryAgentRun>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof retryAgentRun>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["retryAgentRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof retryAgentRun>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return retryAgentRun(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RetryAgentRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof retryAgentRun>>
+>;
+
+export type RetryAgentRunMutationError = ErrorType<unknown>;
+
+export const useRetryAgentRun = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryAgentRun>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof retryAgentRun>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getRetryAgentRunMutationOptions(options));
+};
+
+export const getGetSystemHealthUrl = () => {
+  return `/api/admin/system-health`;
+};
+
+export const getSystemHealth = async (
+  options?: RequestInit,
+): Promise<SystemHealthResponse> => {
+  return customFetch<SystemHealthResponse>(getGetSystemHealthUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSystemHealthQueryKey = () => {
+  return [`/api/admin/system-health`] as const;
+};
+
+export const getGetSystemHealthQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSystemHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSystemHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSystemHealthQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSystemHealth>>> = ({
+    signal,
+  }) => getSystemHealth({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSystemHealth>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSystemHealthQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSystemHealth>>
+>;
+export type GetSystemHealthQueryError = ErrorType<unknown>;
+
+export function useGetSystemHealth<
+  TData = Awaited<ReturnType<typeof getSystemHealth>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSystemHealth>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSystemHealthQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getProbeSystemHealthModuleUrl = (module: string) => {
+  return `/api/admin/system-health/${module}/probe`;
+};
+
+export const probeSystemHealthModule = async (
+  module: string,
+  options?: RequestInit,
+): Promise<ProbeResult> => {
+  return customFetch<ProbeResult>(getProbeSystemHealthModuleUrl(module), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getProbeSystemHealthModuleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof probeSystemHealthModule>>,
+    TError,
+    { module: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof probeSystemHealthModule>>,
+  TError,
+  { module: string },
+  TContext
+> => {
+  const mutationKey = ["probeSystemHealthModule"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof probeSystemHealthModule>>,
+    { module: string }
+  > = (props) => {
+    const { module } = props ?? {};
+
+    return probeSystemHealthModule(module, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ProbeSystemHealthModuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof probeSystemHealthModule>>
+>;
+
+export type ProbeSystemHealthModuleMutationError = ErrorType<unknown>;
+
+export const useProbeSystemHealthModule = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof probeSystemHealthModule>>,
+    TError,
+    { module: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof probeSystemHealthModule>>,
+  TError,
+  { module: string },
+  TContext
+> => {
+  return useMutation(getProbeSystemHealthModuleMutationOptions(options));
+};
+
+export const getRetryAllFailedJobsUrl = (
+  name: string,
+  params?: RetryAllFailedJobsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/queues/${name}/failed/retry-all?${stringifiedParams}`
+    : `/api/admin/queues/${name}/failed/retry-all`;
+};
+
+export const retryAllFailedJobs = async (
+  name: string,
+  params?: RetryAllFailedJobsParams,
+  options?: RequestInit,
+): Promise<BulkJobActionResult> => {
+  return customFetch<BulkJobActionResult>(
+    getRetryAllFailedJobsUrl(name, params),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getRetryAllFailedJobsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryAllFailedJobs>>,
+    TError,
+    { name: string; params?: RetryAllFailedJobsParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof retryAllFailedJobs>>,
+  TError,
+  { name: string; params?: RetryAllFailedJobsParams },
+  TContext
+> => {
+  const mutationKey = ["retryAllFailedJobs"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof retryAllFailedJobs>>,
+    { name: string; params?: RetryAllFailedJobsParams }
+  > = (props) => {
+    const { name, params } = props ?? {};
+
+    return retryAllFailedJobs(name, params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RetryAllFailedJobsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof retryAllFailedJobs>>
+>;
+
+export type RetryAllFailedJobsMutationError = ErrorType<unknown>;
+
+export const useRetryAllFailedJobs = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryAllFailedJobs>>,
+    TError,
+    { name: string; params?: RetryAllFailedJobsParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof retryAllFailedJobs>>,
+  TError,
+  { name: string; params?: RetryAllFailedJobsParams },
+  TContext
+> => {
+  return useMutation(getRetryAllFailedJobsMutationOptions(options));
+};
+
+export const getDiscardAllFailedJobsUrl = (
+  name: string,
+  params?: DiscardAllFailedJobsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/queues/${name}/failed/discard-all?${stringifiedParams}`
+    : `/api/admin/queues/${name}/failed/discard-all`;
+};
+
+export const discardAllFailedJobs = async (
+  name: string,
+  params?: DiscardAllFailedJobsParams,
+  options?: RequestInit,
+): Promise<BulkJobActionResult> => {
+  return customFetch<BulkJobActionResult>(
+    getDiscardAllFailedJobsUrl(name, params),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getDiscardAllFailedJobsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof discardAllFailedJobs>>,
+    TError,
+    { name: string; params?: DiscardAllFailedJobsParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof discardAllFailedJobs>>,
+  TError,
+  { name: string; params?: DiscardAllFailedJobsParams },
+  TContext
+> => {
+  const mutationKey = ["discardAllFailedJobs"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof discardAllFailedJobs>>,
+    { name: string; params?: DiscardAllFailedJobsParams }
+  > = (props) => {
+    const { name, params } = props ?? {};
+
+    return discardAllFailedJobs(name, params, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DiscardAllFailedJobsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof discardAllFailedJobs>>
+>;
+
+export type DiscardAllFailedJobsMutationError = ErrorType<unknown>;
+
+export const useDiscardAllFailedJobs = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof discardAllFailedJobs>>,
+    TError,
+    { name: string; params?: DiscardAllFailedJobsParams },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof discardAllFailedJobs>>,
+  TError,
+  { name: string; params?: DiscardAllFailedJobsParams },
+  TContext
+> => {
+  return useMutation(getDiscardAllFailedJobsMutationOptions(options));
+};
 
 export const getListAnomalyEventsUrl = (params?: ListAnomalyEventsParams) => {
   const normalizedParams = new URLSearchParams();

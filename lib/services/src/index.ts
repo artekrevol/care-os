@@ -7,4 +7,5 @@ export * as notifications from "./notifications/index";
 export * as maps from "./maps/index";
 export * as labor from "./labor/index";
 export * as reports from "./reports/index";
-export { logServiceStartupReport } from "./env";
+export { logServiceStartupReport, isModuleConfigured } from "./env";
+export * as health from "./health/index";

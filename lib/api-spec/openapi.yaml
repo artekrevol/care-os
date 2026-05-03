@@ -1480,17 +1480,57 @@ paths:
             type: string
         - in: query
           name: status
+          description: Repeatable. Accepts AgentRunStatus values plus the
+            virtual filter "LOW_CONFIDENCE" (SUCCEEDED with confidence below
+            the lowConfidence threshold).
           schema:
-            $ref: "#/components/schemas/AgentRunStatus"
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: lowConfidenceThreshold
+          description: Confidence threshold (0-1). Used when status includes "LOW_CONFIDENCE".
+          schema: { type: number, minimum: 0, maximum: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+        - in: query
+          name: offset
+          schema: { type: integer, minimum: 0, default: 0 }
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/AgentRun"
+                $ref: "#/components/schemas/ListAgentRunsResult"
+
+  /agent-runs/cost-summary:
+    get:
+      operationId: getAgentRunCostSummary
+      tags: [agent-runs]
+      parameters:
+        - in: query
+          name: range
+          schema:
+            type: string
+            enum: [24h, 7d, 30d]
+            default: 24h
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRunCostSummary"
 
   /agent-runs/{id}:
     get:
@@ -1509,6 +1549,96 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentRun"
+
+  /agent-runs/{id}/retry:
+    post:
+      operationId: retryAgentRun
+      tags: [agent-runs]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetryAgentRunResponse"
+
+  /admin/system-health:
+    get:
+      operationId: getSystemHealth
+      tags: [admin]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemHealthResponse"
+
+  /admin/system-health/{module}/probe:
+    post:
+      operationId: probeSystemHealthModule
+      tags: [admin]
+      parameters:
+        - in: path
+          name: module
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProbeResult"
+
+  /admin/queues/{name}/failed/retry-all:
+    post:
+      operationId: retryAllFailedJobs
+      tags: [admin]
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 200 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkJobActionResult"
+
+  /admin/queues/{name}/failed/discard-all:
+    post:
+      operationId: discardAllFailedJobs
+      tags: [admin]
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 200 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkJobActionResult"
 
   /anomaly-events:
     get:
@@ -3945,7 +4075,121 @@ components:
 
     AgentRunStatus:
       type: string
-      enum: [PENDING, RUNNING, SUCCEEDED, FAILED]
+      enum: [PENDING, RUNNING, SUCCEEDED, FAILED, TIMEOUT]
+
+    ListAgentRunsResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgentRun"
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+      required: [items, total, limit, offset]
+
+    AgentRunCostSummary:
+      type: object
+      properties:
+        range: { type: string }
+        windowStart: { type: string, format: date-time }
+        totalRuns: { type: integer }
+        totalCostUsd: { type: number }
+        totalInputTokens: { type: integer }
+        totalOutputTokens: { type: integer }
+        byAgent:
+          type: array
+          items:
+            type: object
+            properties:
+              agentName: { type: string }
+              runs: { type: integer }
+              succeeded: { type: integer }
+              failed: { type: integer }
+              avgLatencyMs: { type: number, nullable: true }
+              avgConfidence: { type: number, nullable: true }
+              inputTokens: { type: integer }
+              outputTokens: { type: integer }
+              costUsd: { type: number }
+            required:
+              [agentName, runs, succeeded, failed, inputTokens, outputTokens, costUsd]
+      required: [range, windowStart, totalRuns, totalCostUsd, totalInputTokens, totalOutputTokens, byAgent]
+
+    RetryAgentRunResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        originalRunId: { type: string }
+        newRunId: { type: string, nullable: true }
+        agentName: { type: string }
+        message: { type: string }
+      required: [ok, originalRunId, agentName, message]
+
+    SystemHealthModuleStatus:
+      type: object
+      properties:
+        module: { type: string }
+        configured: { type: boolean }
+        lastSuccessAt: { type: string, format: date-time, nullable: true }
+        errorCount24h: { type: integer }
+        recentErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              at: { type: string, format: date-time }
+              message: { type: string }
+            required: [at, message]
+        lastProbeAt: { type: string, format: date-time, nullable: true }
+        lastProbeOk: { type: boolean, nullable: true }
+        lastProbeMessage: { type: string, nullable: true }
+      required: [module, configured, errorCount24h, recentErrors]
+
+    SystemHealthResponse:
+      type: object
+      properties:
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/SystemHealthModuleStatus"
+        queues:
+          type: array
+          items:
+            $ref: "#/components/schemas/QueueDepth"
+      required: [modules, queues]
+
+    QueueDepth:
+      type: object
+      properties:
+        name: { type: string }
+        waiting: { type: integer }
+        active: { type: integer }
+        delayed: { type: integer }
+        failed: { type: integer }
+        completed: { type: integer }
+      required: [name, waiting, active, delayed, failed, completed]
+
+    ProbeResult:
+      type: object
+      properties:
+        module: { type: string }
+        ok: { type: boolean }
+        message: { type: string }
+        at: { type: string, format: date-time }
+      required: [module, ok, message, at]
+
+    BulkJobActionResult:
+      type: object
+      properties:
+        queue: { type: string }
+        action: { type: string, enum: [retry, discard] }
+        scanned: { type: integer }
+        affected: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+      required: [queue, action, scanned, affected, errors]
 
     AgentRun:
       type: object

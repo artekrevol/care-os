@@ -11,7 +11,8 @@ import {
   FileText,
   FileBarChart,
   Sparkles,
-  Bot
+  Bot,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/labor-rules", label: "Labor Rules", icon: Scale },
   { href: "/reports", label: "Reports", icon: FileBarChart },
   { href: "/agent-runs", label: "Agent Runs", icon: Bot },
+  { href: "/admin/system-health", label: "System Health", icon: Activity },
   { href: "/audit-log", label: "Audit Log", icon: FileText },
 ];
 

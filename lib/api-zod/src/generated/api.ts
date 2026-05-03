@@ -2344,33 +2344,108 @@ export const GetVapidPublicKeyResponse = zod.object({
   publicKey: zod.string().nullable(),
 });
 
+export const listAgentRunsQueryLowConfidenceThresholdMin = 0;
+export const listAgentRunsQueryLowConfidenceThresholdMax = 1;
+
+export const listAgentRunsQueryLimitDefault = 100;
+export const listAgentRunsQueryLimitMax = 500;
+
+export const listAgentRunsQueryOffsetDefault = 0;
+export const listAgentRunsQueryOffsetMin = 0;
+
 export const ListAgentRunsQueryParams = zod.object({
   agentName: zod.coerce.string().optional(),
-  status: zod.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]).optional(),
+  status: zod
+    .array(zod.coerce.string())
+    .optional()
+    .describe(
+      'Repeatable. Accepts AgentRunStatus values plus the virtual filter \"LOW_CONFIDENCE\" (SUCCEEDED with confidence below the lowConfidence threshold).',
+    ),
+  from: zod.date().optional(),
+  to: zod.date().optional(),
+  lowConfidenceThreshold: zod.coerce
+    .number()
+    .min(listAgentRunsQueryLowConfidenceThresholdMin)
+    .max(listAgentRunsQueryLowConfidenceThresholdMax)
+    .optional()
+    .describe(
+      'Confidence threshold (0-1). Used when status includes \"LOW_CONFIDENCE\".',
+    ),
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(listAgentRunsQueryLimitMax)
+    .default(listAgentRunsQueryLimitDefault),
+  offset: zod.coerce
+    .number()
+    .min(listAgentRunsQueryOffsetMin)
+    .default(listAgentRunsQueryOffsetDefault),
 });
 
-export const ListAgentRunsResponseItem = zod.object({
-  id: zod.string(),
-  agentName: zod.string(),
-  promptVersion: zod.string(),
-  model: zod.string(),
-  status: zod.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]),
-  triggeredBy: zod.string().nullish(),
-  triggerReason: zod.string().nullish(),
-  inputRef: zod.string().nullish(),
-  inputSummary: zod.string().nullish(),
-  outputRef: zod.string().nullish(),
-  outputSummary: zod.string().nullish(),
-  confidence: zod.number().nullish(),
-  latencyMs: zod.number().nullish(),
-  inputTokens: zod.number().nullish(),
-  outputTokens: zod.number().nullish(),
-  costUsd: zod.number().nullish(),
-  error: zod.string().nullish(),
-  startedAt: zod.coerce.date(),
-  completedAt: zod.coerce.date().nullish(),
+export const ListAgentRunsResponse = zod.object({
+  items: zod.array(
+    zod.object({
+      id: zod.string(),
+      agentName: zod.string(),
+      promptVersion: zod.string(),
+      model: zod.string(),
+      status: zod.enum([
+        "PENDING",
+        "RUNNING",
+        "SUCCEEDED",
+        "FAILED",
+        "TIMEOUT",
+      ]),
+      triggeredBy: zod.string().nullish(),
+      triggerReason: zod.string().nullish(),
+      inputRef: zod.string().nullish(),
+      inputSummary: zod.string().nullish(),
+      outputRef: zod.string().nullish(),
+      outputSummary: zod.string().nullish(),
+      confidence: zod.number().nullish(),
+      latencyMs: zod.number().nullish(),
+      inputTokens: zod.number().nullish(),
+      outputTokens: zod.number().nullish(),
+      costUsd: zod.number().nullish(),
+      error: zod.string().nullish(),
+      startedAt: zod.coerce.date(),
+      completedAt: zod.coerce.date().nullish(),
+    }),
+  ),
+  total: zod.number(),
+  limit: zod.number(),
+  offset: zod.number(),
 });
-export const ListAgentRunsResponse = zod.array(ListAgentRunsResponseItem);
+
+export const getAgentRunCostSummaryQueryRangeDefault = `24h`;
+
+export const GetAgentRunCostSummaryQueryParams = zod.object({
+  range: zod
+    .enum(["24h", "7d", "30d"])
+    .default(getAgentRunCostSummaryQueryRangeDefault),
+});
+
+export const GetAgentRunCostSummaryResponse = zod.object({
+  range: zod.string(),
+  windowStart: zod.coerce.date(),
+  totalRuns: zod.number(),
+  totalCostUsd: zod.number(),
+  totalInputTokens: zod.number(),
+  totalOutputTokens: zod.number(),
+  byAgent: zod.array(
+    zod.object({
+      agentName: zod.string(),
+      runs: zod.number(),
+      succeeded: zod.number(),
+      failed: zod.number(),
+      avgLatencyMs: zod.number().nullish(),
+      avgConfidence: zod.number().nullish(),
+      inputTokens: zod.number(),
+      outputTokens: zod.number(),
+      costUsd: zod.number(),
+    }),
+  ),
+});
 
 export const GetAgentRunParams = zod.object({
   id: zod.coerce.string(),
@@ -2381,7 +2456,7 @@ export const GetAgentRunResponse = zod.object({
   agentName: zod.string(),
   promptVersion: zod.string(),
   model: zod.string(),
-  status: zod.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]),
+  status: zod.enum(["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "TIMEOUT"]),
   triggeredBy: zod.string().nullish(),
   triggerReason: zod.string().nullish(),
   inputRef: zod.string().nullish(),
@@ -2396,6 +2471,105 @@ export const GetAgentRunResponse = zod.object({
   error: zod.string().nullish(),
   startedAt: zod.coerce.date(),
   completedAt: zod.coerce.date().nullish(),
+});
+
+export const RetryAgentRunParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const RetryAgentRunResponse = zod.object({
+  ok: zod.boolean(),
+  originalRunId: zod.string(),
+  newRunId: zod.string().nullish(),
+  agentName: zod.string(),
+  message: zod.string(),
+});
+
+export const GetSystemHealthResponse = zod.object({
+  modules: zod.array(
+    zod.object({
+      module: zod.string(),
+      configured: zod.boolean(),
+      lastSuccessAt: zod.coerce.date().nullish(),
+      errorCount24h: zod.number(),
+      recentErrors: zod.array(
+        zod.object({
+          at: zod.coerce.date(),
+          message: zod.string(),
+        }),
+      ),
+      lastProbeAt: zod.coerce.date().nullish(),
+      lastProbeOk: zod.boolean().nullish(),
+      lastProbeMessage: zod.string().nullish(),
+    }),
+  ),
+  queues: zod.array(
+    zod.object({
+      name: zod.string(),
+      waiting: zod.number(),
+      active: zod.number(),
+      delayed: zod.number(),
+      failed: zod.number(),
+      completed: zod.number(),
+    }),
+  ),
+});
+
+export const ProbeSystemHealthModuleParams = zod.object({
+  module: zod.coerce.string(),
+});
+
+export const ProbeSystemHealthModuleResponse = zod.object({
+  module: zod.string(),
+  ok: zod.boolean(),
+  message: zod.string(),
+  at: zod.coerce.date(),
+});
+
+export const RetryAllFailedJobsParams = zod.object({
+  name: zod.coerce.string(),
+});
+
+export const retryAllFailedJobsQueryLimitDefault = 200;
+export const retryAllFailedJobsQueryLimitMax = 1000;
+
+export const RetryAllFailedJobsQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(retryAllFailedJobsQueryLimitMax)
+    .default(retryAllFailedJobsQueryLimitDefault),
+});
+
+export const RetryAllFailedJobsResponse = zod.object({
+  queue: zod.string(),
+  action: zod.enum(["retry", "discard"]),
+  scanned: zod.number(),
+  affected: zod.number(),
+  errors: zod.array(zod.string()),
+});
+
+export const DiscardAllFailedJobsParams = zod.object({
+  name: zod.coerce.string(),
+});
+
+export const discardAllFailedJobsQueryLimitDefault = 200;
+export const discardAllFailedJobsQueryLimitMax = 1000;
+
+export const DiscardAllFailedJobsQueryParams = zod.object({
+  limit: zod.coerce
+    .number()
+    .min(1)
+    .max(discardAllFailedJobsQueryLimitMax)
+    .default(discardAllFailedJobsQueryLimitDefault),
+});
+
+export const DiscardAllFailedJobsResponse = zod.object({
+  queue: zod.string(),
+  action: zod.enum(["retry", "discard"]),
+  scanned: zod.number(),
+  affected: zod.number(),
+  errors: zod.array(zod.string()),
 });
 
 export const ListAnomalyEventsQueryParams = zod.object({

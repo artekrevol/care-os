@@ -13,6 +13,7 @@ import {
 } from "@workspace/db";
 import { serviceLogger } from "../logger";
 import { isModuleConfigured } from "../env";
+import { recordSuccess, recordError } from "../health/index";
 
 export type NotificationChannel = "EMAIL" | "SMS" | "PUSH" | "IN_APP";
 
@@ -234,13 +235,41 @@ async function sendEmail(
       subject: p.subject,
       text: p.body,
     });
+    recordSuccess("notifications.email");
     return {
       channel: "EMAIL",
       status: "SENT",
       providerMessageId: result.data?.id,
     };
   } catch (err) {
+    recordError("notifications.email", err);
     return { channel: "EMAIL", status: "FAILED", error: (err as Error).message };
+  }
+}
+
+/**
+ * Send a stand-alone email (no `notification_log` row, no preferences). Used
+ * by admin-only flows like the DLQ depth alert. Returns { ok, message }.
+ */
+export async function sendDirectEmail(args: {
+  to: string;
+  subject: string;
+  text: string;
+}): Promise<{ ok: boolean; message: string }> {
+  const r = getResend();
+  if (!r) return { ok: false, message: "not configured" };
+  try {
+    const result = await r.emails.send({
+      from: process.env["RESEND_FROM_EMAIL"] ?? "CareOS <noreply@careos.local>",
+      to: args.to,
+      subject: args.subject,
+      text: args.text,
+    });
+    recordSuccess("notifications.email");
+    return { ok: true, message: result.data?.id ?? "ok" };
+  } catch (err) {
+    recordError("notifications.email", err);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
   }
 }
 
@@ -258,8 +287,10 @@ async function sendSms(
       to: phone,
       body: `${p.subject}\n${p.body}${p.url ? `\n${p.url}` : ""}`,
     });
+    recordSuccess("notifications.sms");
     return { channel: "SMS", status: "SENT", providerMessageId: msg.sid };
   } catch (err) {
+    recordError("notifications.sms", err);
     return { channel: "SMS", status: "FAILED", error: (err as Error).message };
   }
 }
@@ -286,6 +317,12 @@ async function sendPush(
     subs.map((s) => webpush.sendNotification(s, body)),
   );
   const anyOk = results.some((r) => r.status === "fulfilled");
+  if (anyOk) recordSuccess("notifications.push");
+  else
+    recordError(
+      "notifications.push",
+      (results[0] as PromiseRejectedResult).reason ?? new Error("push failed"),
+    );
   return {
     channel: "PUSH",
     status: anyOk ? "SENT" : "FAILED",
@@ -397,6 +434,43 @@ export async function sendNotification(
       serviceLogger.error({ ...r }, "notification dispatch failed");
   }
   return out;
+}
+
+/**
+ * Cheap probes for each notification channel. Email: Resend domains list.
+ * SMS: Twilio account fetch. Push: VAPID key presence (Web Push has no
+ * pingable endpoint, so config-only).
+ */
+export async function probeEmail(): Promise<{ ok: boolean; message: string }> {
+  const r = getResend();
+  if (!r) return { ok: false, message: "not configured" };
+  try {
+    await r.domains.list();
+    recordSuccess("notifications.email");
+    return { ok: true, message: "ok" };
+  } catch (err) {
+    recordError("notifications.email", err);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function probeSms(): Promise<{ ok: boolean; message: string }> {
+  const t = getTwilio();
+  if (!t) return { ok: false, message: "not configured" };
+  try {
+    const acct = await t.api.accounts(process.env["TWILIO_ACCOUNT_SID"]!).fetch();
+    recordSuccess("notifications.sms");
+    return { ok: true, message: `ok · ${acct.status}` };
+  } catch (err) {
+    recordError("notifications.sms", err);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function probePush(): Promise<{ ok: boolean; message: string }> {
+  if (!ensureWebPush()) return { ok: false, message: "not configured" };
+  recordSuccess("notifications.push");
+  return { ok: true, message: "VAPID keys configured" };
 }
 
 export function getVapidPublicKey(): string | null {

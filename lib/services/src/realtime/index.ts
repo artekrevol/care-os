@@ -1,6 +1,7 @@
 import Pusher from "pusher";
 import { serviceLogger } from "../logger";
 import { isModuleConfigured } from "../env";
+import { recordSuccess, recordError } from "../health/index";
 
 let server: Pusher | null = null;
 
@@ -53,8 +54,14 @@ export async function publish(
     );
     return { published: false };
   }
-  await p.trigger(channel, event, payload);
-  return { published: true };
+  try {
+    await p.trigger(channel, event, payload);
+    recordSuccess("realtime");
+    return { published: true };
+  } catch (err) {
+    recordError("realtime", err);
+    throw err;
+  }
 }
 
 export function getClientCredentials(): {
@@ -66,4 +73,21 @@ export function getClientCredentials(): {
     key: process.env["PUSHER_KEY"]!,
     cluster: process.env["PUSHER_CLUSTER"]!,
   };
+}
+
+/**
+ * Cheap probe: ask Pusher for the list of occupied channels with a tiny
+ * filter prefix. Calls /channels which is read-only and inexpensive.
+ */
+export async function probe(): Promise<{ ok: boolean; message: string }> {
+  const p = getPusherServer();
+  if (!p) return { ok: false, message: "not configured" };
+  try {
+    await p.get({ path: "/channels", params: { filter_by_prefix: "_probe-" } });
+    recordSuccess("realtime");
+    return { ok: true, message: "ok" };
+  } catch (err) {
+    recordError("realtime", err);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
 }

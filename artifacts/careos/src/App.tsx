@@ -21,6 +21,7 @@ import AuditLog from "@/pages/AuditLog";
 import Intake from "@/pages/Intake";
 import ReferralReview from "@/pages/ReferralReview";
 import AgentRuns from "@/pages/AgentRuns";
+import SystemHealth from "@/pages/SystemHealth";
 import FamilyLogin from "@/pages/family/FamilyLogin";
 import FamilyHome from "@/pages/family/FamilyHome";
 import FamilyMessages from "@/pages/family/FamilyMessages";
@@ -50,6 +51,7 @@ function Router() {
       <Route path="/labor-rules" component={LaborRules} />
       <Route path="/reports" component={Reports} />
       <Route path="/agent-runs" component={AgentRuns} />
+      <Route path="/admin/system-health" component={SystemHealth} />
       <Route path="/audit-log" component={AuditLog} />
       <Route path="/family/login" component={FamilyLogin} />
       <Route path="/family/home" component={FamilyHome} />

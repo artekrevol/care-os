@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db, driveTimeCacheTable } from "@workspace/db";
 import { serviceLogger } from "../logger";
 import { isModuleConfigured } from "../env";
+import { recordSuccess, recordError } from "../health/index";
 
 let gmaps: GMapsClient | null = null;
 function getGmaps(): GMapsClient | null {
@@ -84,14 +85,21 @@ export async function getDriveTime(
     };
   }
 
-  const resp = await c.distancematrix({
-    params: {
-      origins: [`${oLat},${oLng}`],
-      destinations: [`${dLat},${dLng}`],
-      key: process.env["GOOGLE_MAPS_API_KEY"]!,
-      departure_time: new Date(),
-    },
-  });
+  let resp;
+  try {
+    resp = await c.distancematrix({
+      params: {
+        origins: [`${oLat},${oLng}`],
+        destinations: [`${dLat},${dLng}`],
+        key: process.env["GOOGLE_MAPS_API_KEY"]!,
+        departure_time: new Date(),
+      },
+    });
+    recordSuccess("maps");
+  } catch (err) {
+    recordError("maps", err);
+    throw err;
+  }
   const elem = resp.data.rows[0]?.elements[0];
   if (!elem || elem.status !== "OK") {
     throw new Error(`distance matrix failed: ${elem?.status ?? "no result"}`);
@@ -119,4 +127,32 @@ export async function getDriveTime(
     })
     .onConflictDoNothing();
   return result;
+}
+
+/**
+ * Cheap probe: 1-row distance-matrix call between two nearby points. Records
+ * success on a 200 OK from Google.
+ */
+export async function probe(): Promise<{ ok: boolean; message: string }> {
+  const c = getGmaps();
+  if (!c) return { ok: false, message: "not configured" };
+  try {
+    const resp = await c.distancematrix({
+      params: {
+        origins: ["37.7749,-122.4194"],
+        destinations: ["37.7849,-122.4094"],
+        key: process.env["GOOGLE_MAPS_API_KEY"]!,
+      },
+    });
+    const elem = resp.data.rows[0]?.elements[0];
+    if (elem?.status === "OK") {
+      recordSuccess("maps");
+      return { ok: true, message: "ok" };
+    }
+    recordError("maps", new Error(elem?.status ?? "no result"));
+    return { ok: false, message: elem?.status ?? "no result" };
+  } catch (err) {
+    recordError("maps", err);
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
 }
