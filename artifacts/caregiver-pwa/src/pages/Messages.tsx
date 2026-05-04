@@ -119,7 +119,8 @@ function ThreadView({ me, threadId }: { me: Me; threadId: string }) {
           credentials: { key: string; cluster: string } | null;
           authEndpoint: string | null;
         }>("/m/realtime/credentials");
-        if (cancelled || !r.credentials || !r.authEndpoint) return;
+        if (cancelled) return;
+        if (!r.credentials || !r.authEndpoint) return;
         const PusherMod = await import("pusher-js");
         if (cancelled) return;
         const Pusher = PusherMod.default;

@@ -51,20 +51,23 @@ describe("Dashboard summary — performance regression guard", () => {
     expect(elapsed).toBeLessThan(2000);
   });
 
-  it("dashboard handler uses Promise.all with ≥11 concurrent DB calls", () => {
+  it("dashboard handler uses Promise.all with ≥11 concurrent DB calls (no N+1)", () => {
     const src = readFileSync(
       resolve(__dirname, "../routes/dashboard.ts"),
       "utf-8",
     );
 
-    const summaryHandler = src.slice(
-      src.indexOf('"/dashboard/summary"'),
-      src.indexOf('"/dashboard/activity"'),
-    );
+    const summaryStart = src.indexOf('"/dashboard/summary"');
+    const summaryEnd = src.indexOf('"/dashboard/activity"');
+    const summaryHandler = src.slice(summaryStart, summaryEnd);
 
     expect(summaryHandler).toContain("Promise.all");
 
     const dbCalls = summaryHandler.match(/\bdb\s*\.\s*select\s*\(/g) ?? [];
     expect(dbCalls.length).toBeGreaterThanOrEqual(11);
+
+    const forLoopQueries =
+      summaryHandler.match(/for\s*\(.*\)\s*\{[^}]*\bdb\b/g) ?? [];
+    expect(forLoopQueries.length).toBe(0);
   });
 });

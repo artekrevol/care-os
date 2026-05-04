@@ -7,7 +7,13 @@
     "hello": "tsx ./src/hello.ts",
     "demo:reset": "tsx ./src/demo-reset.ts",
     "demo:screenshots": "tsx ./src/demo-screenshots.ts",
+    "fk-index-audit": "tsx ./src/fk-index-audit.ts",
+    "pusher-scale-check": "tsx ./src/pusher-scale-check.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+
+  "dependencies": {
+    "@workspace/db": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

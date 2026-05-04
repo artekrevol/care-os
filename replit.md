@@ -249,10 +249,22 @@ concurrency for every queue name. `registerWorker` reads it (default 1).
 ### Pusher channel lifecycle
 
 Pusher is only used in `artifacts/caregiver-pwa/src/pages/Messages.tsx` for
-real-time message delivery on a per-thread private channel. The channel is
-created inside a `useEffect` that returns a cleanup function calling
-`ch.unbind()`, `client.unsubscribe()`, and `client.disconnect()`. When the
-caregiver navigates away from the Messages page (including logout, which
-calls `onLogout()` and unmounts all page components), React's effect cleanup
-fires and tears down the Pusher connection. No orphan subscriptions survive
-logout. Polling fallback (15s) is used when Pusher credentials are unavailable.
+real-time message delivery on a per-thread private channel
+(`private-thread-<threadId>`). The channel is created inside a `useEffect`
+with three `cancelled` checkpoints (after credentials fetch, after dynamic
+import, after client construction) to prevent orphan connections if the
+component unmounts during the async setup window. The cleanup function calls
+`ch.unbind()`, `client.unsubscribe()`, and `client.disconnect()`. If the
+client is constructed but `cancelled` is already true, it immediately calls
+`client.disconnect()` and returns. Logout (`onLogout()`) unmounts the
+component tree, triggering React effect cleanup. Scale: 50 caregivers × 1
+active thread = 50 Pusher connections (free tier supports 200). Polling
+fallback (15s) is used when Pusher credentials are unavailable.
+
+### Verification scripts
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| FK/Index Audit | `pnpm --filter @workspace/scripts run fk-index-audit` | Queries pg_indexes to verify all hot-path FK columns have covering indexes |
+| Pusher Scale Check | `pnpm --filter @workspace/scripts run pusher-scale-check` | Validates channel naming, teardown patterns, cancelled checkpoints, and scale model |
+| Dashboard Perf Test | `pnpm test` (dashboardPerf.test.ts) | Response field validation, 2s timing gate, structural Promise.all/N+1 guard |
