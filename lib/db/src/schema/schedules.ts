@@ -4,6 +4,7 @@ import {
   text,
   integer,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const schedulesTable = pgTable("schedules", {
@@ -28,6 +29,13 @@ export const schedulesTable = pgTable("schedules", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyStatus: index("schedules_agency_status_idx").on(t.agencyId, t.status),
+  byAgencyStart: index("schedules_agency_start_idx").on(t.agencyId, t.startTime),
+  byAgencyCaregiver: index("schedules_agency_caregiver_idx").on(t.agencyId, t.caregiverId),
+  byAgencyClient: index("schedules_agency_client_idx").on(t.agencyId, t.clientId),
+  byCaregiverStart: index("schedules_caregiver_start_idx").on(t.caregiverId, t.startTime),
+  byAuthId: index("schedules_authorization_id_idx").on(t.authorizationId),
+}));
 
 export type Schedule = typeof schedulesTable.$inferSelect;

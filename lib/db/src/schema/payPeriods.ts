@@ -4,6 +4,7 @@ import {
   text,
   date,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const payPeriodsTable = pgTable("pay_periods", {
@@ -16,6 +17,9 @@ export const payPeriodsTable = pgTable("pay_periods", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyStatus: index("pay_periods_agency_status_idx").on(t.agencyId, t.status),
+  byAgencyStart: index("pay_periods_agency_start_idx").on(t.agencyId, t.startDate),
+}));
 
 export type PayPeriod = typeof payPeriodsTable.$inferSelect;

@@ -46,64 +46,111 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
   const weekStart = startOfWeekISO();
   const weekEnd = endOfWeekISO();
 
-  const [activeClients] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(clientsTable)
-    .where(
-      and(eq(clientsTable.agencyId, AGENCY_ID), eq(clientsTable.status, "ACTIVE")),
-    );
-  const [activeCaregivers] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(caregiversTable)
-    .where(
-      and(
-        eq(caregiversTable.agencyId, AGENCY_ID),
-        eq(caregiversTable.status, "ACTIVE"),
+  const [
+    [activeClients],
+    [activeCaregivers],
+    [scheduledToday],
+    [completedToday],
+    [pendingExceptions],
+    [openAlerts],
+    auths,
+    docs,
+    weekVisits,
+    weekSchedules,
+    [activeRule],
+  ] = await Promise.all([
+    db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(clientsTable)
+      .where(
+        and(eq(clientsTable.agencyId, AGENCY_ID), eq(clientsTable.status, "ACTIVE")),
       ),
-    );
-  const [scheduledToday] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(schedulesTable)
-    .where(
-      and(
-        eq(schedulesTable.agencyId, AGENCY_ID),
-        gte(schedulesTable.startTime, dayStart),
-        lte(schedulesTable.startTime, dayEnd),
+    db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(caregiversTable)
+      .where(
+        and(
+          eq(caregiversTable.agencyId, AGENCY_ID),
+          eq(caregiversTable.status, "ACTIVE"),
+        ),
       ),
-    );
-  const [completedToday] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(visitsTable)
-    .where(
-      and(
-        eq(visitsTable.agencyId, AGENCY_ID),
-        gte(visitsTable.clockOutTime, dayStart),
-        lte(visitsTable.clockOutTime, dayEnd),
+    db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(schedulesTable)
+      .where(
+        and(
+          eq(schedulesTable.agencyId, AGENCY_ID),
+          gte(schedulesTable.startTime, dayStart),
+          lte(schedulesTable.startTime, dayEnd),
+        ),
       ),
-    );
-  const [pendingExceptions] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(visitsTable)
-    .where(
-      and(
-        eq(visitsTable.agencyId, AGENCY_ID),
-        sql`${visitsTable.verificationStatus} in ('PENDING','EXCEPTION')`,
+    db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(visitsTable)
+      .where(
+        and(
+          eq(visitsTable.agencyId, AGENCY_ID),
+          gte(visitsTable.clockOutTime, dayStart),
+          lte(visitsTable.clockOutTime, dayEnd),
+        ),
       ),
-    );
-  const [openAlerts] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(complianceAlertsTable)
-    .where(
-      and(
-        eq(complianceAlertsTable.agencyId, AGENCY_ID),
-        eq(complianceAlertsTable.status, "OPEN"),
+    db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(visitsTable)
+      .where(
+        and(
+          eq(visitsTable.agencyId, AGENCY_ID),
+          sql`${visitsTable.verificationStatus} in ('PENDING','EXCEPTION')`,
+        ),
       ),
-    );
+    db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(complianceAlertsTable)
+      .where(
+        and(
+          eq(complianceAlertsTable.agencyId, AGENCY_ID),
+          eq(complianceAlertsTable.status, "OPEN"),
+        ),
+      ),
+    db
+      .select()
+      .from(authorizationsTable)
+      .where(eq(authorizationsTable.agencyId, AGENCY_ID)),
+    db
+      .select()
+      .from(caregiverDocumentsTable)
+      .where(eq(caregiverDocumentsTable.agencyId, AGENCY_ID)),
+    db
+      .select()
+      .from(visitsTable)
+      .where(
+        and(
+          eq(visitsTable.agencyId, AGENCY_ID),
+          gte(visitsTable.clockInTime, new Date(weekStart)),
+          lte(visitsTable.clockInTime, new Date(weekEnd)),
+        ),
+      ),
+    db
+      .select()
+      .from(schedulesTable)
+      .where(
+        and(
+          eq(schedulesTable.agencyId, AGENCY_ID),
+          gte(schedulesTable.startTime, new Date(weekStart)),
+          lte(schedulesTable.startTime, new Date(weekEnd)),
+        ),
+      ),
+    db
+      .select()
+      .from(laborRuleSetsTable)
+      .where(
+        and(
+          eq(laborRuleSetsTable.agencyId, AGENCY_ID),
+          eq(laborRuleSetsTable.isActive, true),
+        ),
+      ),
+  ]);
 
-  const auths = await db
-    .select()
-    .from(authorizationsTable)
-    .where(eq(authorizationsTable.agencyId, AGENCY_ID));
   const expiringAuthCount = auths.filter((a) => {
     const days = Math.ceil(
       (new Date(a.expirationDate + "T00:00:00Z").getTime() - Date.now()) /
@@ -112,10 +159,6 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     return days >= 0 && days <= 14;
   }).length;
 
-  const docs = await db
-    .select()
-    .from(caregiverDocumentsTable)
-    .where(eq(caregiverDocumentsTable.agencyId, AGENCY_ID));
   const expiringDocCount = docs.filter((d) => {
     if (!d.expirationDate) return false;
     const days = Math.ceil(
@@ -125,45 +168,15 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     return days >= 0 && days <= 30;
   }).length;
 
-  const weekVisits = await db
-    .select()
-    .from(visitsTable)
-    .where(
-      and(
-        eq(visitsTable.agencyId, AGENCY_ID),
-        gte(visitsTable.clockInTime, new Date(weekStart)),
-        lte(visitsTable.clockInTime, new Date(weekEnd)),
-      ),
-    );
   const weeklyMinutesDelivered = weekVisits.reduce(
     (s, v) => s + (v.durationMinutes ?? 0),
     0,
   );
 
-  const weekSchedules = await db
-    .select()
-    .from(schedulesTable)
-    .where(
-      and(
-        eq(schedulesTable.agencyId, AGENCY_ID),
-        gte(schedulesTable.startTime, new Date(weekStart)),
-        lte(schedulesTable.startTime, new Date(weekEnd)),
-      ),
-    );
   const weeklyMinutesScheduled = weekSchedules.reduce(
     (s, sc) => s + sc.scheduledMinutes,
     0,
   );
-
-  const [activeRule] = await db
-    .select()
-    .from(laborRuleSetsTable)
-    .where(
-      and(
-        eq(laborRuleSetsTable.agencyId, AGENCY_ID),
-        eq(laborRuleSetsTable.isActive, true),
-      ),
-    );
 
   // Project OT for the rest of the week using scheduled hours
   let projectedOtMinutes = 0;

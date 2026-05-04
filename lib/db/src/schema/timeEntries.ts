@@ -6,6 +6,7 @@ import {
   integer,
   date,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const timeEntriesTable = pgTable("time_entries", {
@@ -31,6 +32,10 @@ export const timeEntriesTable = pgTable("time_entries", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyPayPeriod: index("time_entries_agency_period_idx").on(t.agencyId, t.payPeriodId),
+  byAgencyCaregiver: index("time_entries_agency_caregiver_idx").on(t.agencyId, t.caregiverId),
+  byVisitId: index("time_entries_visit_id_idx").on(t.visitId),
+}));
 
 export type TimeEntry = typeof timeEntriesTable.$inferSelect;

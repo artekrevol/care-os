@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gte, lte, desc } from "drizzle-orm";
+import { and, eq, gte, lte, desc, inArray } from "drizzle-orm";
 import {
   db,
   visitsTable,
@@ -29,15 +29,13 @@ import { dispatchNotificationToUsers } from "../lib/notify";
 
 const router: IRouter = Router();
 
-async function format(v: typeof visitsTable.$inferSelect) {
-  const [c] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, v.clientId));
-  const [cg] = await db
-    .select()
-    .from(caregiversTable)
-    .where(eq(caregiversTable.id, v.caregiverId));
+function formatVisitRow(
+  v: typeof visitsTable.$inferSelect,
+  clientMap: Map<string, typeof clientsTable.$inferSelect>,
+  cgMap: Map<string, typeof caregiversTable.$inferSelect>,
+) {
+  const c = clientMap.get(v.clientId);
+  const cg = cgMap.get(v.caregiverId);
   return {
     id: v.id,
     scheduleId: v.scheduleId,
@@ -65,6 +63,33 @@ async function format(v: typeof visitsTable.$inferSelect) {
   };
 }
 
+async function batchFormatVisits(rows: (typeof visitsTable.$inferSelect)[]) {
+  const clientIds = [...new Set(rows.map((r) => r.clientId))];
+  const cgIds = [...new Set(rows.map((r) => r.caregiverId))];
+  const [clients, cgs] = await Promise.all([
+    clientIds.length
+      ? db
+          .select()
+          .from(clientsTable)
+          .where(inArray(clientsTable.id, clientIds))
+      : [],
+    cgIds.length
+      ? db
+          .select()
+          .from(caregiversTable)
+          .where(inArray(caregiversTable.id, cgIds))
+      : [],
+  ]);
+  const clientMap = new Map(clients.map((c) => [c.id, c]));
+  const cgMap = new Map(cgs.map((c) => [c.id, c]));
+  return rows.map((r) => formatVisitRow(r, clientMap, cgMap));
+}
+
+async function format(v: typeof visitsTable.$inferSelect) {
+  const result = await batchFormatVisits([v]);
+  return result[0]!;
+}
+
 router.get("/visits", async (req, res): Promise<void> => {
   // Coerce ISO date strings to Date before zod validation; clients (incl.
   // generated React Query hooks) pass query params as strings.
@@ -89,7 +114,7 @@ router.get("/visits", async (req, res): Promise<void> => {
     .from(visitsTable)
     .where(and(...conds))
     .orderBy(desc(visitsTable.clockInTime));
-  const formatted = await Promise.all(rows.map(format));
+  const formatted = await batchFormatVisits(rows);
   res.json(ListVisitsResponse.parse(formatted));
 });
 

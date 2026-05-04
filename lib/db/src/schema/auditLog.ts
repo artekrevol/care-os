@@ -4,6 +4,7 @@ import {
   text,
   jsonb,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const auditLogTable = pgTable("audit_log", {
@@ -21,6 +22,8 @@ export const auditLogTable = pgTable("audit_log", {
   timestamp: timestamp("timestamp", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyTimestamp: index("audit_log_agency_ts_idx").on(t.agencyId, t.timestamp),
+}));
 
 export type AuditLogRow = typeof auditLogTable.$inferSelect;

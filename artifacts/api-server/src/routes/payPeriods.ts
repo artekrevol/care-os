@@ -62,23 +62,51 @@ router.get("/pay-periods", async (_req, res): Promise<void> => {
     .from(payPeriodsTable)
     .where(eq(payPeriodsTable.agencyId, AGENCY_ID))
     .orderBy(desc(payPeriodsTable.startDate));
-  const out = await Promise.all(
-    periods.map(async (p) => {
-      const t = await periodTotals(p.id);
-      return {
-        id: p.id,
-        startDate: p.startDate,
-        endDate: p.endDate,
-        status: p.status,
-        totalRegularHours: t.totalRegularHours,
-        totalOvertimeHours: t.totalOvertimeHours,
-        totalDoubleTimeHours: t.totalDoubleTimeHours,
-        totalGrossPay: t.totalGrossPay,
-        caregiverCount: t.caregiverCount,
-        exportedAt: p.exportedAt,
-      };
-    }),
-  );
+  const periodIds = periods.map((p) => p.id);
+  const allEntries = periodIds.length
+    ? await db
+        .select()
+        .from(timeEntriesTable)
+        .where(
+          and(
+            eq(timeEntriesTable.agencyId, AGENCY_ID),
+            inArray(timeEntriesTable.payPeriodId, periodIds),
+          ),
+        )
+    : [];
+  const entriesByPeriod = new Map<string, (typeof allEntries)[number][]>();
+  for (const e of allEntries) {
+    const arr = entriesByPeriod.get(e.payPeriodId) ?? [];
+    arr.push(e);
+    entriesByPeriod.set(e.payPeriodId, arr);
+  }
+  const out = periods.map((p) => {
+    const entries = entriesByPeriod.get(p.id) ?? [];
+    let regMin = 0,
+      otMin = 0,
+      dtMin = 0,
+      gross = 0;
+    const cgs = new Set<string>();
+    for (const e of entries) {
+      regMin += e.regularMinutes;
+      otMin += e.overtimeMinutes;
+      dtMin += e.doubleTimeMinutes;
+      gross += Number(e.regularPay) + Number(e.overtimePay) + Number(e.doubleTimePay);
+      cgs.add(e.caregiverId);
+    }
+    return {
+      id: p.id,
+      startDate: p.startDate,
+      endDate: p.endDate,
+      status: p.status,
+      totalRegularHours: Math.round((regMin / 60) * 10) / 10,
+      totalOvertimeHours: Math.round((otMin / 60) * 10) / 10,
+      totalDoubleTimeHours: Math.round((dtMin / 60) * 10) / 10,
+      totalGrossPay: Math.round(gross * 100) / 100,
+      caregiverCount: cgs.size,
+      exportedAt: p.exportedAt,
+    };
+  });
   res.json(ListPayPeriodsResponse.parse(out));
 });
 

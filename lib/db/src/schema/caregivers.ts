@@ -6,6 +6,7 @@ import {
   numeric,
   boolean,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const caregiversTable = pgTable("caregivers", {
@@ -46,6 +47,9 @@ export const caregiversTable = pgTable("caregivers", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-});
+}, (t) => ({
+  byAgencyStatus: index("caregivers_agency_status_idx").on(t.agencyId, t.status),
+  byUserId: index("caregivers_user_id_idx").on(t.userId),
+}));
 
 export type Caregiver = typeof caregiversTable.$inferSelect;

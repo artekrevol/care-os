@@ -6,6 +6,7 @@ import {
   integer,
   numeric,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const agentRunsTable = pgTable("agent_runs", {
@@ -32,6 +33,9 @@ export const agentRunsTable = pgTable("agent_runs", {
     .notNull()
     .defaultNow(),
   completedAt: timestamp("completed_at", { withTimezone: true }),
-});
+}, (t) => ({
+  byAgencyStatus: index("agent_runs_agency_status_idx").on(t.agencyId, t.status),
+  byStartedAt: index("agent_runs_started_at_idx").on(t.agencyId, t.startedAt),
+}));
 
 export type AgentRun = typeof agentRunsTable.$inferSelect;

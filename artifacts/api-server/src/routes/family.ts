@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, desc, gte, sql } from "drizzle-orm";
+import { and, eq, desc, gte, sql, inArray } from "drizzle-orm";
 import {
   db,
   familyUsersTable,
@@ -208,65 +208,86 @@ router.get(
       )
       .orderBy(desc(visitsTable.clockInTime))
       .limit(10);
-    const recentVisits = await Promise.all(
-      visitRows.map(async (v) => {
-        const [cg] = await db
-          .select()
-          .from(caregiversTable)
-          .where(eq(caregiversTable.id, v.caregiverId));
-        const notes = await db
-          .select()
-          .from(visitNotesTable)
-          .where(
-            and(
-              eq(visitNotesTable.agencyId, AGENCY_ID),
-              eq(visitNotesTable.visitId, v.id),
-            ),
-          )
-          .orderBy(desc(visitNotesTable.createdAt));
-        const incidents = await db
-          .select()
-          .from(visitIncidentsTable)
-          .where(
-            and(
-              eq(visitIncidentsTable.agencyId, AGENCY_ID),
-              eq(visitIncidentsTable.visitId, v.id),
-            ),
-          )
-          .orderBy(desc(visitIncidentsTable.createdAt));
-        return {
-          id: v.id,
-          clockInTime: v.clockInTime,
-          clockOutTime: v.clockOutTime,
-          durationMinutes: v.durationMinutes,
-          caregiverName: cg ? `${cg.firstName} ${cg.lastName}` : "Unknown",
-          verificationStatus: v.verificationStatus,
-          tasksCompleted: v.tasksCompleted ?? [],
-          caregiverNotes: v.caregiverNotes,
-          notes: notes.map((n) => ({
-            id: n.id,
-            visitId: n.visitId,
-            authorId: n.authorId,
-            authorRole: n.authorRole,
-            body: n.body,
-            voiceClipUrl: n.voiceClipUrl,
-            aiSummary: n.aiSummary,
-            createdAt: n.createdAt,
-          })),
-          incidents: incidents.map((i) => ({
-            id: i.id,
-            visitId: i.visitId,
-            reportedBy: i.reportedBy,
-            severity: i.severity as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-            category: i.category,
-            description: i.description,
-            photoUrls: i.photoUrls ?? [],
-            resolvedAt: i.resolvedAt,
-            createdAt: i.createdAt,
-          })),
-        };
-      }),
-    );
+    const visitIds = visitRows.map((v) => v.id);
+    const cgIds = [...new Set(visitRows.map((v) => v.caregiverId))];
+    const [allCgs, allNotes, allIncidents] = await Promise.all([
+      cgIds.length
+        ? db.select().from(caregiversTable).where(inArray(caregiversTable.id, cgIds))
+        : [],
+      visitIds.length
+        ? db
+            .select()
+            .from(visitNotesTable)
+            .where(
+              and(
+                eq(visitNotesTable.agencyId, AGENCY_ID),
+                inArray(visitNotesTable.visitId, visitIds),
+              ),
+            )
+            .orderBy(desc(visitNotesTable.createdAt))
+        : [],
+      visitIds.length
+        ? db
+            .select()
+            .from(visitIncidentsTable)
+            .where(
+              and(
+                eq(visitIncidentsTable.agencyId, AGENCY_ID),
+                inArray(visitIncidentsTable.visitId, visitIds),
+              ),
+            )
+            .orderBy(desc(visitIncidentsTable.createdAt))
+        : [],
+    ]);
+    const cgMap = new Map(allCgs.map((c) => [c.id, c]));
+    const notesByVisit = new Map<string, typeof allNotes>();
+    for (const n of allNotes) {
+      const arr = notesByVisit.get(n.visitId) ?? [];
+      arr.push(n);
+      notesByVisit.set(n.visitId, arr);
+    }
+    const incidentsByVisit = new Map<string, typeof allIncidents>();
+    for (const i of allIncidents) {
+      const arr = incidentsByVisit.get(i.visitId) ?? [];
+      arr.push(i);
+      incidentsByVisit.set(i.visitId, arr);
+    }
+    const recentVisits = visitRows.map((v) => {
+      const cg = cgMap.get(v.caregiverId);
+      const notes = notesByVisit.get(v.id) ?? [];
+      const incidents = incidentsByVisit.get(v.id) ?? [];
+      return {
+        id: v.id,
+        clockInTime: v.clockInTime,
+        clockOutTime: v.clockOutTime,
+        durationMinutes: v.durationMinutes,
+        caregiverName: cg ? `${cg.firstName} ${cg.lastName}` : "Unknown",
+        verificationStatus: v.verificationStatus,
+        tasksCompleted: v.tasksCompleted ?? [],
+        caregiverNotes: v.caregiverNotes,
+        notes: notes.map((n) => ({
+          id: n.id,
+          visitId: n.visitId,
+          authorId: n.authorId,
+          authorRole: n.authorRole,
+          body: n.body,
+          voiceClipUrl: n.voiceClipUrl,
+          aiSummary: n.aiSummary,
+          createdAt: n.createdAt,
+        })),
+        incidents: incidents.map((i) => ({
+          id: i.id,
+          visitId: i.visitId,
+          reportedBy: i.reportedBy,
+          severity: i.severity as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+          category: i.category,
+          description: i.description,
+          photoUrls: i.photoUrls ?? [],
+          resolvedAt: i.resolvedAt,
+          createdAt: i.createdAt,
+        })),
+      };
+    });
     const openIncidentCount = recentVisits.reduce(
       (acc, v) => acc + v.incidents.filter((i) => !i.resolvedAt).length,
       0,

@@ -7,6 +7,7 @@ import {
   integer,
   jsonb,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const visitsTable = pgTable("visits", {
@@ -44,6 +45,13 @@ export const visitsTable = pgTable("visits", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-});
+}, (t) => ({
+  byAgencyStatus: index("visits_agency_status_idx").on(t.agencyId, t.verificationStatus),
+  byAgencyClockIn: index("visits_agency_clock_in_idx").on(t.agencyId, t.clockInTime),
+  byAgencyCaregiver: index("visits_agency_caregiver_idx").on(t.agencyId, t.caregiverId),
+  byAgencyClient: index("visits_agency_client_idx").on(t.agencyId, t.clientId),
+  byScheduleId: index("visits_schedule_id_idx").on(t.scheduleId),
+  byAgencyCreated: index("visits_agency_created_idx").on(t.agencyId, t.createdAt),
+}));
 
 export type Visit = typeof visitsTable.$inferSelect;

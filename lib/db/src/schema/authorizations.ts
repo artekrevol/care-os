@@ -5,6 +5,7 @@ import {
   date,
   numeric,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const authorizationsTable = pgTable("authorizations", {
@@ -31,6 +32,9 @@ export const authorizationsTable = pgTable("authorizations", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyClient: index("auths_agency_client_idx").on(t.agencyId, t.clientId),
+  byExpiration: index("auths_expiration_idx").on(t.agencyId, t.expirationDate),
+}));
 
 export type AuthorizationRow = typeof authorizationsTable.$inferSelect;

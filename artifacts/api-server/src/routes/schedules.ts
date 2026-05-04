@@ -40,15 +40,13 @@ import {
 
 const router: IRouter = Router();
 
-async function format(s: typeof schedulesTable.$inferSelect) {
-  const [client] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, s.clientId));
-  const [caregiver] = await db
-    .select()
-    .from(caregiversTable)
-    .where(eq(caregiversTable.id, s.caregiverId));
+function formatRow(
+  s: typeof schedulesTable.$inferSelect,
+  clientMap: Map<string, typeof clientsTable.$inferSelect>,
+  cgMap: Map<string, typeof caregiversTable.$inferSelect>,
+) {
+  const client = clientMap.get(s.clientId);
+  const caregiver = cgMap.get(s.caregiverId);
   return {
     id: s.id,
     clientId: s.clientId,
@@ -66,6 +64,33 @@ async function format(s: typeof schedulesTable.$inferSelect) {
     status: s.status,
     notes: s.notes,
   };
+}
+
+async function batchFormat(rows: (typeof schedulesTable.$inferSelect)[]) {
+  const clientIds = [...new Set(rows.map((r) => r.clientId))];
+  const cgIds = [...new Set(rows.map((r) => r.caregiverId))];
+  const [clients, cgs] = await Promise.all([
+    clientIds.length
+      ? db
+          .select()
+          .from(clientsTable)
+          .where(inArray(clientsTable.id, clientIds))
+      : [],
+    cgIds.length
+      ? db
+          .select()
+          .from(caregiversTable)
+          .where(inArray(caregiversTable.id, cgIds))
+      : [],
+  ]);
+  const clientMap = new Map(clients.map((c) => [c.id, c]));
+  const cgMap = new Map(cgs.map((c) => [c.id, c]));
+  return rows.map((r) => formatRow(r, clientMap, cgMap));
+}
+
+async function format(s: typeof schedulesTable.$inferSelect) {
+  const result = await batchFormat([s]);
+  return result[0]!;
 }
 
 function otImpactToConflict(
@@ -111,7 +136,7 @@ router.get("/schedules", async (req, res): Promise<void> => {
     .from(schedulesTable)
     .where(and(...conds))
     .orderBy(schedulesTable.startTime);
-  const formatted = await Promise.all(rows.map(format));
+  const formatted = await batchFormat(rows);
   res.json(ListSchedulesResponse.parse(formatted));
 });
 

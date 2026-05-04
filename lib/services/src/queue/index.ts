@@ -138,6 +138,23 @@ export async function enqueue<N extends QueueName>(
   }
 }
 
+const QUEUE_CONCURRENCY: Partial<Record<QueueName, number>> = {
+  "notification.send": 10,
+  "care-plan.generate": 2,
+  "schedule.suggest-caregivers": 2,
+  "schedule.optimize": 2,
+  "ocr.extract-document": 2,
+  "ai.intake-referral": 2,
+  "anomaly.scan-visit": 1,
+  "anomaly.scan-all": 1,
+  "auth.predict-renewal": 1,
+  "auth.predict-renewals-all": 1,
+  "compliance.daily-scan": 1,
+  "pay-period.auto-close": 1,
+  "drive-time.refresh": 3,
+  "visit.reminder-15min": 5,
+};
+
 export function registerWorker<N extends QueueName>(
   name: N,
   processor: Processor<CareOSJobMap[N]>,
@@ -150,8 +167,10 @@ export function registerWorker<N extends QueueName>(
     );
     return null;
   }
+  const concurrency = QUEUE_CONCURRENCY[name] ?? 1;
   const worker = new Worker<CareOSJobMap[N]>(name, processor, {
     connection: conn,
+    concurrency,
   });
   worker.on("failed", (job, err) =>
     serviceLogger.error({ queue: name, jobId: job?.id, err }, "job failed"),

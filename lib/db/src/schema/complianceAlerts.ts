@@ -3,6 +3,7 @@ import {
   varchar,
   text,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const complianceAlertsTable = pgTable("compliance_alerts", {
@@ -21,6 +22,10 @@ export const complianceAlertsTable = pgTable("compliance_alerts", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyStatus: index("alerts_agency_status_idx").on(t.agencyId, t.status),
+  byEntityId: index("alerts_entity_id_idx").on(t.entityType, t.entityId),
+  byAgencyDedupe: index("alerts_agency_dedupe_idx").on(t.agencyId, t.dedupeKey, t.status),
+}));
 
 export type ComplianceAlert = typeof complianceAlertsTable.$inferSelect;
