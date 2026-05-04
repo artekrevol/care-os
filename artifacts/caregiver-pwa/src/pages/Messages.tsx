@@ -110,9 +110,6 @@ function ThreadView({ me, threadId }: { me: Me; threadId: string }) {
     refetchInterval: realtime === "live" ? 60_000 : 15_000,
   });
 
-  // Real-time message delivery via Pusher when the server has it configured;
-  // gracefully falls back to polling when getClientCredentials() returns null
-  // (dev) or the dynamic import fails.
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | null = null;
@@ -124,15 +121,16 @@ function ThreadView({ me, threadId }: { me: Me; threadId: string }) {
         }>("/m/realtime/credentials");
         if (cancelled || !r.credentials || !r.authEndpoint) return;
         const PusherMod = await import("pusher-js");
+        if (cancelled) return;
         const Pusher = PusherMod.default;
-        // Use a private channel: Pusher will POST to authEndpoint, where the
-        // server verifies thread membership before signing. Without a valid
-        // signature the broker rejects the subscription, so a caregiver
-        // cannot read another thread's payloads even if they guess the id.
         const client = new Pusher(r.credentials.key, {
           cluster: r.credentials.cluster,
           authEndpoint: r.authEndpoint,
         });
+        if (cancelled) {
+          client.disconnect();
+          return;
+        }
         const channelName = `private-thread-${threadId}`;
         const ch = client.subscribe(channelName);
         const onCreated = () => {
