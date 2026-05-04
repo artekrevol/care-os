@@ -45,83 +45,44 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
   dayEnd.setUTCDate(dayEnd.getUTCDate() + 1);
   const weekStart = startOfWeekISO();
   const weekEnd = endOfWeekISO();
+  const todayDate = dayStart.toISOString().slice(0, 10);
 
   const [
-    [activeClients],
-    [activeCaregivers],
-    [scheduledToday],
-    [completedToday],
-    [pendingExceptions],
-    [openAlerts],
-    auths,
-    docs,
-    weekVisits,
+    countsResult,
+    [weeklyDelivered],
     weekSchedules,
     [activeRule],
+    caregivers,
   ] = await Promise.all([
+    db.execute(sql`
+      SELECT
+        (SELECT count(*)::int FROM ${clientsTable}
+         WHERE agency_id = ${AGENCY_ID} AND status = 'ACTIVE') AS active_clients,
+        (SELECT count(*)::int FROM ${caregiversTable}
+         WHERE agency_id = ${AGENCY_ID} AND status = 'ACTIVE') AS active_caregivers,
+        (SELECT count(*)::int FROM ${schedulesTable}
+         WHERE agency_id = ${AGENCY_ID}
+           AND start_time >= ${dayStart} AND start_time <= ${dayEnd}) AS scheduled_today,
+        (SELECT count(*)::int FROM ${visitsTable}
+         WHERE agency_id = ${AGENCY_ID}
+           AND clock_out_time >= ${dayStart} AND clock_out_time <= ${dayEnd}) AS completed_today,
+        (SELECT count(*)::int FROM ${visitsTable}
+         WHERE agency_id = ${AGENCY_ID}
+           AND verification_status IN ('PENDING','EXCEPTION')) AS pending_exceptions,
+        (SELECT count(*)::int FROM ${complianceAlertsTable}
+         WHERE agency_id = ${AGENCY_ID} AND status = 'OPEN') AS open_alerts,
+        (SELECT count(*)::int FROM ${authorizationsTable}
+         WHERE agency_id = ${AGENCY_ID}
+           AND expiration_date >= ${todayDate}
+           AND expiration_date <= (${todayDate}::date + interval '14 days')::date) AS expiring_auths,
+        (SELECT count(*)::int FROM ${caregiverDocumentsTable}
+         WHERE agency_id = ${AGENCY_ID}
+           AND expiration_date IS NOT NULL
+           AND expiration_date >= ${todayDate}
+           AND expiration_date <= (${todayDate}::date + interval '30 days')::date) AS expiring_docs
+    `),
     db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(clientsTable)
-      .where(
-        and(eq(clientsTable.agencyId, AGENCY_ID), eq(clientsTable.status, "ACTIVE")),
-      ),
-    db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(caregiversTable)
-      .where(
-        and(
-          eq(caregiversTable.agencyId, AGENCY_ID),
-          eq(caregiversTable.status, "ACTIVE"),
-        ),
-      ),
-    db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(schedulesTable)
-      .where(
-        and(
-          eq(schedulesTable.agencyId, AGENCY_ID),
-          gte(schedulesTable.startTime, dayStart),
-          lte(schedulesTable.startTime, dayEnd),
-        ),
-      ),
-    db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(visitsTable)
-      .where(
-        and(
-          eq(visitsTable.agencyId, AGENCY_ID),
-          gte(visitsTable.clockOutTime, dayStart),
-          lte(visitsTable.clockOutTime, dayEnd),
-        ),
-      ),
-    db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(visitsTable)
-      .where(
-        and(
-          eq(visitsTable.agencyId, AGENCY_ID),
-          sql`${visitsTable.verificationStatus} in ('PENDING','EXCEPTION')`,
-        ),
-      ),
-    db
-      .select({ c: sql<number>`count(*)::int` })
-      .from(complianceAlertsTable)
-      .where(
-        and(
-          eq(complianceAlertsTable.agencyId, AGENCY_ID),
-          eq(complianceAlertsTable.status, "OPEN"),
-        ),
-      ),
-    db
-      .select()
-      .from(authorizationsTable)
-      .where(eq(authorizationsTable.agencyId, AGENCY_ID)),
-    db
-      .select()
-      .from(caregiverDocumentsTable)
-      .where(eq(caregiverDocumentsTable.agencyId, AGENCY_ID)),
-    db
-      .select()
+      .select({ m: sql<number>`coalesce(sum(duration_minutes), 0)::int` })
       .from(visitsTable)
       .where(
         and(
@@ -149,55 +110,39 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
           eq(laborRuleSetsTable.isActive, true),
         ),
       ),
+    db
+      .select({ id: caregiversTable.id, payRate: caregiversTable.payRate })
+      .from(caregiversTable)
+      .where(eq(caregiversTable.agencyId, AGENCY_ID)),
   ]);
 
-  const expiringAuthCount = auths.filter((a) => {
-    const days = Math.ceil(
-      (new Date(a.expirationDate + "T00:00:00Z").getTime() - Date.now()) /
-        (86400000),
-    );
-    return days >= 0 && days <= 14;
-  }).length;
-
-  const expiringDocCount = docs.filter((d) => {
-    if (!d.expirationDate) return false;
-    const days = Math.ceil(
-      (new Date(d.expirationDate + "T00:00:00Z").getTime() - Date.now()) /
-        86400000,
-    );
-    return days >= 0 && days <= 30;
-  }).length;
-
-  const weeklyMinutesDelivered = weekVisits.reduce(
-    (s, v) => s + (v.durationMinutes ?? 0),
-    0,
-  );
+  const counts = countsResult.rows[0] as {
+    active_clients: number;
+    active_caregivers: number;
+    scheduled_today: number;
+    completed_today: number;
+    pending_exceptions: number;
+    open_alerts: number;
+    expiring_auths: number;
+    expiring_docs: number;
+  } | undefined;
 
   const weeklyMinutesScheduled = weekSchedules.reduce(
     (s, sc) => s + sc.scheduledMinutes,
     0,
   );
 
-  // Project OT for the rest of the week using scheduled hours
   let projectedOtMinutes = 0;
   let projectedOtCost = 0;
   if (activeRule) {
-    const rows: RawWorkDay[] = [];
-    const cgMap = new Map<string, number>();
-    const cgs = await db
-      .select()
-      .from(caregiversTable)
-      .where(eq(caregiversTable.agencyId, AGENCY_ID));
-    for (const c of cgs) cgMap.set(c.id, Number(c.payRate));
-    for (const sc of weekSchedules) {
-      rows.push({
-        caregiverId: sc.caregiverId,
-        visitId: sc.id,
-        workDate: sc.startTime.toISOString().slice(0, 10),
-        minutes: sc.scheduledMinutes,
-        payRate: cgMap.get(sc.caregiverId) ?? 0,
-      });
-    }
+    const cgMap = new Map(caregivers.map((c) => [c.id, Number(c.payRate)]));
+    const rows: RawWorkDay[] = weekSchedules.map((sc) => ({
+      caregiverId: sc.caregiverId,
+      visitId: sc.id,
+      workDate: sc.startTime.toISOString().slice(0, 10),
+      minutes: sc.scheduledMinutes,
+      payRate: cgMap.get(sc.caregiverId) ?? 0,
+    }));
     const computed = applyRule(activeRule, rows);
     projectedOtMinutes = computed.reduce(
       (s, e) => s + e.overtimeMinutes + e.doubleTimeMinutes,
@@ -211,15 +156,15 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
 
   res.json(
     GetDashboardSummaryResponse.parse({
-      activeClients: activeClients?.c ?? 0,
-      activeCaregivers: activeCaregivers?.c ?? 0,
-      scheduledVisitsToday: scheduledToday?.c ?? 0,
-      completedVisitsToday: completedToday?.c ?? 0,
-      pendingExceptions: pendingExceptions?.c ?? 0,
-      openAlerts: openAlerts?.c ?? 0,
-      expiringAuthorizations: expiringAuthCount,
-      expiringDocuments: expiringDocCount,
-      weeklyHoursDelivered: Math.round((weeklyMinutesDelivered / 60) * 10) / 10,
+      activeClients: counts?.active_clients ?? 0,
+      activeCaregivers: counts?.active_caregivers ?? 0,
+      scheduledVisitsToday: counts?.scheduled_today ?? 0,
+      completedVisitsToday: counts?.completed_today ?? 0,
+      pendingExceptions: counts?.pending_exceptions ?? 0,
+      openAlerts: counts?.open_alerts ?? 0,
+      expiringAuthorizations: counts?.expiring_auths ?? 0,
+      expiringDocuments: counts?.expiring_docs ?? 0,
+      weeklyHoursDelivered: Math.round(((weeklyDelivered?.m ?? 0) / 60) * 10) / 10,
       weeklyHoursScheduled: Math.round((weeklyMinutesScheduled / 60) * 10) / 10,
       projectedWeeklyOvertimeHours:
         Math.round((projectedOtMinutes / 60) * 10) / 10,

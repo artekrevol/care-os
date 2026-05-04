@@ -1,6 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { resolve } from "path";
 
 const BASE = process.env["TEST_API_BASE"] ?? "http://localhost:80";
 
@@ -51,7 +49,24 @@ describe("Dashboard summary — performance regression guard", () => {
     expect(elapsed).toBeLessThan(2000);
   });
 
-  it("dashboard handler uses Promise.all with ≥11 concurrent DB calls (no N+1)", () => {
+  it("executes ≤ 6 SQL statements (real query counter via X-Query-Count header)", async () => {
+    const res = await fetch(`${BASE}/api/dashboard/summary`, {
+      headers: { "X-CareOS-Role": "OWNER" },
+    });
+    expect(res.status).toBe(200);
+
+    const countHeader = res.headers.get("X-Query-Count");
+    expect(countHeader).toBeTruthy();
+
+    const queryCount = Number(countHeader);
+    expect(queryCount).toBeGreaterThan(0);
+    expect(queryCount).toBeLessThanOrEqual(6);
+  });
+
+  it("has no N+1 loops in the summary handler source", async () => {
+    const { readFileSync } = await import("fs");
+    const { resolve } = await import("path");
+
     const src = readFileSync(
       resolve(__dirname, "../routes/dashboard.ts"),
       "utf-8",
@@ -62,9 +77,6 @@ describe("Dashboard summary — performance regression guard", () => {
     const summaryHandler = src.slice(summaryStart, summaryEnd);
 
     expect(summaryHandler).toContain("Promise.all");
-
-    const dbCalls = summaryHandler.match(/\bdb\s*\.\s*select\s*\(/g) ?? [];
-    expect(dbCalls.length).toBeGreaterThanOrEqual(11);
 
     const forLoopQueries =
       summaryHandler.match(/for\s*\(.*\)\s*\{[^}]*\bdb\b/g) ?? [];
