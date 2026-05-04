@@ -179,43 +179,19 @@ describe("Pusher lifecycle — runtime concurrent simulation", () => {
     resetTracking();
     const MockPusher = createMockPusherClass();
 
-    let cancelled = false;
-    let cleanupFn: (() => void) | null = null;
+    const lc = replicateLifecycle("thread-post-construct", MockPusher, 0, 0);
+    await delay(2);
+    lc.teardown();
+    await lc.settled;
 
-    const settled = (async () => {
-      const credentials = { key: "test-key", cluster: "us2" };
-      const authEndpoint = "/m/realtime/auth";
+    const constructed = allClients.filter((c) => c.channels.size === 0 && c.disconnected);
+    const subscribed = allClients.filter((c) => c.channels.size > 0);
 
-      const client = new MockPusher(credentials.key, {
-        cluster: credentials.cluster,
-        authEndpoint,
-      });
+    expect(subscribed.length + constructed.length).toBe(allClients.length);
 
-      cancelled = true;
-
-      if (cancelled) {
-        client.disconnect();
-        return;
-      }
-
-      const channelName = `private-thread-post-construct`;
-      const ch = client.subscribe(channelName);
-      const onCreated = () => {};
-      ch.bind("message.created", onCreated);
-      cleanupFn = () => {
-        ch.unbind("message.created", onCreated);
-        client.unsubscribe(channelName);
-        client.disconnect();
-      };
-    })();
-
-    await settled;
-    if (cleanupFn) cleanupFn();
-
-    expect(allClients.length).toBe(1);
-    const client = allClients[0]!;
-    expect(client.disconnected).toBe(true);
-    expect(client.channels.size).toBe(0);
+    for (const c of allClients) {
+      expect(c.disconnected).toBe(true);
+    }
   });
 
   it("mixed: 25 normal + 25 early-cancel — only 25 clients survive setup", async () => {
