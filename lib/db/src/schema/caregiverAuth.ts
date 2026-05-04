@@ -5,6 +5,7 @@ import {
   timestamp,
   jsonb,
   integer,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const caregiverOtpCodesTable = pgTable("caregiver_otp_codes", {
@@ -19,7 +20,9 @@ export const caregiverOtpCodesTable = pgTable("caregiver_otp_codes", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byCaregiver: index("otp_codes_caregiver_id_idx").on(t.caregiverId),
+}));
 
 export type CaregiverOtpCode = typeof caregiverOtpCodesTable.$inferSelect;
 
@@ -56,6 +59,8 @@ export const caregiverSessionsTable = pgTable("caregiver_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byCaregiver: index("cg_sessions_caregiver_id_idx").on(t.caregiverId),
+}));
 
 export type CaregiverSession = typeof caregiverSessionsTable.$inferSelect;

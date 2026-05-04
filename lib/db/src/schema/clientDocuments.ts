@@ -6,6 +6,7 @@ import {
   numeric,
   boolean,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const clientDocumentsTable = pgTable("client_documents", {
@@ -30,6 +31,9 @@ export const clientDocumentsTable = pgTable("client_documents", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyClient: index("client_docs_agency_client_idx").on(t.agencyId, t.clientId),
+  byAgentRun: index("client_docs_agent_run_idx").on(t.agentRunId),
+}));
 
 export type ClientDocumentRow = typeof clientDocumentsTable.$inferSelect;

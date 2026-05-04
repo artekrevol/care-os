@@ -5,6 +5,7 @@ import {
   timestamp,
   jsonb,
   boolean,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const messageThreadsTable = pgTable("message_threads", {
@@ -20,7 +21,10 @@ export const messageThreadsTable = pgTable("message_threads", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyCaregiver: index("threads_agency_caregiver_idx").on(t.agencyId, t.caregiverId),
+  byAgencyClient: index("threads_agency_client_idx").on(t.agencyId, t.clientId),
+}));
 
 export type MessageThread = typeof messageThreadsTable.$inferSelect;
 
@@ -38,6 +42,9 @@ export const messagesTable = pgTable("messages", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byThread: index("messages_thread_id_idx").on(t.threadId),
+  byAuthor: index("messages_author_id_idx").on(t.authorId),
+}));
 
 export type Message = typeof messagesTable.$inferSelect;

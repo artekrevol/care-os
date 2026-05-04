@@ -199,10 +199,11 @@ Drift from the original Task #38 spec:
 
 ### Database indexes
 
-Composite indexes on 13 agency-scoped tables for hot-path query patterns.
-Defined in each Drizzle schema file's third-argument callback. Applied via
-`drizzle-kit push` (this project uses push, not migration files). Verified
-present in DB via `pg_indexes` (36 custom indexes confirmed).
+Every FK-like column across all tables has a covering index (63/63 PASS).
+118 total indexes in DB. Defined in each Drizzle schema file's third-argument
+callback. Applied via `drizzle-kit push` (this project uses push, not migration
+files). The `fk-index-audit` script verifies complete coverage and fails on
+any missing FK index.
 
 | Table | Index columns | Hot-path query |
 |-------|---------------|----------------|
@@ -216,7 +217,7 @@ present in DB via `pg_indexes` (36 custom indexes confirmed).
 | `audit_log` | (agencyId, timestamp), (agencyId, entityId) | Recent activity feed, entity lookup |
 | `time_entries` | (agencyId, payPeriodId), (agencyId, caregiverId), (visitId) | Pay-period totals, caregiver pay lookup |
 | `care_plans` | (agencyId, clientId), (agencyId, status) | Client care plan lookup |
-| `caregiver_documents` | (agencyId, caregiverId) | Document list by caregiver |
+| `caregiver_documents` | (agencyId, caregiverId), (agencyId, expirationDate) | Document list by caregiver, dashboard expiration scan |
 | `pay_periods` | (agencyId, status), (agencyId, startDate) | Period list ordered by date |
 
 ### N+1 elimination
@@ -275,5 +276,5 @@ requires adding those secrets first.
 |---------------|---------|------------------|
 | `dashboardPerf.test.ts` | `pnpm test` | Response fields, 2s timing gate, real `X-Query-Count ≤ 6` from header, no N+1 loops in source |
 | `pusherLifecycle.test.ts` | `pnpm test` | Runtime behavioral simulation: MockPusher tracks instances/channels/bindings; 50 concurrent mount/unmount with leak detection; cancel during credential fetch; cancel during import; cancel after construction (immediate disconnect); mixed 25-normal + 25-cancel; teardown order (unbind→unsubscribe→disconnect via call-order interception) |
-| FK/Index Audit | `pnpm --filter @workspace/scripts run fk-index-audit` | Queries `pg_indexes` to confirm 19 hot-path FK columns have covering indexes |
+| FK/Index Audit | `pnpm --filter @workspace/scripts run fk-index-audit` | Queries `pg_indexes` to confirm all 63 FK-like columns have covering indexes; exits non-zero on any gap |
 | Pusher Scale Check | `pnpm --filter @workspace/scripts run pusher-scale-check` | Channel naming, teardown patterns, cancelled checkpoints, polling fallback, scale model |

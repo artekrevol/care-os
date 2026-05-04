@@ -81,6 +81,9 @@ export const notificationDeliveriesTable = pgTable(
       t.userId,
       t.notificationTypeId,
     ),
+    byProviderMsg: index("notif_deliveries_provider_msg_idx").on(
+      t.providerMessageId,
+    ),
   }),
 );
 

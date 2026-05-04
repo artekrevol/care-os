@@ -52,6 +52,7 @@ export const clientsTable = pgTable("clients", {
     .$onUpdate(() => new Date()),
 }, (t) => ({
   byAgencyStatus: index("clients_agency_status_idx").on(t.agencyId, t.status),
+  byActiveCarePlan: index("clients_active_care_plan_idx").on(t.activeCarePlanId),
 }));
 
 export type Client = typeof clientsTable.$inferSelect;

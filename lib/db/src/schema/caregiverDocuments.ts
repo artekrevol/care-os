@@ -34,6 +34,8 @@ export const caregiverDocumentsTable = pgTable("caregiver_documents", {
     .defaultNow(),
 }, (t) => ({
   byAgencyCaregiver: index("cg_docs_agency_caregiver_idx").on(t.agencyId, t.caregiverId),
+  byAgencyExpiration: index("cg_docs_agency_expiration_idx").on(t.agencyId, t.expirationDate),
+  byAgentRun: index("cg_docs_agent_run_idx").on(t.agentRunId),
 }));
 
 export type CaregiverDocumentRow = typeof caregiverDocumentsTable.$inferSelect;

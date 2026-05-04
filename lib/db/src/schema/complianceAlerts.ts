@@ -26,6 +26,7 @@ export const complianceAlertsTable = pgTable("compliance_alerts", {
   byAgencyStatus: index("alerts_agency_status_idx").on(t.agencyId, t.status),
   byEntityId: index("alerts_entity_id_idx").on(t.entityType, t.entityId),
   byAgencyDedupe: index("alerts_agency_dedupe_idx").on(t.agencyId, t.dedupeKey, t.status),
+  byAgentRun: index("alerts_agent_run_idx").on(t.agentRunId),
 }));
 
 export type ComplianceAlert = typeof complianceAlertsTable.$inferSelect;

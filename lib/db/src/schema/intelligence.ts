@@ -7,6 +7,7 @@ import {
   integer,
   boolean,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const driveTimeCacheTable = pgTable("drive_time_cache", {
@@ -38,7 +39,11 @@ export const compatibilityScoresTable = pgTable("compatibility_scores", {
   computedAt: timestamp("computed_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyClient: index("compat_agency_client_idx").on(t.agencyId, t.clientId),
+  byAgencyCaregiver: index("compat_agency_caregiver_idx").on(t.agencyId, t.caregiverId),
+  byAgentRun: index("compat_agent_run_idx").on(t.agentRunId),
+}));
 
 export type CompatibilityScore =
   typeof compatibilityScoresTable.$inferSelect;
@@ -59,7 +64,10 @@ export const anomalyEventsTable = pgTable("anomaly_events", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byEntity: index("anomaly_entity_id_idx").on(t.entityId),
+  byAgentRun: index("anomaly_agent_run_idx").on(t.agentRunId),
+}));
 
 export type AnomalyEvent = typeof anomalyEventsTable.$inferSelect;
 
@@ -81,6 +89,10 @@ export const authRenewalPredictionsTable = pgTable(
       .notNull()
       .defaultNow(),
   },
+  (t) => ({
+    byAuth: index("auth_pred_authorization_idx").on(t.authorizationId),
+    byAgentRun: index("auth_pred_agent_run_idx").on(t.agentRunId),
+  }),
 );
 
 export type AuthRenewalPrediction =
@@ -105,6 +117,10 @@ export const referralDraftsTable = pgTable("referral_drafts", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-});
+}, (t) => ({
+  byAgentRun: index("referral_agent_run_idx").on(t.agentRunId),
+  byPromotedClient: index("referral_promoted_client_idx").on(t.promotedClientId),
+  bySourceMessage: index("referral_source_msg_idx").on(t.sourceMessageId),
+}));
 
 export type ReferralDraft = typeof referralDraftsTable.$inferSelect;

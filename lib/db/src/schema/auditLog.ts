@@ -25,6 +25,7 @@ export const auditLogTable = pgTable("audit_log", {
 }, (t) => ({
   byAgencyTimestamp: index("audit_log_agency_ts_idx").on(t.agencyId, t.timestamp),
   byEntityId: index("audit_log_entity_id_idx").on(t.agencyId, t.entityId),
+  byUserId: index("audit_log_user_id_idx").on(t.userId),
 }));
 
 export type AuditLogRow = typeof auditLogTable.$inferSelect;

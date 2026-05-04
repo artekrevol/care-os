@@ -40,6 +40,7 @@ export const carePlansTable = pgTable("care_plans", {
 }, (t) => ({
   byAgencyClient: index("care_plans_agency_client_idx").on(t.agencyId, t.clientId),
   byAgencyStatus: index("care_plans_agency_status_idx").on(t.agencyId, t.status),
+  bySourceAgentRun: index("care_plans_source_agent_run_idx").on(t.sourceAgentRunId),
 }));
 
 export type CarePlan = typeof carePlansTable.$inferSelect;
@@ -74,6 +75,10 @@ export const carePlanAcknowledgmentsTable = pgTable(
       .defaultNow(),
     notes: text("notes"),
   },
+  (t) => ({
+    byCarePlan: index("cp_ack_care_plan_id_idx").on(t.carePlanId),
+    byFamilyUser: index("cp_ack_family_user_id_idx").on(t.familyUserId),
+  }),
 );
 
 export type CarePlanAcknowledgment =

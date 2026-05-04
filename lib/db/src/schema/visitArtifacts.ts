@@ -6,6 +6,7 @@ import {
   boolean,
   timestamp,
   integer,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const visitChecklistInstancesTable = pgTable(
@@ -26,6 +27,10 @@ export const visitChecklistInstancesTable = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
+  (t) => ({
+    byVisit: index("checklist_visit_id_idx").on(t.visitId),
+    byCarePlan: index("checklist_care_plan_id_idx").on(t.carePlanId),
+  }),
 );
 
 export type VisitChecklistInstance =
@@ -45,7 +50,11 @@ export const visitNotesTable = pgTable("visit_notes", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byVisit: index("visit_notes_visit_id_idx").on(t.visitId),
+  byAuthor: index("visit_notes_author_id_idx").on(t.authorId),
+  byAgentRun: index("visit_notes_agent_run_idx").on(t.aiAgentRunId),
+}));
 
 export type VisitNote = typeof visitNotesTable.$inferSelect;
 
@@ -64,7 +73,9 @@ export const visitIncidentsTable = pgTable("visit_incidents", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byVisit: index("visit_incidents_visit_id_idx").on(t.visitId),
+}));
 
 export type VisitIncident = typeof visitIncidentsTable.$inferSelect;
 
@@ -83,6 +94,8 @@ export const visitSignaturesTable = pgTable("visit_signatures", {
   capturedLng: text("captured_lng"),
   declined: boolean("declined").notNull().default(false),
   declinedReason: text("declined_reason"),
-});
+}, (t) => ({
+  byVisit: index("visit_signatures_visit_id_idx").on(t.visitId),
+}));
 
 export type VisitSignature = typeof visitSignaturesTable.$inferSelect;

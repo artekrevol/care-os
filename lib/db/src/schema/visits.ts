@@ -52,6 +52,8 @@ export const visitsTable = pgTable("visits", {
   byAgencyClient: index("visits_agency_client_idx").on(t.agencyId, t.clientId),
   byScheduleId: index("visits_schedule_id_idx").on(t.scheduleId),
   byAgencyCreated: index("visits_agency_created_idx").on(t.agencyId, t.createdAt),
+  byCarePlan: index("visits_care_plan_id_idx").on(t.carePlanId),
+  byClientSig: index("visits_client_signature_idx").on(t.clientSignatureId),
 }));
 
 export type Visit = typeof visitsTable.$inferSelect;

@@ -5,6 +5,7 @@ import {
   jsonb,
   boolean,
   timestamp,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const notificationTypesTable = pgTable("notification_types", {
@@ -39,6 +40,10 @@ export const notificationPreferencesTable = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
+  (t) => ({
+    byUser: index("notif_prefs_user_id_idx").on(t.userId),
+    byType: index("notif_prefs_type_id_idx").on(t.notificationTypeId),
+  }),
 );
 
 export type NotificationPreference =
@@ -61,7 +66,11 @@ export const notificationLogTable = pgTable("notification_log", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byUser: index("notif_log_user_id_idx").on(t.userId),
+  byType: index("notif_log_type_id_idx").on(t.notificationTypeId),
+  byProvider: index("notif_log_provider_msg_idx").on(t.providerMessageId),
+}));
 
 export type NotificationLogEntry = typeof notificationLogTable.$inferSelect;
 
@@ -77,6 +86,8 @@ export const pushSubscriptionsTable = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byUser: index("push_subs_user_id_idx").on(t.userId),
+}));
 
 export type PushSubscription = typeof pushSubscriptionsTable.$inferSelect;

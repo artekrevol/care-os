@@ -5,6 +5,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const familyUsersTable = pgTable("family_users", {
@@ -31,6 +32,8 @@ export const familyUsersTable = pgTable("family_users", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => ({
+  byAgencyClient: index("family_users_agency_client_idx").on(t.agencyId, t.clientId),
+}));
 
 export type FamilyUser = typeof familyUsersTable.$inferSelect;

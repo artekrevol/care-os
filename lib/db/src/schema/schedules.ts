@@ -36,6 +36,8 @@ export const schedulesTable = pgTable("schedules", {
   byAgencyClient: index("schedules_agency_client_idx").on(t.agencyId, t.clientId),
   byCaregiverStart: index("schedules_caregiver_start_idx").on(t.caregiverId, t.startTime),
   byAuthId: index("schedules_authorization_id_idx").on(t.authorizationId),
+  byParent: index("schedules_parent_id_idx").on(t.parentScheduleId),
+  byOptRun: index("schedules_opt_run_idx").on(t.optimizationRunId),
 }));
 
 export type Schedule = typeof schedulesTable.$inferSelect;
