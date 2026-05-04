@@ -41,7 +41,7 @@ app.use("/api", (req, res, next) => {
     const origJson = res.json.bind(res);
     res.json = function (body: unknown) {
       const count = getRequestQueryCount();
-      if (count >= 0) res.setHeader("X-Query-Count", String(count));
+      if (count >= 0 && process.env.NODE_ENV !== "production") res.setHeader("X-Query-Count", String(count));
       return origJson(body);
     };
     userContext(req, res, () => {
