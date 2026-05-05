@@ -1,0 +1,99 @@
+[snapshot] received sha256:1d4c3ce21d2213d38b2b3b2f756f6c74777e1ee344679e9ac7e78090e911e7f7 md5:b015f8f029c90c01afabfa311a66ef5b
+receiving snapshot3.8 MB561ms
+skipping 'railway.toml' at 'artifacts/api-server/railway.toml' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:true})
+skipping 'railway.toml' at 'artifacts/caregiver-pwa/railway.toml' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:true})
+skipping 'railway.toml' at 'artifacts/careos/railway.toml' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:true})
+skipping 'railway.toml' at 'artifacts/family-portal/railway.toml' as it is not rooted at a valid path (root_dir=, fileOpts={acceptChildOfRepoRoot:true})
+analyzing snapshot3.8 MB61ms
+uploading snapshot3.8 MB32ms
+unpacking archive7.3 MB112ms
+using build driver railpack-v0.23.0
+                   
+╭─────────────────╮
+│ Railpack 0.23.0 │
+╰─────────────────╯
+ 
+  ↳ Detected Node
+  ↳ Using pnpm package manager
+  ↳ Found workspace with 11 packages
+  ↳ Installing pnpm@10.26.1 with Corepack
+            
+  Packages  
+  ──────────
+  node  │  22.22.2  │  mise.toml (22.22.2)
+  pnpm  │  10.26.1  │  package.json > packageManager (10.26.1)
+            
+  Steps     
+  ──────────
+  ▸ install
+    $ npm i -g corepack@latest && corepack enable && corepack prepare --activate
+    $ pnpm install --frozen-lockfile --prefer-offline
+         
+  ▸ build
+    $ pnpm run build
+            
+  Deploy    
+  ──────────
+    $ pnpm --filter @workspace/api-server run start:prod
+ 
+load build definition from ./railpack-plan.json
+0ms
+install mise packages: node
+3s
+mise node@22.22.2 ✓ installed
+copy mise.toml cached
+0ms
+scheduling build on Metal builder "builder-wwpgua"
+copy / /app, package.json
+458ms
+npm i -g corepack@latest && corepack enable && corepack prepare --activate
+2s
+Preparing pnpm@10.26.1 for immediate activation...
+mkdir -p /app/node_modules/.cache
+334ms
+pnpm install --frozen-lockfile --prefer-offline
+6s
+Done in 4s using pnpm v10.26.1
+copy / /app
+969ms
+pnpm run build
+21s
+> workspace@0.0.0 build /app
+> pnpm run typecheck && pnpm -r --if-present run build
+> workspace@0.0.0 typecheck /app
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+> workspace@0.0.0 typecheck:libs /app
+> tsc --build
+Scope: 6 of 12 workspace projects
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/caregiver-pwa typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/careos typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/family-portal typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/family-portal typecheck: Done
+artifacts/api-server typecheck: Done
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+scripts typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/caregiver-pwa typecheck: Done
+scripts typecheck: Done
+artifacts/careos typecheck: Done
+artifacts/mockup-sandbox typecheck: Done
+Scope: 11 of 12 workspace projects
+artifacts/mockup-sandbox build$ vite build
+artifacts/mockup-sandbox build: failed to load config from /app/artifacts/mockup-sandbox/vite.config.ts
+artifacts/mockup-sandbox build: error during build:
+artifacts/mockup-sandbox build: Error: PORT environment variable is required but was not provided.
+artifacts/mockup-sandbox build:     at file:///app/artifacts/mockup-sandbox/node_modules/.vite-temp/vite.config.ts.timestamp-1777970067197-0e4f404a2f573.mjs:145:9
+artifacts/mockup-sandbox build:     at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+artifacts/mockup-sandbox build:     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
+artifacts/mockup-sandbox build:     at async loadConfigFromBundledFile (file:///app/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35920:12)
+artifacts/mockup-sandbox build:     at async bundleAndLoadConfigFile (file:///app/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35808:17)
+artifacts/mockup-sandbox build:     at async loadConfigFromFile (file:///app/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35775:42)
+artifacts/mockup-sandbox build:     at async resolveConfig (file:///app/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35424:22)
+artifacts/mockup-sandbox build:     at async createBuilder (file:///app/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:33879:19)
+artifacts/mockup-sandbox build:     at async CAC.<anonymous> (file:///app/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:629:10)
+artifacts/mockup-sandbox build: Failed
+/app/artifacts/mockup-sandbox:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/mockup-sandbox@2.0.0 build: `vite build`
+Exit status 1
+ ELIFECYCLE  Command failed with exit code 1.
+Build Failed: build daemon returned an error < failed to solve: process "pnpm run build" did not complete successfully: exit code: 1 >
