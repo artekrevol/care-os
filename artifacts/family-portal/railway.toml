@@ -1,0 +1,7 @@
+[build]
+buildCommand = "cd ../.. && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/family-portal run build"
+
+[deploy]
+startCommand = "pnpm --filter @workspace/family-portal run serve"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
